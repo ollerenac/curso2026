@@ -1,0 +1,38 @@
+# Book settings
+title: "Curso: Construcción de Datasets Dual-Domain para Detección de Intrusiones"
+author: "Seoul National University of Science and Technology"
+copyright: "2026"
+logo: ""
+
+# Force all pages to be re-built
+only_build_toc_files: true
+
+# Execution settings
+execute:
+  execute_notebooks: "off"  # Don't re-execute notebooks during build
+
+# HTML settings
+html:
+  favicon: ""
+  use_issues_button: false
+  use_repository_button: true
+  use_edit_page_button: false
+  home_page_in_navbar: true
+  baseurl: ""
+
+# Repository settings
+repository:
+  url: ""
+  branch: main
+  path_to_book: ""
+
+# Launch button settings (for Binder/Colab)
+launch_buttons:
+  notebook_interface: "classic"
+  colab_url: ""
+
+# Sphinx settings
+sphinx:
+  config:
+    language: es
+    html_show_copyright: true
