@@ -18,18 +18,11 @@ html:
   use_repository_button: true
   use_edit_page_button: false
   home_page_in_navbar: true
-  baseurl: ""
 
 # Repository settings
 repository:
-  url: ""
+  url: https://github.com/ollerenac/curso2026
   branch: main
-  path_to_book: ""
-
-# Launch button settings (for Binder/Colab)
-launch_buttons:
-  notebook_interface: "classic"
-  colab_url: ""
 
 # Sphinx settings
 sphinx:
