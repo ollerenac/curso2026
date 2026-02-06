@@ -1,10 +1,10 @@
-# Construcción de Datasets Dual-Domain para Detección de Intrusiones
+# Datasets para Sistemas de Detección de Intrusiones
 
-Curso práctico sobre la construcción de datasets etiquetados que combinan telemetría de host (Sysmon) y telemetría de red (NetFlow) para el entrenamiento de sistemas de detección de intrusiones basados en aprendizaje automático.
+Curso práctico sobre datasets para sistema IDS (Intrusion Detection Systems), su respectiva construcción y etiquetado. Estos datasets combinan telemetría de host (Sysmon) y telemetría de red (NetFlow) para el entrenamiento de sistemas de detección de intrusiones basados en machine learning.
 
 ## Descripción
 
-Este curso guía a los participantes a través del proceso completo de construcción de un dataset de ciberseguridad dual-domain, desde la adquisición de datos crudos hasta la generación de datasets etiquetados listos para experimentación con modelos de ML.
+Este curso guía a los participantes a través del proceso completo de construcción de un dataset de ciberseguridad, desde la adquisición de datos crudos hasta la generación de datasets etiquetados listos para experimentación con modelos de ML.
 
 ## Estructura del Curso
 
