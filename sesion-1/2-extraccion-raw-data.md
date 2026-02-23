@@ -46,18 +46,97 @@ Estos datos son recolectados de forma continua y centralizada en un clúster de 
               (Sesión 1.3)
 ```
 
-### ¿Por qué formato JSONL?
+### Estructuras de datos en JSON
 
-El script exporta los datos en formato **JSONL** (JSON Lines), donde cada línea del archivo es un documento JSON independiente. Este formato es ideal para este contexto porque:
+Antes de hablar del formato de exportación, es importante entender las estructuras de datos que maneja **JSON** (JavaScript Object Notation), ya que los datos de Elasticsearch se almacenan internamente en este formato.
 
-- **Preserva la estructura original** de los documentos de Elasticsearch sin pérdida de campos.
-- **Es compatible con procesamiento en streaming**, permitiendo leer archivos de gran tamaño línea por línea sin cargar todo en memoria.
-- **Facilita el preprocesamiento posterior** con herramientas como `pandas` (`pd.read_json(..., lines=True)`).
+JSON soporta los siguientes tipos de datos:
+
+| Tipo | Python equivalente | Ejemplo JSON |
+|------|-------------------|--------------|
+| Objeto | `dict` | `{"clave": "valor"}` |
+| Array | `list` | `[1, 2, 3]` |
+| String | `str` | `"texto"` |
+| Número | `int` / `float` | `42`, `3.14` |
+| Booleano | `bool` | `true`, `false` |
+| Nulo | `None` | `null` |
+
+La estructura más relevante para nuestros datos es el **objeto** (equivalente a un diccionario en Python), que almacena pares clave-valor:
 
 ```json
-{"@timestamp": "2025-01-29T04:24:54.863Z", "event": {"category": "process"}, "process": {"name": "cmd.exe"}, ...}
-{"@timestamp": "2025-01-29T04:24:55.120Z", "event": {"category": "network"}, "source": {"ip": "192.168.1.10"}, ...}
+{
+  "process": {
+    "name": "cmd.exe",
+    "pid": 1234
+  }
+}
 ```
+
+Un aspecto clave de JSON es que permite **anidamiento**: un objeto puede contener otros objetos, arrays, o cualquier combinación de tipos. Esto es fundamental porque los eventos de seguridad tienen estructuras jerárquicas complejas. Por ejemplo, un evento de Sysmon puede contener:
+
+```json
+{
+  "@timestamp": "2025-01-29T04:24:54.863Z",
+  "event": {
+    "category": "process",
+    "action": "Process Create"
+  },
+  "process": {
+    "name": "cmd.exe",
+    "pid": 1234,
+    "args": ["/c", "whoami"]
+  },
+  "host": {
+    "name": "ITM2-DC",
+    "ip": ["10.2.0.10"]
+  }
+}
+```
+
+Aquí vemos objetos dentro de objetos (`event`, `process`, `host`), arrays de strings (`args`, `ip`) y tipos primitivos mezclados. Esta riqueza estructural es precisamente lo que necesitamos preservar.
+
+### Formatos de almacenamiento: ¿CSV, JSON o JSONL?
+
+Cuando exportamos datos desde Elasticsearch, debemos elegir un formato de archivo. Comparemos las tres opciones principales usando el mismo evento simplificado:
+
+**CSV** — Formato tabular, una fila por registro:
+
+```csv
+@timestamp,event.category,process.name,process.pid,process.args
+2025-01-29T04:24:54.863Z,process,cmd.exe,1234,"/c whoami"
+```
+
+**JSON** — Un array que contiene todos los documentos:
+
+```json
+[
+  {"@timestamp": "2025-01-29T04:24:54.863Z", "event": {"category": "process"}, "process": {"name": "cmd.exe"}},
+  {"@timestamp": "2025-01-29T04:24:55.120Z", "event": {"category": "network"}, "source": {"ip": "10.2.0.10"}}
+]
+```
+
+**JSONL** (JSON Lines) — Un documento JSON por línea, sin array contenedor:
+
+```json
+{"@timestamp": "2025-01-29T04:24:54.863Z", "event": {"category": "process"}, "process": {"name": "cmd.exe"}}
+{"@timestamp": "2025-01-29T04:24:55.120Z", "event": {"category": "network"}, "source": {"ip": "10.2.0.10"}}
+```
+
+| Criterio | CSV | JSON | JSONL |
+|----------|-----|------|-------|
+| Preserva estructura anidada | No — requiere aplanar campos (`event.category`) | Si | Si |
+| Carga en memoria | Línea por línea | **Todo el archivo** (el array completo) | Línea por línea |
+| Campos variables entre registros | Problemático — requiere columnas para todos los campos posibles | Si | Si |
+| Compatibilidad con pandas | `pd.read_csv()` | `pd.read_json()` | `pd.read_json(..., lines=True)` |
+
+### ¿Por qué JSONL?
+
+Nuestro script exporta en formato JSONL porque combina las ventajas de JSON (preservar la estructura jerárquica) con la eficiencia de procesamiento línea por línea:
+
+- **Preserva la estructura original** de los documentos de Elasticsearch sin pérdida de campos ni aplanamiento.
+- **Es compatible con procesamiento en streaming**, permitiendo leer archivos de gran tamaño línea por línea sin cargar todo en memoria — crítico cuando exportamos millones de eventos.
+- **Tolera campos heterogéneos**: un evento de Sysmon y uno de NetFlow tienen campos completamente diferentes, y JSONL los maneja sin problema.
+- **Facilita el preprocesamiento posterior** con herramientas como `pandas` (`pd.read_json(..., lines=True)`).
 
 ## Walkthrough del Script de Extracción
 
