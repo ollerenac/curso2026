@@ -8,7 +8,8 @@ parts:
         sections:
           - file: sesion-1/1-introduccion
           - file: sesion-1/2-extraccion-raw-data
-          - file: sesion-1/3-preprocesamiento
+          - file: sesion-1/3-exploracion-datos-crudos
+          - file: sesion-1/4-preprocesamiento
 
   - caption: "Sesión 2: Calidad de Datos y Marco Teórico"
     chapters:
