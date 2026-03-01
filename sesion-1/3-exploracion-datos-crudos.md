@@ -87,7 +87,7 @@ Al explorar el campo `event` encontramos algo inesperado:
 
 ```python
 >>> record['event'].keys()
-dict_keys(['agent_id_status', 'ingested', 'original', 'code', 'provider', 'action', 'kind', 'created', 'category', 'type'])
+dict_keys(['agent_id_status', 'ingested', 'original', 'code', 'provider', 'created', 'kind', 'action', 'category', 'type', 'dataset'])
 ```
 
 El subcampo `event['original']` contiene un string particularmente largo:
@@ -97,28 +97,36 @@ El subcampo `event['original']` contiene un string particularmente largo:
 <class 'str'>
 
 >>> len(record['event']['original'])
-1847
+2370
 
->>> print(record['event']['original'][:300])
+>>> print(record['event']['original'][:1000])
 ```
 
+El resultado es un **bloque continuo de texto sin formato** — una sola línea larga sin saltos ni indentación:
+
 ```xml
-<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
-  <System>
-    <Provider Name='Microsoft-Windows-Sysmon'
-              Guid='{5770385f-c22a-43e0-bf4c-06f5698ffbd9}'/>
-    <EventID>7</EventID>
-    <Version>3</Version>
-    ...
-    <Computer>WATERFALLS.boombox.local</Computer>
-  </System>
-  <EventData>
-    <Data Name="UtcTime">2025-03-19 06:09:05.109</Data>
-    <Data Name="ProcessGuid">{3fc4fefd-5f81-67da-7100-000000004900}</Data>
-    <Data Name="Image">C:\Program Files\...\Service.exe</Data>
-    ...
-  </EventData>
-</Event>
+<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System>
+<Provider Name='Microsoft-Windows-Sysmon' Guid='{5770385f-c22a-43e0-bf4c-06f5698ffbd9}'/>
+<EventID>7</EventID><Version>3</Version><Level>4</Level><Task>7</Task>
+<Opcode>0</Opcode><Keywords>0x8000000000000000</Keywords>
+<TimeCreated SystemTime='2025-03-19T06:09:05.866552600Z'/>
+<EventRecordID>11346849</EventRecordID><Correlation/>
+<Execution ProcessID='3556' ThreadID='5560'/>
+<Channel>Microsoft-Windows-Sysmon/Operational</Channel>
+<Computer>WATERFALLS.boombox.local</Computer>
+<Security UserID='S-1-5-18'/></System><EventData>
+<Data Name='RuleName'>-</Data>
+<Data Name='UtcTime'>2025-03-19 06:09:05.109</Data>
+<Data Name='ProcessGuid'>{3fc4fefd-5f81-67da-7700-000000004900}</Data>
+<Data Name='ProcessId'>5864</Data>
+<Data Name='Image'>C:\Program Files\Microsoft\Exchange Server\V15\Bin\
+Microsoft.Exchange.ServiceHost.exe</Data>
+<Data Name='ImageLoaded'>C:\Windows\System32\msvcrt.dll</Data>
+...
+```
+
+```{note}
+En la salida real, el XML aparece como una sola línea continua sin espacios ni saltos de línea. Aquí lo mostramos con saltos para facilitar la lectura.
 ```
 
 Este es el hallazgo fundamental de la exploración: **cada registro JSONL contiene el evento original de Sysmon como un string XML** incrustado dentro del campo `event.original`. Es XML del formato estándar de Windows Event Log.
@@ -157,7 +165,122 @@ Elasticsearch almacena los documentos en formato JSON. Cuando Filebeat (el agent
 
 Para nuestro propósito, el XML original en `event.original` es la fuente más fiable y completa de datos — contiene todos los campos de Sysmon sin transformaciones intermedias.
 
-## Paso 4: Explorar las variaciones — ¿Todos los registros son iguales?
+## Paso 4: Del descubrimiento al parser — prototipado paso a paso
+
+Sabemos que los datos están en XML dentro de `event.original`. Ahora necesitamos **extraer información** de ese XML de forma programática. En lugar de escribir directamente una función completa, vamos a prototipar sobre el registro que ya tenemos en memoria.
+
+### Intento 1: Parsing naive
+
+Python incluye `xml.etree.ElementTree` para parsear XML. El primer intento es directo:
+
+```python
+import xml.etree.ElementTree as ET
+
+xml_content = record['event']['original']
+root = ET.fromstring(xml_content)
+```
+
+Esto funciona sin error — tenemos un árbol XML parseado. Ahora intentamos navegar a `<EventID>`:
+
+```python
+>>> root.find('EventID')
+# None
+>>> root.find('System')
+# None
+```
+
+Ambas búsquedas devuelven `None`. El XML está parseado pero no encontramos los elementos. ¿Por qué?
+
+### El problema: XML Namespaces
+
+Si revisamos el inicio del XML:
+
+```xml
+<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+```
+
+El atributo `xmlns` declara un **namespace por defecto**. Esto significa que todos los elementos (`System`, `EventID`, `Computer`, etc.) pertenecen al namespace `http://schemas.microsoft.com/win/2004/08/events/event`. Para buscarlos con `ElementTree`, debemos declarar el namespace explícitamente:
+
+```python
+namespaces = {'ns': 'http://schemas.microsoft.com/win/2004/08/events/event'}
+
+# Ahora sí encontramos los elementos
+>>> root.find('ns:System', namespaces)
+<Element '{http://schemas.microsoft.com/win/2004/08/events/event}System' ...>
+```
+
+### Intento 2: Extraer los campos del `<System>`
+
+Con el namespace resuelto, extraemos los metadatos del evento:
+
+```python
+system = root.find('ns:System', namespaces)
+
+event_id_elem = system.find('ns:EventID', namespaces)
+computer_elem = system.find('ns:Computer', namespaces)
+
+print(f"EventID:  {event_id_elem.text}")
+print(f"Computer: {computer_elem.text}")
+```
+
+```
+EventID:  7
+Computer: WATERFALLS.boombox.local
+```
+
+Funciona. Ya podemos identificar el **tipo de evento** y el **host** de cada registro.
+
+### Intento 3: Extraer los campos de `<EventData>`
+
+La sección `<EventData>` contiene múltiples elementos `<Data>` con un atributo `Name`. Necesitamos iterar sobre todos ellos:
+
+```python
+event_data = root.find('ns:EventData', namespaces)
+
+fields = {}
+for data in event_data.findall('ns:Data', namespaces):
+    name = data.get('Name')
+    value = data.text
+    if name:
+        fields[name] = value
+
+# Veamos qué campos tiene este evento (EventID 7 = Image Loaded)
+for name, value in fields.items():
+    print(f"  {name:20s} = {str(value)[:60]}")
+```
+
+```
+  RuleName             = -
+  UtcTime              = 2025-03-19 06:09:05.109
+  ProcessGuid          = {3fc4fefd-5f81-67da-7700-000000004900}
+  ProcessId            = 5864
+  Image                = C:\Program Files\Microsoft\Exchange Server\V15\Bin\Micro
+  ImageLoaded          = C:\Windows\System32\msvcrt.dll
+  FileVersion          = 7.0.17763.475 (WinBuild.160101.0800)
+  Description          = Windows NT CRT DLL
+  Product              = Microsoft® Windows® Operating System
+  Company              = Microsoft Corporation
+  OriginalFileName     = msvcrt.dll
+  Hashes               = SHA256=97B7D75C81C6BA22B4C09B49AE2D05C tried8A8D18B...
+  Signed               = true
+  Signature            = Microsoft Windows
+  SignatureStatus      = Valid
+  User                 = NT AUTHORITY\SYSTEM
+```
+
+Ahora tenemos un prototipo funcional: para cualquier registro, podemos extraer el EventID, el host, y todos los campos específicos del evento.
+
+### De prototipo a función robusta
+
+El prototipo funciona para nuestro registro de ejemplo, pero para aplicarlo a 363,657 registros necesitamos considerar:
+
+1. **XML malformado**: Algunos registros pueden contener caracteres no imprimibles (bytes de control) que rompen el parser XML. Necesitamos una función de limpieza.
+2. **Campos ausentes**: No todos los registros tendrán todos los elementos — el código debe manejar `None` sin fallar.
+3. **Errores silenciosos**: Un registro corrupto no debe detener el análisis de los otros 363,656. Necesitamos `try/except`.
+
+Estos son exactamente los problemas que resuelven las funciones `sanitize_xml` y `parse_sysmon_event` que veremos en el Paso 6.
+
+## Paso 5: Explorar las variaciones — ¿Todos los registros son iguales?
 
 Hemos examinado un solo registro. Pero un archivo JSONL con 363,657 líneas podría contener variaciones. Las preguntas clave son:
 
@@ -187,12 +310,12 @@ sample_indices = set(random.sample(range(total_records), min(SAMPLE_SIZE, total_
 
 **¿Por qué 200,000?** Es un equilibrio entre cobertura estadística y tiempo de procesamiento. Con un 55% del archivo muestreado aleatoriamente, cualquier patrón presente en al menos el 0.1% de los datos será capturado con alta probabilidad.
 
-## Paso 5: Parsing del XML — Extracción sistemática
+## Paso 6: Parsing del XML — De prototipo a función robusta
 
-Para analizar los 200,000 registros muestreados, necesitamos una función que extraiga los datos relevantes del XML de forma robusta. Esto requiere manejar dos complejidades:
+En el Paso 4 construimos un prototipo funcional para un solo registro. Para aplicarlo a los 200,000 registros muestreados, encapsulamos la lógica en funciones reutilizables y añadimos las capas de robustez que identificamos:
 
-1. **Limpieza de XML**: Algunos registros pueden contener caracteres no imprimibles o XML malformado.
-2. **Namespaces XML**: El XML de Windows Event Log usa el namespace `http://schemas.microsoft.com/win/2004/08/events/event`, que debe declararse explícitamente en el parser.
+1. **`sanitize_xml`**: Limpia caracteres no imprimibles y repara XML malformado usando BeautifulSoup.
+2. **`parse_sysmon_event`**: Encapsula la extracción de EventID, Computer y campos de `EventData`, con manejo de namespaces y excepciones.
 
 ```python
 import xml.etree.ElementTree as ET
@@ -244,7 +367,7 @@ def parse_sysmon_event(xml_str):
 - `parse_sysmon_event` extrae tres elementos: el **EventID** (tipo de evento), el **Computer** (host origen), y un **diccionario con todos los campos** de `EventData`.
 - El manejo de excepciones con `try/except` garantiza que un registro corrupto no detenga el análisis completo.
 
-## Paso 6: Resultados del análisis exploratorio
+## Paso 7: Resultados del análisis exploratorio
 
 Al ejecutar el parsing sobre los 200,000 registros muestreados, obtenemos los siguientes resultados:
 
