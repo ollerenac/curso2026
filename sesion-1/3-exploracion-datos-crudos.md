@@ -105,7 +105,43 @@ El subcampo `event['original']` contiene un string particularmente largo:
 El resultado es un **bloque continuo de texto sin formato** — una sola línea larga sin saltos ni indentación:
 
 ```xml
-<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-Sysmon' Guid='{5770385f-c22a-43e0-bf4c-06f5698ffbd9}'/><EventID>7</EventID><Version>3</Version><Level>4</Level><Task>7</Task><Opcode>0</Opcode><Keywords>0x8000000000000000</Keywords><TimeCreated SystemTime='2025-03-19T06:09:05.866552600Z'/><EventRecordID>11346849</EventRecordID><Correlation/><Execution ProcessID='3556' ThreadID='5560'/><Channel>Microsoft-Windows-Sysmon/Operational</Channel><Computer>WATERFALLS.boombox.local</Computer><Security UserID='S-1-5-18'/></System><EventData><Data Name='RuleName'>-</Data><Data Name='UtcTime'>2025-03-19 06:09:05.109</Data><Data Name='ProcessGuid'>{3fc4fefd-5f81-67da-7700-000000004900}</Data><Data Name='ProcessId'>5864</Data><Data Name='Image'>C:\Program Files\Microsoft\Exchange Server\V15\Bin\Microsoft.Exchange.ServiceHost.exe</Data><Data Name='ImageLoaded'>C:\Windows\System32\msvcrt.dll</Data><Data Name='FileVersion'>7.0.17763.475 (WinBuild.160101.0800)</Data><Data Name='Description'>Windows NT CRT DLL</Data><Data Name='Product'>Microsoft® Windows® Operating System</Data><Data Name='Company'>Microsoft Corporation</Data><Data Name='OriginalFileName'>msvcrt.dll</Data><Data Name='Hashes'>SHA256=39095FE07AC2E244E2180C58BEC2898A0986DDA2BD2ABBC4F739D11E67720F2E</Data><Data Name='Signed'>true</Data><Data Name='Signature'>Microsoft Windows</Data><Data Name='SignatureStatus'>Valid</Data><Data Name='User'>NT AUTHORITY\SYSTEM</Data></EventData><RenderingInfo Culture='en-US'><Message>Image loaded:
+<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+<System>
+<Provider Name='Microsoft-Windows-Sysmon' Guid='{5770385f-c22a-43e0-bf4c-06f5698ffbd9}'/>
+<EventID>7</EventID>
+<Version>3</Version>
+<Level>4</Level>
+<Task>7</Task>
+<Opcode>0</Opcode>
+<Keywords>0x8000000000000000</Keywords>
+<TimeCreated SystemTime='2025-03-19T06:09:05.866552600Z'/>
+<EventRecordID>11346849</EventRecordID>
+<Correlation/>
+<Execution ProcessID='3556' ThreadID='5560'/>
+<Channel>Microsoft-Windows-Sysmon/Operational</Channel>
+<Computer>WATERFALLS.boombox.local</Computer>
+<Security UserID='S-1-5-18'/></System>
+<EventData>
+<Data Name='RuleName'>-</Data>
+<Data Name='UtcTime'>2025-03-19 06:09:05.109</Data>
+<Data Name='ProcessGuid'>{3fc4fefd-5f81-67da-7700-000000004900}</Data>
+<Data Name='ProcessId'>5864</Data>
+<Data Name='Image'>C:\Program Files\Microsoft\Exchange Server\V15\Bin\Microsoft.Exchange.ServiceHost.exe</Data>
+<Data Name='ImageLoaded'>C:\Windows\System32\msvcrt.dll</Data>
+<Data Name='FileVersion'>7.0.17763.475 (WinBuild.160101.0800)</Data>
+<Data Name='Description'>Windows NT CRT DLL</Data>
+<Data Name='Product'>Microsoft® Windows® Operating System</Data>
+<Data Name='Company'>Microsoft Corporation</Data>
+<Data Name='OriginalFileName'>msvcrt.dll</Data>
+<Data Name='Hashes'>SHA256=39095FE07AC2E244E2180C58BEC2898A0986DDA2BD2ABBC4F739D11E67720F2E</Data>
+<Data Name='Signed'>true</Data>
+<Data Name='Signature'>Microsoft Windows</Data>
+<Data Name='SignatureStatus'>Valid</Data>
+<Data Name='User'>NT AUTHORITY\SYSTEM</Data>
+</EventData>
+<RenderingInfo Culture='en-US'>
+<Message>
+Image loaded:
 RuleName: -
 UtcTime: 2025-03-19 06:09:05.109
 ProcessGuid: {3fc4fefd-5f81-67da-7700-000000004900}
@@ -121,7 +157,15 @@ Hashes: SHA256=39095FE07AC2E244E2180C58BEC2898A0986DDA2BD2ABBC4F739D11E67720F2E
 Signed: true
 Signature: Microsoft Windows
 SignatureStatus: Valid
-User: NT AUTHORITY\SYSTEM</Message><Level>Information</Level><Task>Image loaded (rule: ImageLoad)</Task><Opcode>Info</Opcode><Channel></Channel><Provider></Provider><Keywords></Keywords></RenderingInfo></Event>
+User: NT AUTHORITY\SYSTEM</Message>
+<Level>Information</Level>
+<Task>Image loaded (rule: ImageLoad)</Task>
+<Opcode>Info</Opcode>
+<Channel></Channel>
+<Provider></Provider>
+<Keywords></Keywords>
+</RenderingInfo>
+</Event>
 ```
 
 ```{note}
