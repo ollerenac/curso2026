@@ -412,9 +412,28 @@ def parse_sysmon_event(xml_str):
 
 ## Paso 7: Resultados del análisis exploratorio
 
-Al ejecutar el parsing sobre los 200,000 registros muestreados, obtenemos los siguientes resultados:
+Con las funciones de parsing robustas (Paso 6) y la estrategia de muestreo (Paso 5) en su lugar, podemos ahora responder las preguntas que planteamos anteriormente. El análisis se organiza en cinco sub-análisis, cada uno enfocado en un aspecto diferente del dataset.
 
-### Distribución de EventIDs
+### 7a. Estructura básica del evento
+
+Antes de analizar distribuciones, verificamos que la estructura JSON es **consistente** entre registros. Al examinar múltiples registros de la muestra:
+
+- Todos los registros son diccionarios con **16 campos de primer nivel** — los mismos que identificamos en el Paso 2.
+- Todos contienen el campo `event.original` con XML válido.
+- La función `parse_sysmon_event` extrae correctamente EventID, Computer y campos de EventData.
+
+Esto confirma que nuestra estrategia de parsing es aplicable de forma uniforme a todo el archivo.
+
+### 7b. Distribución de EventIDs y hosts
+
+**Tasa de éxito del parsing:**
+
+- Registros parseados correctamente: **199,995 / 200,000** (100.0%)
+- Errores de parsing: **5** registros con XML malformado o ausente
+
+Esto confirma que la función `sanitize_xml` es necesaria (hay registros problemáticos), pero que la gran mayoría de los datos son estructuralmente correctos.
+
+**Distribución de EventIDs** — responde a la pregunta: *¿Cuántos tipos de eventos existen?*
 
 | EventID | Descripción | Conteo | Porcentaje |
 |---------|------------|--------|------------|
@@ -436,9 +455,9 @@ Al ejecutar el parsing sobre los 200,000 registros muestreados, obtenemos los si
 - Se encontraron **18 tipos de EventID** distintos en la muestra analizada.
 - La distribución está fuertemente concentrada: los **4 EventIDs más frecuentes** (10, 12, 7, 13) representan el **90%** de todos los registros.
 - Los eventos de registro de Windows (EID 12 + 13) y los accesos a procesos (EID 10) dominan — esto es normal en un entorno Windows Server con Exchange.
-- Los eventos de creación de procesos (EID 1), que son los más relevantes para la detección de ataques, representan solo el 0.27%. Esto ilustra por qué un dataset IDS necesita manejar un **fuerte desbalance de clases**.
+- Los eventos de creación de procesos (EID 1), que son los más relevantes para la detección de ataques, representan solo el 0.28%. Esto ilustra por qué un dataset IDS necesita manejar un **fuerte desbalance de clases**.
 
-### Distribución de hosts
+**Distribución de hosts** — responde a la pregunta: *¿Cuántas máquinas generan eventos?*
 
 | Host | Conteo | Porcentaje |
 |------|--------|-----------|
@@ -449,7 +468,30 @@ Al ejecutar el parsing sobre los 200,000 registros muestreados, obtenemos los si
 
 Se confirman **4 hosts** en el dominio `boombox.local`, con una distribución desigual: los servidores principales (`theblock`, `WATERFALLS`) generan ~80% de la telemetría.
 
-### Ventana temporal
+### 7c. Disponibilidad de campos por EventID
+
+Este análisis responde a las preguntas: *¿Qué campos tiene cada tipo de evento?* y *¿Es consistente la estructura?*
+
+Cada EventID de Sysmon tiene un **esquema de campos diferente**. Por ejemplo:
+
+| EventID | Descripción | Campos esperados | Ejemplo de campos específicos |
+|---------|------------|-----------------|------------------------------|
+| 1 | Process Creation | 12 | `CommandLine`, `ParentImage`, `ParentCommandLine` |
+| 3 | Network Connection | 16 | `SourceIp`, `DestinationIp`, `DestinationPort` |
+| 7 | Image Loaded | 8 | `ImageLoaded`, `FileVersion`, `Signature` |
+| 10 | Process Access | 10 | `SourceImage`, `TargetImage`, `SourceThreadId` |
+| 12 | Registry Object create/delete | 7 | `EventType`, `TargetObject` |
+| 13 | Registry Value Set | 7 | `EventType`, `TargetObject`, `Details` |
+
+Al verificar la disponibilidad de campos en la muestra de 200,000 registros:
+
+- La mayoría de los campos esperados están presentes en el **100%** de los registros de su EventID correspondiente.
+- Algunos campos son **condicionalmente ausentes** dependiendo del contexto del evento (por ejemplo, `SourceHostname` en eventos de red puede estar vacío si la resolución DNS no está disponible).
+- Los campos comunes a todos los EventIDs (`UtcTime`, `ProcessGuid`, `ProcessId`, `Image`, `User`) están presentes de forma consistente.
+
+**Implicación clave:** El conversor CSV necesitará un **esquema de campos por EventID** — no se puede usar un esquema único para todos los tipos de evento.
+
+### 7d. Patrones temporales
 
 ```
 Timestamp más temprano: 2025-03-19T05:00:00.346Z
@@ -457,23 +499,52 @@ Timestamp más tardío:   2025-03-19T06:12:02.599Z
 Duración total:         ~72 minutos
 ```
 
-La ejecución completa de este run de ataque APT duró aproximadamente **72 minutos**.
+La ejecución completa de este run de ataque APT duró aproximadamente **72 minutos**. Los timestamps están disponibles en dos fuentes:
 
-### Tasa de éxito del parsing
+- **`@timestamp`** (campo JSON de primer nivel): timestamp de ingestión en Elasticsearch.
+- **`UtcTime`** (campo XML dentro de EventData): timestamp original del evento Sysmon.
 
-- Registros parseados correctamente: **199,995 / 200,000** (100.0%)
-- Errores de parsing: **5** registros con XML malformado o ausente
+Ambos están presentes en prácticamente todos los registros de la muestra y son consistentes entre sí.
 
-Esto confirma que la función `sanitize_xml` es necesaria (hay registros problemáticos), pero que la gran mayoría de los datos son estructuralmente correctos.
+### 7e. Eventos de ejemplo por EventID
 
-## Implicaciones para el diseño del conversor CSV
+Para tener una visión concreta de los datos, examinamos un evento de ejemplo para cada uno de los EventIDs más relevantes:
+
+**EventID 1 — Process Creation:**
+```
+Computer: theblock.boombox.local
+Campos: CommandLine, CurrentDirectory, User, Hashes,
+        ParentProcessGuid, ParentProcessId, ParentImage, ParentCommandLine...
+```
+Este es el evento más valioso para detección de ataques: registra cada proceso creado, incluyendo la **línea de comandos completa** y el **proceso padre**. Esto permite reconstruir cadenas de ejecución.
+
+**EventID 3 — Network Connection:**
+```
+Computer: WATERFALLS.boombox.local
+Campos: Protocol, SourceIp, SourcePort,
+        DestinationIp, DestinationPort, DestinationHostname...
+```
+Registra conexiones de red salientes, con IPs y puertos de origen y destino. Esencial para detectar comunicaciones con servidores C2 (Command & Control).
+
+**EventID 7 — Image/Library Loaded:**
+```
+Computer: WATERFALLS.boombox.local
+Campos: ImageLoaded, FileVersion, Description, Product,
+        Company, OriginalFileName, Hashes, Signed, Signature...
+```
+Registra cada DLL cargada por un proceso, incluyendo información de firma digital. Útil para detectar carga de DLLs maliciosas (*DLL sideloading*).
+
+Estos ejemplos ilustran por qué los campos varían por EventID y por qué el conversor CSV necesita manejar esquemas diferentes.
+
+## Conclusiones del análisis exploratorio e implicaciones para el conversor CSV
 
 Esta exploración nos proporciona las bases para diseñar el conversor JSONL → CSV que veremos en la siguiente sección:
 
 1. **La fuente de datos será `event.original`** — el XML incrustado, no los campos de primer nivel del JSON.
-2. **Se necesita un esquema de campos por EventID** — cada tipo de evento tiene campos diferentes.
-3. **El parsing XML debe ser robusto** — aunque el 99.99% de los registros son correctos, necesitamos manejar los casos de XML malformado.
+2. **Se necesita un esquema de campos por EventID** — cada tipo de evento tiene campos diferentes, como confirmó el análisis de disponibilidad de campos (7c).
+3. **El parsing XML debe ser robusto** — aunque el 99.99% de los registros son correctos, necesitamos manejar los 5 casos de XML malformado encontrados.
 4. **El procesamiento debe ser eficiente** — con cientos de miles de registros por archivo y 48 runs en total, la conversión debe poder ejecutarse en tiempo razonable (procesamiento multi-hilo, lectura en streaming).
+5. **El desbalance de clases es significativo** — los EventIDs relevantes para detección de ataques (EID 1, 3, 8) representan menos del 5% del total. Esto deberá considerarse en la fase de construcción del dataset final.
 
 ## Actividad Práctica
 
