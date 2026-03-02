@@ -418,32 +418,34 @@ Al ejecutar el parsing sobre los 200,000 registros muestreados, obtenemos los si
 
 | EventID | Descripción | Conteo | Porcentaje |
 |---------|------------|--------|------------|
-| 10 | Process Access | 63,097 | 31.55% |
-| 12 | Registry Event (Object create/delete) | 60,133 | 30.07% |
-| 7 | Image/Library Loaded | 31,063 | 15.53% |
-| 13 | Registry Event (Value Set) | 25,616 | 12.81% |
-| 3 | Network Connection | 7,958 | 3.98% |
-| 23 | File Delete | 5,564 | 2.78% |
-| 11 | File Create | 3,699 | 1.85% |
-| 1 | Process Creation | 534 | 0.27% |
-| 5 | Process Terminated | 502 | 0.25% |
-| ... | (10 EventIDs más) | ... | < 0.4% |
+| 10 | Process Access | 62,906 | 31.45% |
+| 12 | Registry Event (Object create/delete) | 60,319 | 30.16% |
+| 7 | Image/Library Loaded | 31,440 | 15.72% |
+| 13 | Registry Event (Value Set) | 25,365 | 12.68% |
+| 3 | Network Connection | 7,918 | 3.96% |
+| 23 | File Delete | 5,536 | 2.77% |
+| 11 | File Create | 3,679 | 1.84% |
+| 18 | Pipe Event (Pipe Connected) | 702 | 0.35% |
+| 9 | Raw Access Read | 626 | 0.31% |
+| 1 | Process Creation | 565 | 0.28% |
+| 5 | Process Terminated | 470 | 0.24% |
+| ... | (7 EventIDs más) | ... | < 0.6% |
 
 **Hallazgos:**
 
-- Se encontraron **19 tipos de EventID** distintos en este run.
+- Se encontraron **18 tipos de EventID** distintos en la muestra analizada.
 - La distribución está fuertemente concentrada: los **4 EventIDs más frecuentes** (10, 12, 7, 13) representan el **90%** de todos los registros.
 - Los eventos de registro de Windows (EID 12 + 13) y los accesos a procesos (EID 10) dominan — esto es normal en un entorno Windows Server con Exchange.
 - Los eventos de creación de procesos (EID 1), que son los más relevantes para la detección de ataques, representan solo el 0.27%. Esto ilustra por qué un dataset IDS necesita manejar un **fuerte desbalance de clases**.
 
 ### Distribución de hosts
 
-| Host | Porcentaje |
-|------|-----------|
-| theblock.boombox.local | 40.98% |
-| WATERFALLS.boombox.local | 39.92% |
-| endofroad.boombox.local | 11.53% |
-| diskjockey.boombox.local | 7.58% |
+| Host | Conteo | Porcentaje |
+|------|--------|-----------|
+| theblock.boombox.local | 82,339 | 41.17% |
+| WATERFALLS.boombox.local | 79,520 | 39.76% |
+| endofroad.boombox.local | 23,196 | 11.60% |
+| diskjockey.boombox.local | 14,940 | 7.47% |
 
 Se confirman **4 hosts** en el dominio `boombox.local`, con una distribución desigual: los servidores principales (`theblock`, `WATERFALLS`) generan ~80% de la telemetría.
 
@@ -459,8 +461,8 @@ La ejecución completa de este run de ataque APT duró aproximadamente **72 minu
 
 ### Tasa de éxito del parsing
 
-- Registros parseados correctamente: **199,998 / 200,000** (99.999%)
-- Errores de parsing: **2** registros con XML malformado
+- Registros parseados correctamente: **199,995 / 200,000** (100.0%)
+- Errores de parsing: **5** registros con XML malformado o ausente
 
 Esto confirma que la función `sanitize_xml` es necesaria (hay registros problemáticos), pero que la gran mayoría de los datos son estructuralmente correctos.
 
