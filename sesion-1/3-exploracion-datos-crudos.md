@@ -304,7 +304,7 @@ for name, value in fields.items():
   Product              = Microsoft® Windows® Operating System
   Company              = Microsoft Corporation
   OriginalFileName     = msvcrt.dll
-  Hashes               = SHA256=97B7D75C81C6BA22B4C09B49AE2D05C tried8A8D18B...
+  Hashes               = SHA256=39095FE07AC2E244E2180C58BEC2898A0986DDA2BD2ABC...
   Signed               = true
   Signature            = Microsoft Windows
   SignatureStatus      = Valid
