@@ -146,15 +146,175 @@ El análisis detallado de tipos y nulos por columna confirma y cuantifica la dis
 
 ## Paso 3: Distribución de eventos
 
-*(Pendiente de resultados del notebook)*
+La distribución de los 20 EventIDs en el dataset completo (363,657 registros):
+
+| EventID | Descripción | Registros | % |
+|---------|------------|-----------|---|
+| 10 | Process Access | 114,736 | 31.55% |
+| 12 | Registry Object create/delete | 109,413 | 30.09% |
+| 7 | Image Load | 56,875 | 15.64% |
+| 13 | Registry Value Set | 46,100 | 12.68% |
+| 3 | Network Connection | 14,424 | 3.97% |
+| 23 | File Delete | 10,126 | 2.78% |
+| 11 | File Create | 6,782 | 1.86% |
+| 18 | Pipe Connect | 1,280 | 0.35% |
+| 9 | Raw Access Read | 1,170 | 0.32% |
+| 1 | Process Create | 1,023 | 0.28% |
+| 5 | Process Terminate | 900 | 0.25% |
+| 17 | Pipe Create | 444 | 0.12% |
+| 2 | File Creation Time | 212 | 0.06% |
+| 24 | Clipboard Change | 77 | 0.02% |
+| 6 | Driver Load | 67 | 0.02% |
+| 15 | File Create Stream Hash | 15 | 0.00% |
+| 8 | Create Remote Thread | 6 | 0.00% |
+| 25 | Process Tampering | 5 | 0.00% |
+| 4 | Sysmon State Change | 1 | 0.00% |
+| **255** | **Unknown Event** | **1** | **0.00%** |
+
+**Observaciones:**
+
+- Los **4 EventIDs dominantes** (10, 12, 7, 13) concentran el 89.96% del dataset — actividad de fondo típica de servidores Windows (acceso entre procesos, operaciones de registro, carga de librerías).
+- **EventID 255** es un evento no estándar de Sysmon con un solo registro. Este valor no está documentado en la especificación oficial de Sysmon y merece investigación — podría ser un error de parsing, un evento de error de Sysmon, o un artefacto del preprocesamiento.
+- Comparando con el análisis de consistencia (notebook 2b, 200K muestras), los porcentajes relativos se mantienen consistentes, confirmando que el muestreo del 55% fue representativo.
+- Los eventos de alto valor para detección de amenazas (**EID 1** Process Create, **EID 3** Network Connection, **EID 8** Create Remote Thread) representan solo el 4.25% del total, pero contienen la información más relevante para análisis de cadenas causales.
 
 ## Paso 4: Análisis temporal
 
-*(Pendiente de resultados del notebook)*
+El CSV no tiene una columna `UtcTime` directa, pero contiene `timestamp` — un epoch en milisegundos (int64) con cobertura del 100%. La conversión es directa:
+
+```python
+df['UtcTime'] = pd.to_datetime(df['timestamp'], unit='ms')
+```
+
+```
+Rango temporal:    2025-03-19 05:00:00 → 2025-03-19 06:12:02 UTC
+Duración total:    1 hora, 12 minutos, 2 segundos
+Timestamps válidos: 363,655 (100.0%)
+Sin timestamp:      2 registros
+```
+
+**Tasas de eventos:**
+
+| Métrica | Valor |
+|---------|-------|
+| Eventos por segundo | 84.14 |
+| Eventos por minuto | 5,048.13 |
+| Eventos por hora | 302,887.87 |
+
+**Observaciones:**
+
+- El dataset cubre una **ventana de ~72 minutos** de actividad, lo que indica una captura de un período específico de ejecución del escenario APT, no una monitorización continua.
+- La tasa de ~84 eventos/segundo es considerable y refleja la intensidad de actividad en un entorno con 4 servidores Windows activos.
+- Solo **2 registros** carecen de timestamp tras la conversión — probablemente los eventos EID 4 (Sysmon State Change) y EID 255 (Unknown), que pueden tener timestamps en formato no estándar.
+
+**Patrones temporales (visualizaciones):**
+
+```
+Pico de eventos por minuto:     30,563
+Promedio de eventos por minuto:  4,981.6
+Hora más activa:  05:00 UTC (305,542 eventos)
+Hora menos activa: 06:00 UTC (58,113 eventos)
+```
+
+El notebook genera 4 visualizaciones adaptadas a la ventana de 72 minutos:
+
+1. **Timeline acumulativa** — Línea que muestra la acumulación de eventos. Cambios de pendiente revelan períodos de actividad intensa vs calma.
+2. **Histograma de eventos/minuto** — Distribución de las tasas por minuto con líneas de media y mediana. El pico de 30,563 vs media de ~5,000 confirma ráfagas significativas.
+3. **Tasa por EventID (top 5)** — Líneas separadas para los 5 EventIDs más frecuentes en ventanas de 1 minuto. Permite identificar qué tipos de eventos generan las ráfagas.
+4. **Tasa general (1 minuto)** — Área sombreada mostrando la intensidad de actividad a lo largo del tiempo con la media como referencia.
 
 ## Paso 5: Análisis de relaciones entre procesos
 
-*(Pendiente de resultados del notebook)*
+Los eventos Sysmon identifican procesos mediante dos mecanismos complementarios: **GUIDs** (identificadores globales únicos por instancia de proceso) y **PIDs** (identificadores numéricos reutilizables por el sistema operativo). Analizar ambos revela la fiabilidad de cada uno para rastreo causal.
+
+**Pares GUID/PID en el dataset:**
+
+| Par de columnas | Pares válidos | GUIDs únicos | PIDs únicos | Combinaciones | PID reuse |
+|-----------------|---------------|--------------|-------------|---------------|-----------|
+| ProcessGuid / ProcessId | 248,846 | 1,632 | 1,240 | 1,632 | 1.32 ⚠️ |
+| ParentProcessGuid / ParentProcessId | 1,023 | 235 | 242 | 256 | 1.06 |
+| SourceProcessGUID / SourceProcessId | 114,742 | 493 | 447 | 493 | 1.10 ⚠️ |
+| TargetProcessGUID / TargetProcessId | 114,742 | 1,421 | 1,143 | 1,422 | 1.24 ⚠️ |
+
+**Interpretación:**
+
+- **PID reuse confirmado** en 3 de 4 pares (ratio > 1.1). El par ProcessGuid/ProcessId muestra el ratio más alto (1.32): 1,632 instancias de proceso únicas comparten solo 1,240 PIDs. Esto significa que ~30% de los PIDs fueron reutilizados por procesos diferentes durante la ventana de 72 minutos.
+- **GUIDs son el identificador confiable**: El número de GUIDs únicos coincide exactamente con el número de combinaciones GUID-PID (1,632 = 1,632), confirmando que cada GUID identifica una instancia de proceso única. En contraste, los PIDs son ambiguos.
+- **ParentProcess** solo tiene 1,023 pares válidos — exclusivamente de EventID 1 (Process Create), el único tipo de evento que registra información del proceso padre.
+- **Source/Target** tienen 114,742 pares — de EventIDs 8 (Create Remote Thread) y 10 (Process Access), que modelan interacciones entre dos procesos.
+
+**Implicación para algoritmos causales**: Cualquier algoritmo de análisis causal **debe usar GUIDs, no PIDs**, para rastrear procesos. Usar PIDs produciría falsos positivos por reutilización.
+
+### 5b. Análisis de creación de procesos (EventID 1)
+
+```
+Eventos de creación de procesos:    1,023
+Con relación padre-hijo válida:     1,023 (100%)
+Procesos huérfanos (sin padre):     0
+```
+
+**Estadísticas de procesos padre:**
+
+| Métrica | Valor |
+|---------|-------|
+| Padres únicos con hijos | 235 |
+| Promedio de hijos por padre | 4.4 |
+| Máximo hijos de un solo padre | 500 |
+| Padres con >10 hijos | 9 |
+
+**Top 5 procesos padre más prolíficos:**
+
+| Hijos | Proceso padre |
+|-------|---------------|
+| 500 | *No encontrado en el dataset* |
+| 44 | *No encontrado en el dataset* |
+| 31 | `C:\Users\Public\SystemFailureReporter.exe` |
+| 19 | *No encontrado en el dataset* |
+| 19 | `C:\Program Files\Google\Chrome\Application\chrome.exe` |
+
+**Hallazgos de seguridad:**
+
+- **"Parent not found in dataset"** significa que el proceso padre fue creado *antes* del inicio de la ventana de captura (05:00 UTC). Su GUID existe en los registros EID 1 de sus hijos, pero no hay un evento EID 1 propio en el dataset. El padre con 500 hijos es probablemente `svchost.exe` o `services.exe`.
+- **`SystemFailureReporter.exe`** en `C:\Users\Public\` es altamente sospechoso: un ejecutable con nombre engañoso ubicado en una carpeta pública (accesible por cualquier usuario). Con 31 procesos hijos, es consistente con un implante de la simulación APT.
+- **Chrome con 19 hijos** es comportamiento normal — cada pestaña y extensión genera procesos hijos.
+
+### 5c. Análisis de líneas de comando (EventID 1)
+
+Solo 1,023 eventos (0.3%) tienen línea de comando — exclusivamente EventID 1 (Process Create).
+
+**Comandos más frecuentes (top 5):**
+
+| Comando base | Ejecuciones | % |
+|-------------|-------------|---|
+| program* | 239 | 23.4% |
+| svchost.exe | 94 | 9.2% |
+| conhost.exe | 70 | 6.8% |
+| dllhost.exe | 60 | 5.9% |
+| wmiprvse.exe | 50 | 4.9% |
+
+*\* "program" es un artefacto de parsing: proviene de rutas como `"C:\Program Files\...\app.exe"` donde la extracción del comando base falla al dividir por espacios antes de eliminar la ruta.*
+
+**Longitud de líneas de comando:**
+
+```
+Promedio:   170.3 caracteres
+Mediana:     59.0 caracteres
+Máximo:    5,584 caracteres
+>500 chars:   46 comandos
+>1000 chars:  14 comandos
+```
+
+La diferencia entre media (170) y mediana (59) indica una distribución sesgada: la mayoría son comandos cortos, pero algunos tienen miles de caracteres — potencialmente comandos codificados u ofuscados.
+
+**Patrones sospechosos detectados:**
+
+| Patrón | Ocurrencias | Relevancia |
+|--------|-------------|------------|
+| Script execution (.ps1, .bat, .cmd, .vbs) | 15 | Ejecución de scripts — común en técnicas de ataque |
+| Download commands (wget, curl, Invoke-WebRequest) | 4 | Descarga de payloads — indicador de C2 |
+| PowerShell ExecutionPolicy Bypass | 1 | Evasión de restricciones — técnica clásica de post-explotación |
+
+Estos patrones, junto con `SystemFailureReporter.exe` del análisis anterior y la presencia de `cmd.exe` (41 ejecuciones) y `netsh` (12 ejecuciones), son consistentes con las fases de ejecución y movimiento lateral de una simulación APT.
 
 ## Paso 6: Actividad de red
 
