@@ -492,6 +492,33 @@ El algoritmo de cadenas causales no necesita que *todos* los registros tengan Co
 
 **Recomendación**: Un scoring más apropiado evaluaría la cobertura de cada campo *dentro de su EventID correspondiente*, no globalmente. Esa evaluación (realizada en la sección de consistencia estructural) confirmó 100% de campos presentes para todos los 19 EventIDs estándar.
 
+## Paso 10: Reporte resumen
+
+El notebook genera un reporte JSON (`sysmon_csv_analysis_summary.json`) en el directorio del dataset con todas las métricas consolidadas. Del reporte se extrae la **distribución por host** no mostrada en secciones anteriores:
+
+| Host | Registros | % |
+|------|-----------|---|
+| theblock.boombox.local | 149,254 | 41.0% |
+| waterfalls.boombox.local | 145,217 | 39.9% |
+| endofroad.boombox.local | 41,905 | 11.5% |
+| diskjockey.boombox.local | 27,281 | 7.5% |
+
+Los dos hosts principales (theblock y waterfalls) concentran el 81% de la actividad, mientras que diskjockey (controlador de dominio con DNS) genera solo el 7.5%.
+
 ## Conclusiones
 
-*(Pendiente de resultados del notebook)*
+El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto para análisis de seguridad**, con las siguientes características clave:
+
+1. **Integridad estructural**: 363,657 registros, 20 EventIDs, 45 columnas, 100% de cobertura temporal. Los altos porcentajes de nulos son un artefacto del diseño CSV unificado, no un problema de calidad.
+
+2. **Consistencia temporal**: Ventana de 72 minutos (05:00-06:12 UTC) con tasa media de 84 eventos/segundo. Ráfagas significativas (pico de 30,563 eventos/minuto) sugieren períodos de actividad intensa.
+
+3. **Identificadores de proceso confiables**: Los GUIDs proporcionan identificación unívoca (1,632 procesos únicos). PID reuse confirmado (ratio 1.32), reforzando la necesidad de usar GUIDs para rastreo causal.
+
+4. **Indicadores de actividad APT detectados**:
+   - `SystemFailureReporter.exe` en `C:\Users\Public\` (implante sospechoso, 31 procesos hijos)
+   - Puertos no estándar 444, 6001, 81 (posibles canales C2)
+   - PowerShell ExecutionPolicy Bypass, comandos de descarga
+   - 44.5% de tráfico hacia IPs públicas
+
+5. **Readiness para algoritmos causales**: La puntuación global de 32.1% es engañosa — la cobertura *por EventID* es del 100% para todos los campos. El dataset está listo para análisis causal siempre que el algoritmo consulte los campos correctos para cada tipo de evento.
