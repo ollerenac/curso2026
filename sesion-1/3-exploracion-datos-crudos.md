@@ -16,6 +16,10 @@ Tenemos dos archivos JSONL — uno por dominio de telemetría. Pero antes de esc
 
 Este paso de exploración no es opcional. Sin entender la estructura interna de los datos, cualquier intento de conversión a CSV sería a ciegas: no sabríamos qué campos extraer, cómo manejar las estructuras anidadas, ni qué variaciones esperar entre registros.
 
+```{tip}
+El código de esta sección se puede ejecutar paso a paso en el notebook `2a-exploratory_sysmon-index.ipynb`, que contiene el análisis completo con celdas interactivas y resultados detallados.
+```
+
 ## Paso 1: La unidad mínima de información
 
 Cada línea de un archivo JSONL es un registro independiente — un documento JSON completo. El primer paso es leer **una sola línea** y examinarla:
