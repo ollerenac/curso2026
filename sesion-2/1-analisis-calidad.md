@@ -318,19 +318,179 @@ Estos patrones, junto con `SystemFailureReporter.exe` del análisis anterior y l
 
 ## Paso 6: Actividad de red
 
-*(Pendiente de resultados del notebook)*
+El análisis de EventID 3 (Network Connection) examina 14,424 conexiones de red capturadas durante la ventana de 72 minutos.
+
+**Distribución de protocolos:**
+
+| Protocolo | Conexiones | % |
+|-----------|-----------|---|
+| TCP | 8,813 | 61.1% |
+| UDP | 5,611 | 38.9% |
+
+**Top puertos de destino:**
+
+| Puerto | Servicio | Conexiones | % |
+|--------|----------|-----------|---|
+| 53 | DNS | 2,265 | 15.7% |
+| 443 | HTTPS | 2,121 | 14.7% |
+| 444 | — | 1,378 | 9.6% |
+| 389 | LDAP | 1,099 | 7.6% |
+| 88 | Kerberos | 819 | 5.7% |
+| 6001 | — | 748 | 5.2% |
+| 81 | — | 592 | 4.1% |
+| 80 | HTTP | 410 | 2.8% |
+| 445 | SMB | 139 | 1.0% |
+
+**Clasificación de IPs de destino:**
+
+```
+IPs de destino únicas:    189
+IPs privadas/locales:     8,004 (55.5%)
+IPs públicas:             6,420 (44.5%)
+```
+
+**Top IPs de destino:**
+
+| IP | Conexiones | % | Contexto |
+|----|-----------|---|----------|
+| 10.1.0.4 | 3,572 | 24.8% | Red interna (diskjockey) |
+| fe80::fddc:bbf3:656b:f0fd | 2,590 | 18.0% | IPv6 link-local |
+| 10.1.0.6 | 2,096 | 14.5% | Red interna (WATERFALLS) |
+| ::1 | 1,775 | 12.3% | IPv6 localhost |
+| 10.1.0.5 | 1,122 | 7.8% | Red interna |
+| 127.0.0.1 | 1,047 | 7.3% | Localhost |
+| **8.8.8.8** | **924** | **6.4%** | **DNS público de Google** |
+
+**Hallazgos de seguridad:**
+
+- **Puerto 444** (1,378 conexiones) no es un servicio estándar. En el contexto de esta simulación APT, podría ser un canal de comando y control (C2) — los atacantes frecuentemente usan puertos similares a servicios legítimos (443+1).
+- **Puerto 6001** (748 conexiones) y **puerto 81** (592 conexiones) son igualmente no estándar y merecen investigación como posibles canales C2.
+- **8.8.8.8** como destino frecuente (924 conexiones) podría ser DNS legítimo o exfiltración vía DNS — una técnica APT conocida.
+- **Puertos 88 (Kerberos)** y **389 (LDAP)** son esperables en un dominio Windows Active Directory.
+- El 44.5% de tráfico hacia IPs públicas es significativo para un entorno corporativo cerrado y sugiere actividad de C2 o exfiltración.
 
 ## Paso 7: Actividad del sistema de archivos
 
-*(Pendiente de resultados del notebook)*
+El análisis combina EventID 11 (File Create) y EventID 23 (File Delete):
+
+```
+Eventos de creación de archivos (EID 11):   6,782
+Eventos de eliminación de archivos (EID 23): 10,126
+```
+
+La ratio eliminación/creación de 1.49 indica que se eliminan más archivos de los que se crean — comportamiento normal de limpieza del sistema, pero también consistente con técnicas anti-forenses de APTs.
+
+**Extensiones más frecuentes en archivos creados:**
+
+| Extensión | Archivos | % | Contexto |
+|-----------|----------|---|----------|
+| .tmp | 1,161 | 17.1% | Archivos temporales del sistema |
+| .svg | 348 | 5.1% | Gráficos vectoriales (Chrome/Exchange) |
+| .log | 282 | 4.2% | Logs del sistema |
+| .dat | 275 | 4.1% | Datos binarios |
+| .dll | 264 | 3.9% | Librerías — puede indicar DLL sideloading |
+| .pf | 238 | 3.5% | Prefetch de Windows |
+| .png | 224 | 3.3% | Imágenes (Chrome/navegación) |
+
+**Ubicación de archivos creados:**
+
+| Ubicación | Archivos | % |
+|-----------|----------|---|
+| AppData | 2,940 | 43.4% |
+| Directorios de usuario | 2,882 | 42.5% |
+| Directorios del sistema | 1,310 | 19.3% |
+| Directorios temporales | 507 | 7.5% |
+
+**Patrones sospechosos:**
+
+| Patrón | Cantidad | % |
+|--------|----------|---|
+| Archivos ejecutables (.exe, .dll, .bat, .ps1, etc.) | 347 | 5.1% |
+| Archivos ocultos | 8 | 0.1% |
+| Nombres largos (>100 chars) | 3,467 | 51.1% |
+| Nombres con espacios | 2,834 | 41.8% |
+
+La creación de **264 DLLs** y **347 ejecutables** durante 72 minutos merece atención: mientras algunos son legítimos (actualizaciones, caché), en el contexto de una simulación APT podrían incluir payloads desplegados por el atacante.
 
 ## Paso 8: Evaluación de calidad de datos
 
-*(Pendiente de resultados del notebook)*
+### 8a. Valores faltantes
+
+Las 15 columnas con mayor porcentaje de nulos:
+
+| Columna | Nulos | % | Motivo |
+|---------|-------|---|--------|
+| NewThreadId | 363,651 | 99.998% | Solo EID 8 (6 registros) |
+| Hash | 363,642 | 99.996% | Solo EID 15 (15 registros) |
+| PreviousCreationUtcTime | 363,445 | 99.942% | Solo EID 2 (212 registros) |
+| CommandLine, ParentImage, etc. | 362,634 | 99.719% | Solo EID 1 (1,023 registros) |
+| Device | 362,487 | 99.678% | Solo EID 9 (1,170 registros) |
+| PipeName | 361,933 | 99.526% | Solo EID 17/18 (1,724 registros) |
+| CreationUtcTime | 356,648 | 98.073% | Solo EID 2/11/15/23/24 |
+| Campos de red | 349,233 | 96.034% | Solo EID 3 (14,424 registros) |
+
+Estos porcentajes de nulos **no son un problema de calidad** — son consecuencia directa del diseño del CSV unificado. Cada columna solo tiene valores para los EventIDs que la utilizan.
+
+### 8b. Campos críticos para análisis causal
+
+| Campo | Nulos | % | Estado |
+|-------|-------|---|--------|
+| EventID | 0 | 0.00% | ✅ GOOD |
+| Computer | 0 | 0.00% | ✅ GOOD |
+| UtcTime | 2 | 0.00% | ⚠️ ISSUE |
+| ProcessGuid | 114,811 | 31.57% | ❌ CRITICAL |
+| ProcessId | 114,811 | 31.57% | ❌ CRITICAL |
+
+**Interpretación:** El marcado "CRITICAL" para ProcessGuid/ProcessId es un **falso positivo**. Los 114,811 registros sin ProcessGuid corresponden a EventIDs que usan nomenclatura diferente: EID 10 y 8 usan `SourceProcessGUID`/`TargetProcessGUID` en lugar de `ProcessGuid`, y EID 4 no tiene campos de proceso. La información de proceso sí está presente — solo con nombres de columna diferentes.
+
+### 8c. Consistencia de datos
+
+```
+EventIDs inválidos:       1 registro (EventID 255)
+Timestamps inválidos:     2 registros (0.0%)
+GUIDs con formato inválido: 0 (validación corregida para soportar formato sin llaves)
+PIDs inválidos:           0
+```
+
+La validación de GUIDs ahora reconoce correctamente el formato sin llaves (`44d66c27-4e6d-67da-...`) presente en este dataset, tras corregir la expresión regular original que solo aceptaba GUIDs con llaves (`{...}`).
 
 ## Paso 9: Evaluación de readiness algorítmica
 
-*(Pendiente de resultados del notebook)*
+Esta evaluación mide si los datos son aptos para alimentar un algoritmo de búsqueda de cadenas causales, puntuando la presencia de columnas críticas:
+
+**Evaluación por categoría:**
+
+| Categoría | Columnas | Resultado |
+|-----------|----------|-----------|
+| **Core** | EventID (100% ✅), Computer (100% ✅), UtcTime (100% ✅) | 3/3 |
+| **Process Tracking** | ProcessGuid (68.4% ⚠️), ProcessId (68.4% ⚠️), ParentProcessGuid (0.3% ❌), ParentProcessId (0.3% ❌) | 1/4 |
+| **Inter-Process** | SourceProcessGUID (31.6% ❌), TargetProcessGUID (31.6% ❌), SourceProcessId (31.6% ❌), TargetProcessId (31.6% ❌) | 0/4 |
+| **Command Analysis** | CommandLine (0.3% ❌), Image (68.4% ⚠️) | 0.5/2 |
+| **File Operations** | TargetFilename (4.7% ❌) | 0/1 |
+
+```
+Puntuación total:   4.5 / 14 (32.1%)
+Estado:             🔴 POOR - Major data quality issues
+```
+
+**¿Es realmente "POOR"?** No — esta puntuación es **engañosa** y revela una limitación del método de evaluación, no del dataset. El scoring asume que todas las columnas deberían estar pobladas globalmente, pero en un CSV unificado por diseño:
+
+- **ParentProcessGuid** (0.3%) solo existe en EID 1 — pero tiene 100% de cobertura *dentro* de EID 1.
+- **CommandLine** (0.3%) solo existe en EID 1 — con 100% de cobertura interna.
+- **SourceProcessGUID** (31.6%) solo existe en EID 8 y 10 — con 100% de cobertura interna.
+
+El algoritmo de cadenas causales no necesita que *todos* los registros tengan CommandLine — solo necesita que *los registros de EID 1* lo tengan. Y lo tienen al 100%.
+
+**Verificaciones positivas:**
+
+```
+✅ CommandLine coverage en EID 1: 100.0%
+✅ GUID naming consistente (4 columnas)
+✅ Cobertura temporal: 100.0%
+✅ Diversidad de eventos: 20 EventIDs
+```
+
+**Recomendación**: Un scoring más apropiado evaluaría la cobertura de cada campo *dentro de su EventID correspondiente*, no globalmente. Esa evaluación (realizada en la sección de consistencia estructural) confirmó 100% de campos presentes para todos los 19 EventIDs estándar.
 
 ## Conclusiones
 
