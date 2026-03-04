@@ -739,7 +739,7 @@ def _apply_temporal_sorting_and_standardization(self, df: pd.DataFrame) -> pd.Da
 ```
 
 **Puntos clave:**
-- La estandarización a epoch milliseconds permite la **correlación temporal** entre Sysmon y NetFlow en el Script 5 (Sesión 2). Ambos dominios comparten la misma escala temporal.
+- La estandarización a epoch milliseconds permite la **correlación temporal** entre Sysmon y NetFlow en el Script 5 (Sesión 3). Ambos dominios comparten la misma escala temporal.
 - El ordenamiento cronológico facilita el análisis temporal posterior.
 
 ### Análisis exploratorio integrado

@@ -250,7 +250,7 @@ El notebook genera 4 visualizaciones adaptadas a la ventana de 72 minutos:
 - La ventana de **72 minutos** confirma que el dataset captura un período específico de ejecución del escenario APT, no una monitorización continua — cada evento en esta ventana es potencialmente relevante.
 - La tasa de 84 eventos/segundo con picos de 30,563/minuto indica **ráfagas de actividad** que podrían corresponder a fases específicas del ataque (ejecución, movimiento lateral, exfiltración).
 - Solo 2 registros sin timestamp (0.0005%) representan una tasa de integridad temporal excepcional para un dataset de esta escala.
-- El epoch en milisegundos (`timestamp`) proporciona la **misma resolución temporal** que el dominio NetFlow, habilitando la correlación cruzada en la Sesión 2.
+- El epoch en milisegundos (`timestamp`) proporciona la **misma resolución temporal** que el dominio NetFlow, habilitando la correlación cruzada en la Sesión 3.
 
 ## Paso 5: Análisis de relaciones entre procesos
 
@@ -587,4 +587,4 @@ Al finalizar esta sección, deberías comprender:
 - Los indicadores de actividad APT presentes en los datos y su significancia para la detección.
 - Por qué los GUIDs son esenciales para el rastreo causal y los PIDs son insuficientes.
 
-En la **Sesión 2**, usaremos este dataset validado para la **correlación cruzada entre dominios** (Sysmon y NetFlow), aplicando los Scripts 5 y 6 del pipeline para vincular actividad de procesos con flujos de red.
+En la **Sesión 3**, usaremos este dataset validado para la **correlación cruzada entre dominios** (Sysmon y NetFlow), aplicando los Scripts 5 y 6 del pipeline para vincular actividad de procesos con flujos de red.

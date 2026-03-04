@@ -341,4 +341,4 @@ Al finalizar esta sección, deberías comprender:
 - La distribución de campos: 2 universales, 4 comunes, 68 específicos por EventID.
 - Por qué esta consistencia permite diseñar un conversor con esquema fijo por EventID.
 
-En la siguiente sección, usaremos estos hallazgos para construir el **pipeline de preprocesamiento** completo: conversión JSONL → CSV para Sysmon (Script 2), NetFlow (Script 3), y limpieza de calidad (Script 4).
+En la siguiente sección aplicaremos las mismas técnicas de exploración al **dominio NetFlow**, donde descubriremos que la estructura de los datos de tráfico de red presenta características fundamentalmente diferentes al XML embebido de Sysmon.
