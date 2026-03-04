@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "copilot-coding-agent": {
+      "source": "supercent-io/skills-template",
+      "sourceType": "github",
+      "computedHash": "4273324505bbb8afc5e88f4a12ec246050eabb5a2f09641e8845f0c258d7964b"
+    }
+  }
+}

@@ -1,24 +1,24 @@
-# Sesión 3: Etiquetado Manual Guiado
+# Sesión 3: Calidad de Datos y Marco Teórico
 
 **Duración**: 3 horas
 
 ## Objetivos
 
-- Identificar eventos semilla en telemetría Sysmon
-- Ejecutar el proceso de etiquetado manual paso a paso
-- Automatizar el trazado de ciclo de vida de ataques
+- Validar la correlación cruzada entre los dominios Sysmon y NetFlow
+- Comprender el framework MITRE ATT&CK para clasificación de amenazas
+- Establecer la teoría de etiquetado para datasets dual-domain
 
 ## Contenido
 
-1. [Identificación de Eventos Semilla](1-eventos-semilla.md) (60 min) — Script 7 del pipeline
-2. [Proceso de Etiquetado Manual](2-etiquetado-manual.md) (60 min)
-3. [Trazado Automático de Ciclo de Vida](3-trazado-ciclo-vida.md) (60 min) — Script 8 del pipeline
+1. [Análisis de Calidad y Correlación Cruzada](1-analisis-calidad.md) (75 min) — Scripts 5-6 del pipeline
+2. [Framework de Clasificación de Amenazas](2-framework-clasificacion.md) (45 min)
+3. [Teoría de Etiquetado](3-teoria-etiquetado.md) (60 min)
 
 ## Scripts del Pipeline
 
-Esta sesión cubre los scripts de **etiquetado** del pipeline de procesamiento:
+Esta sesión cubre los scripts de **correlación** del pipeline de procesamiento:
 
 | Script | Archivo | Función |
 |--------|---------|---------|
-| Script 7 | `7_sysmon_seed_event_extractor.py` | Extracción de eventos semilla (EventID 1, 11, 23) |
-| Script 8 | `8_sysmon_attack_lifecycle_tracer.py` | Trazado de cadenas de ataque desde eventos semilla |
+| Script 5 | `5_enhanced_temporal_causation_correlator.py` | Correlación temporal entre NetFlow y Sysmon |
+| Script 6 | `6_comprehensive_correlation_analysis.py` | Visualización y estadísticas de correlación |

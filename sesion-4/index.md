@@ -1,24 +1,24 @@
-# Sesión 4: Generación de Datasets Finales
+# Sesión 4: Etiquetado Manual Guiado
 
 **Duración**: 3 horas
 
 ## Objetivos
 
-- Generar el dataset etiquetado de eventos del sistema (Sysmon)
-- Generar el dataset etiquetado de tráfico de red (NetFlow)
-- Validar la calidad de los datasets producidos
+- Identificar eventos semilla en telemetría Sysmon
+- Ejecutar el proceso de etiquetado manual paso a paso
+- Automatizar el trazado de ciclo de vida de ataques
 
 ## Contenido
 
-1. [Dataset de Eventos del Sistema](1-dataset-eventos-sistema.md) (60 min) — Script 9 del pipeline
-2. [Dataset de Tráfico de Red](2-dataset-trafico-red.md) (90 min) — Script 10 del pipeline
-3. [Validación de Calidad](3-validacion-calidad.md) (30 min)
+1. [Identificación de Eventos Semilla](1-eventos-semilla.md) (60 min) — Script 7 del pipeline
+2. [Proceso de Etiquetado Manual](2-etiquetado-manual.md) (60 min)
+3. [Trazado Automático de Ciclo de Vida](3-trazado-ciclo-vida.md) (60 min) — Script 8 del pipeline
 
 ## Scripts del Pipeline
 
-Esta sesión cubre los scripts de **generación de datasets finales** del pipeline:
+Esta sesión cubre los scripts de **etiquetado** del pipeline de procesamiento:
 
 | Script | Archivo | Función |
 |--------|---------|---------|
-| Script 9 | `9_create_labeled_sysmon_dataset.py` | Crear dataset Sysmon etiquetado con tácticas MITRE |
-| Script 10 | `10_create_labeled_netflow_dataset.py` | Crear dataset NetFlow etiquetado vía correlación |
+| Script 7 | `7_sysmon_seed_event_extractor.py` | Extracción de eventos semilla (EventID 1, 11, 23) |
+| Script 8 | `8_sysmon_attack_lifecycle_tracer.py` | Trazado de cadenas de ataque desde eventos semilla |
