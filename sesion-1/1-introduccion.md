@@ -72,18 +72,17 @@ _**Paper**: "Learn-IDS: Bridging Gaps between Datasets and Learning-Based Networ
 
 **Descripción**
 
-- Tres hosts basados en Linux que alojan diferentes elementos de nuestra implementación de red.
-
-| Servidor | Dirección IP Externa | Elementos alojados                                    | Red           |
-|----------|----------------------|-------------------------------------------------------|---------------|
-| ITM2     | 114.71.51.40         | Servidor Ubuntu 22.04 y servidor Windows 2022         |192.168.1.0/24 |
-| ITM4     | 114.71.51.42         | Clientes Windows 10 y Windows 11                      |192.168.2.0/24 |
-| ITMX     | 114.71.51.XX         | Recolector de eventos basado en framework Elasticsearch|192.168.3.0/24 |
-
-- Cada servidor alojará diferentes sub-redes compuestas por máquinas virtuales, switches virtuales y routers virtuales.
-- Para comunicar estas sub-redes entre sí, y para proporcionar acceso a internet a estas sub-redes, la interfaz WAN de cada router virtual debe estar en modo 'Bridge'.
-- Para que el modo 'Bridge' funcione correctamente, será necesario asignar una dirección IPv4 del mismo rango de red que las direcciones IPv4 de cada host, en el rango 114.71.51.0/24.
-- Otra solución puede ser configurar la interfaz WAN del router en modo 'NAT'. Sin embargo, se requiere una configuración más compleja. El modo 'Bridge' es la estrategia más simple y garantizada para proporcionar acceso a red externa a las sub-redes.
+| Rol | Elemento de Red | Dirección IP | RAM (GB) | CPU | Disco (GB) | Sistema Operativo |
+|-----|----------------|-------------|----------|-----|------------|-------------------|
+| **Atacante** | Workstation | 192.168.0.5 | 2 | 2 | 30 | Kali Linux 2025 |
+| | C2 Server | 192.168.0.4 | 2 | 2 | 30 | Ubuntu 22.04 |
+| **Red Objetivo** | DC (Domain Controller) | 10.1.0.4 | 4 | 2 | 50 | Windows Server Datacenter 2019 (v17763) |
+| | DDBB (Base de Datos) | 10.1.0.7 | 4 | 2 | 80 | Windows Server Datacenter 2019 (v17763) |
+| | EWS (Email & Web Server) | 10.1.0.6 | 8 | 4 | 80 | Windows Server Datacenter 2019 (v17763) |
+| | Workstation 1 | 10.1.0.5 | 6 | 4 | 100 | Windows 10 Pro (v17763) |
+| | Workstation 2 | 10.1.0.8 | 6 | 4 | 100 | Windows 10 Pro (v17763) |
+| **Event Collector** | Elasticsearch Server | 10.2.0.20 | 8 | 4 | 125 | Ubuntu 22.04 |
+| **Router** | Firewall/Router | 192.168.0.1 / 10.1.0.1 / 10.2.0.1 | 1 | 1 | 20 | OPNSense v12 |
 
 **Puntos clave:**
 - La solución propuesta aborda las 4 limitaciones identificadas: (1) datos dual-domain (Sysmon + NetFlow), (2) ataques APT multi-etapa reales, (3) un pipeline de etiquetado estructurado, y (4) un dataset propio sin restricciones de divulgación.

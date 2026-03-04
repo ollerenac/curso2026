@@ -4,8 +4,8 @@
 
 ## Objetivos
 
-- Comprender la arquitectura de recolección de datos dual-domain
-- Extraer datos crudos desde Elasticsearch
+- Comprender la arquitectura de recolección de datos dual-domain usada en este proyecto
+- Entender la extracción de raw data desde Elasticsearch
 - Explorar y validar la estructura de los datos JSONL de ambos dominios (Sysmon y NetFlow)
 - Comparar las diferencias estructurales entre ambos dominios
 

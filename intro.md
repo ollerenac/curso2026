@@ -2,6 +2,11 @@
 
 Curso práctico sobre datasets para sistema IDS (Intrusion Detection Systems), su respectiva construcción y etiquetado. Estos datasets combinan telemetría de host (Sysmon) y telemetría de red (NetFlow) para el entrenamiento de sistemas de detección de intrusiones basados en machine learning.
 
+- ¿Qué es un IDS?
+- ¿Qué son APTs?
+- ¿Qué es Sysmon?
+- ¿Qué es un Netflow?
+
 ## Descripción
 
 Este curso guía a los participantes a través del proceso completo de construcción de un dataset de ciberseguridad, desde la adquisición de datos crudos hasta la generación de datasets etiquetados listos para experimentación con modelos de ML.
@@ -10,11 +15,12 @@ Este curso guía a los participantes a través del proceso completo de construcc
 
 | Sesión | Tema | Duración |
 |--------|------|----------|
-| 1 | Fundamentos y Adquisición de Datos | 3 horas |
-| 2 | Calidad de Datos y Marco Teórico | 3 horas |
-| 3 | Etiquetado Manual Guiado | 3 horas |
-| 4 | Generación de Datasets Finales | 3 horas |
-| 5 | Integración y Aplicaciones Avanzadas | 3 horas |
+| 1 | Fundamentos y Exploración de Datos | 5 horas |
+| 2 | Preprocesamiento y Calidad | 3 horas |
+| 3 | Calidad de Datos y Marco Teórico | 3 horas |
+| 4 | Etiquetado Manual Guiado | 3 horas |
+| 5 | Generación de Datasets Finales | 3 horas |
+| 6 | Integración y Aplicaciones Avanzadas | 3 horas |
 
 ## Requisitos Previos
 
