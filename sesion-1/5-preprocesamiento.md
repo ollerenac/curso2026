@@ -136,12 +136,12 @@ El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar e
 
 ### Lectura y partición en chunks
 
-El primer paso es leer el archivo JSONL y dividirlo en bloques de tamaño configurable para su procesamiento paralelo:
+El primer paso es leer el archivo JSONL y dividirlo en bloques para procesamiento paralelo. El script usa una lectura **en streaming** (línea por línea) en lugar de cargar todo el archivo en memoria:
 
 ```python
 def read_jsonl_in_chunks(self, jsonl_path: str) -> List[List[str]]:
     """
-    Lee un archivo JSONL y lo divide en chunks para procesamiento paralelo.
+    Lee un archivo JSONL en streaming y lo divide en chunks.
 
     Args:
         jsonl_path: Ruta al archivo JSONL de entrada
@@ -149,18 +149,31 @@ def read_jsonl_in_chunks(self, jsonl_path: str) -> List[List[str]]:
     Returns:
         Lista de chunks, donde cada chunk es una lista de líneas JSON
     """
-    with open(jsonl_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-
     chunks = []
-    for i in range(0, len(lines), self.chunk_size):
-        chunks.append(lines[i:i + self.chunk_size])
+    current_chunk = []
+
+    with open(jsonl_path, 'r') as f:
+        for line_number, line in enumerate(f, 1):
+            current_chunk.append(line.strip())
+
+            if len(current_chunk) >= self.chunk_size:
+                chunks.append(current_chunk)
+                current_chunk = []
+
+            # Reporte de progreso cada 100,000 líneas
+            if line_number % 100000 == 0:
+                self.logger.info(f"Read {line_number:,} lines, created {len(chunks)} chunks")
+
+        # Agregar líneas restantes
+        if current_chunk:
+            chunks.append(current_chunk)
 
     return chunks
 ```
 
 **Puntos clave:**
 - El `chunk_size` por defecto es **10,000 líneas** por bloque, configurable vía YAML.
+- La lectura en streaming (`for line in f`) evita cargar todo el archivo en memoria — crítico para archivos JSONL de cientos de miles de eventos.
 - Al dividir en chunks, cada hilo de ejecución procesa un bloque independiente sin compartir estado.
 - El número de workers se auto-detecta con `multiprocessing.cpu_count()` o se configura manualmente.
 
@@ -174,13 +187,15 @@ def sanitize_xml(self, xml_str: str) -> str:
     Limpia caracteres inválidos y repara estructura XML corrupta.
     Utiliza BeautifulSoup como parser tolerante.
     """
-    # Eliminar caracteres de control no válidos en XML
-    xml_str = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', xml_str)
-    # Reparar con BeautifulSoup si es necesario
-    soup = BeautifulSoup(xml_str, 'xml')
-    return str(soup)
+    # Eliminar caracteres no imprimibles y no-ASCII
+    cleaned = ''.join(c for c in xml_str if 31 < ord(c) < 127 or c in '\t\n\r')
+    # Reparar con BeautifulSoup y retornar XML limpio
+    return BeautifulSoup(cleaned, "xml").prettify()
+```
 
+La sanitización elimina **todos los caracteres fuera del rango ASCII imprimible** (códigos 32-126) y los caracteres de control, excepto tabuladores y saltos de línea. Esto es más agresivo que un simple filtrado de caracteres de control — protege contra cualquier byte no estándar que pudiera romper el parser XML.
 
+```python
 def parse_sysmon_event(self, xml_str: str) -> Tuple[Optional[int], Optional[str], Dict]:
     """
     Parsea un evento Sysmon desde XML a componentes estructurados.
@@ -189,82 +204,160 @@ def parse_sysmon_event(self, xml_str: str) -> Tuple[Optional[int], Optional[str]
         xml_str: Cadena XML del campo event.original
 
     Returns:
-        Tupla de (EventID, Computer hostname, diccionario de campos EventData)
+        Tupla de (EventID, Computer hostname en minúsculas, diccionario de campos EventData)
     """
     try:
-        xml_str = self.sanitize_xml(xml_str)
-        root = ET.fromstring(xml_str)
+        clean_xml = self.sanitize_xml(xml_str)
+        namespaces = {'ns': 'http://schemas.microsoft.com/win/2004/08/events/event'}
+        root = ET.fromstring(clean_xml)
 
-        # Namespace de Windows Event Log
-        ns = {'ns': 'http://schemas.microsoft.com/win/2004/08/events/event'}
+        # Extraer EventID y Computer del bloque <System>
+        system = root.find('ns:System', namespaces)
+        if not system:
+            return None, None, {}
 
-        # Extraer EventID del bloque <System>
-        event_id = int(root.find('.//ns:EventID', ns).text)
-        computer = root.find('.//ns:Computer', ns).text
+        event_id_elem = system.find('ns:EventID', namespaces)
+        computer_elem = system.find('ns:Computer', namespaces)
+
+        event_id = int(event_id_elem.text) if event_id_elem is not None else None
+        computer = computer_elem.text.lower() if computer_elem is not None else None
 
         # Extraer todos los campos de <EventData>
+        event_data = root.find('ns:EventData', namespaces)
         fields = {}
-        for data in root.findall('.//ns:EventData/ns:Data', ns):
-            name = data.get('Name')
-            value = data.text
-            if name and value:
-                fields[name] = value.strip()
+        if event_data:
+            for data in event_data.findall('ns:Data', namespaces):
+                name = data.get('Name')
+                fields[name] = data.text if data.text else None
 
         return event_id, computer, fields
 
-    except Exception:
+    except Exception as e:
+        # Registrar XML problemático para depuración
+        with open('bad_xml_samples.txt', 'a') as bad_xml:
+            bad_xml.write(f"Error: {str(e)}\nXML: {xml_str[:500]}...\n" + "-"*50 + "\n")
         return None, None, {}
 ```
 
 **Puntos clave:**
-- **Sanitización XML**: Los eventos de Sysmon pueden contener caracteres de control (bytes `0x00`-`0x1f`) que son inválidos en XML. BeautifulSoup actúa como un parser tolerante que repara estas anomalías.
-- **Namespace-aware parsing**: El XML de Windows Event Log usa el namespace `http://schemas.microsoft.com/win/2004/08/events/event`, que debe especificarse para que las búsquedas XPath funcionen correctamente.
-- **Campos de EventData**: Cada `<Data Name="X">valor</Data>` se extrae como un par clave-valor en el diccionario `fields`.
+- **Sanitización agresiva**: Se eliminan todos los caracteres no-ASCII, no solo los caracteres de control XML. Esto maneja bytes corruptos que a veces aparecen en logs de Windows.
+- **Namespace-aware parsing**: El XML de Windows Event Log usa el namespace `http://schemas.microsoft.com/win/2004/08/events/event`, que debe especificarse para que las búsquedas XPath funcionen.
+- **Computer en minúsculas**: El hostname se convierte a minúsculas con `.lower()` para normalización. Esto explica por qué en el CSV los hosts aparecen como `waterfalls.boombox.local` en lugar de `WATERFALLS.boombox.local` del JSONL original.
+- **Preservación de nulos**: Los campos cuyo texto es `None` o vacío se almacenan como `None` en el diccionario — no se descartan. Esto es importante para distinguir entre "campo presente pero vacío" y "campo ausente".
+- **Logging de errores**: Los eventos con XML que falla el parsing se registran en `bad_xml_samples.txt` para depuración posterior.
 
 ### Esquema por EventID
 
-Sysmon genera más de 20 tipos de eventos diferentes, cada uno con campos específicos. El script define un mapa de esquema que determina qué campos extraer para cada EventID:
+Sysmon genera 21 tipos de eventos diferentes en nuestro dataset, cada uno con campos específicos. El script define un mapa de esquema completo que determina qué campos extraer para cada EventID:
 
 ```python
 self.fields_per_eventid = {
     1:  ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'CommandLine',
-         'CurrentDirectory', 'User', 'ParentProcessGuid', 'ParentProcessId',
-         'ParentImage', 'ParentCommandLine', 'OriginalFileName',
-         'IntegrityLevel', 'Hashes', 'LogonGuid', 'LogonId', 'TerminalSessionId'],
-    3:  ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'User',
-         'Protocol', 'SourceIp', 'SourceHostname', 'SourcePort',
-         'DestinationIp', 'DestinationHostname', 'DestinationPort'],
+         'CurrentDirectory', 'User', 'Hashes', 'ParentProcessGuid',
+         'ParentProcessId', 'ParentImage', 'ParentCommandLine'],
+    2:  ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'TargetFilename',
+         'CreationUtcTime', 'PreviousCreationUtcTime', 'User'],
+    3:  ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'User', 'Protocol',
+         'SourceIsIpv6', 'SourceIp', 'SourceHostname', 'SourcePort',
+         'SourcePortName', 'DestinationIsIpv6', 'DestinationIp',
+         'DestinationHostname', 'DestinationPort', 'DestinationPortName'],
     5:  ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'User'],
+    6:  ['UtcTime', 'ImageLoaded', 'Hashes'],
     7:  ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'ImageLoaded',
-         'Hashes', 'Signed', 'Signature'],
+         'OriginalFileName', 'Hashes', 'User'],
+    8:  ['UtcTime', 'SourceProcessGuid', 'SourceProcessId', 'SourceImage',
+         'TargetProcessGuid', 'TargetProcessId', 'TargetImage',
+         'NewThreadId', 'SourceUser', 'TargetUser'],
+    9:  ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'Device', 'User'],
     10: ['UtcTime', 'SourceProcessGUID', 'SourceProcessId', 'SourceImage',
          'TargetProcessGUID', 'TargetProcessId', 'TargetImage',
-         'GrantedAccess', 'CallTrace'],
+         'SourceThreadId', 'SourceUser', 'TargetUser'],
     11: ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'TargetFilename',
-         'CreationUtcTime'],
+         'CreationUtcTime', 'User'],
+    12: ['EventType', 'UtcTime', 'ProcessGuid', 'ProcessId', 'Image',
+         'TargetObject', 'User'],
+    13: ['EventType', 'UtcTime', 'ProcessGuid', 'ProcessId', 'Image',
+         'TargetObject', 'User'],
+    14: ['EventType', 'UtcTime', 'ProcessGuid', 'ProcessId', 'Image',
+         'TargetObject', 'User'],
+    15: ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'TargetFilename',
+         'CreationUtcTime', 'Hash', 'User'],
+    16: ['UtcTime', 'Configuration', 'ConfigurationFileHash', 'User'],
+    17: ['EventType', 'UtcTime', 'ProcessGuid', 'ProcessId', 'PipeName',
+         'Image', 'User'],
+    18: ['EventType', 'UtcTime', 'ProcessGuid', 'ProcessId', 'PipeName',
+         'Image', 'User'],
     22: ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'QueryName',
-         'QueryResults', 'QueryStatus'],
-    23: ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'TargetFilename',
-         'Hashes', 'IsExecutable'],
-    # ... EventIDs 2, 6, 8, 9, 12, 13, 14, 15, 16, 17, 18, 24, 25
+         'QueryStatus', 'QueryResults', 'User'],
+    23: ['UtcTime', 'ProcessGuid', 'ProcessId', 'User', 'Image',
+         'TargetFilename', 'Hashes'],
+    24: ['UtcTime', 'ProcessGuid', 'ProcessId', 'User', 'Image', 'Hashes'],
+    25: ['UtcTime', 'ProcessGuid', 'ProcessId', 'User', 'Image'],
 }
 ```
 
+Nótese que la complejidad varía enormemente: desde 3 campos (EID 6 — Driver Loaded) hasta 16 campos (EID 3 — Network Connection). Los EventIDs 12, 13, 14 (operaciones de registro) comparten exactamente la misma estructura, al igual que 17 y 18 (operaciones de pipes).
+
 Los EventIDs más relevantes para la detección de APTs son:
 
-| EventID | Nombre | Relevancia para APT |
-|---------|--------|---------------------|
-| 1 | Process Creation | Ejecución de herramientas maliciosas, shells, scripts |
-| 3 | Network Connection | Comunicación C2, exfiltración, movimiento lateral |
-| 7 | Image Loaded | DLL injection, side-loading |
-| 10 | Process Access | Credential dumping (LSASS), injection |
-| 11 | File Create | Descarga de payloads, creación de archivos maliciosos |
-| 22 | DNS Query | Resolución de dominios C2 |
-| 23 | File Delete | Anti-forensics, limpieza de huellas |
+| EventID | Nombre | Campos | Relevancia para APT |
+|---------|--------|--------|---------------------|
+| 1 | Process Creation | 12 | Ejecución de herramientas maliciosas, shells, scripts |
+| 3 | Network Connection | 16 | Comunicación C2, exfiltración, movimiento lateral |
+| 7 | Image Loaded | 8 | DLL injection, side-loading |
+| 8 | Create Remote Thread | 10 | Inyección de código entre procesos |
+| 10 | Process Access | 10 | Credential dumping (LSASS), injection |
+| 11 | File Create | 7 | Descarga de payloads, creación de archivos maliciosos |
+| 23 | File Delete | 7 | Anti-forensics, limpieza de huellas |
+
+### Tipos de datos y columnas especiales
+
+El script define conjuntos de columnas que requieren tratamiento especial durante la conversión:
+
+```python
+self.integer_columns = {
+    'ProcessId', 'SourcePort', 'DestinationPort', 'SourceProcessId',
+    'ParentProcessId', 'SourceThreadId', 'TargetProcessId'
+}
+
+self.guid_columns = {
+    'ProcessGuid', 'SourceProcessGUID', 'TargetProcessGUID', 'ParentProcessGuid'
+}
+```
+
+Las funciones de conversión manejan valores nulos y formatos inesperados:
+
+```python
+def safe_int_conversion(self, value) -> Optional[int]:
+    """Convierte un valor a entero de forma segura, manejando NaN y whitespace."""
+    if value is None or pd.isna(value):
+        return None
+    try:
+        cleaned_value = str(value).strip()
+        if not cleaned_value:
+            return None
+        return int(float(cleaned_value))
+    except (ValueError, TypeError):
+        return None
+
+def clean_guid(self, value) -> Optional[str]:
+    """Elimina llaves y whitespace de GUIDs, retornando solo el identificador."""
+    if value is None or pd.isna(value):
+        return None
+    try:
+        cleaned = str(value).strip().strip('{}')
+        return cleaned if cleaned else None
+    except (ValueError, TypeError):
+        return None
+```
+
+**Puntos clave:**
+- `safe_int_conversion` pasa por `float` antes de `int` para manejar valores como `"1234.0"` que llegan desde Elasticsearch.
+- `clean_guid` elimina las llaves (`{...}`) de los GUIDs de Windows. Por ejemplo, `{3fc4fefd-de08-67da-0c00-000000004900}` se convierte en `3fc4fefd-de08-67da-0c00-000000004900`.
 
 ### Construcción de registros tabulares
 
-Cada evento se convierte en un registro plano usando el esquema correspondiente a su EventID:
+Cada evento se convierte en un registro plano usando el esquema correspondiente a su EventID. Un caso especial importante es el **EventID 8** (Create Remote Thread), donde los nombres de campo en el XML difieren en capitalización de los nombres de columna del CSV:
 
 ```python
 def _build_event_record(self, event_id: int, computer: str,
@@ -272,81 +365,88 @@ def _build_event_record(self, event_id: int, computer: str,
     """
     Construye un registro tabular a partir de los campos parseados.
 
-    Args:
-        event_id: ID del tipo de evento Sysmon
-        computer: Hostname del equipo origen
-        fields: Diccionario de campos extraídos del XML
-        chunk_stats: Diccionario de estadísticas del chunk (thread-safe)
-
     Returns:
         Diccionario plano listo para insertar en DataFrame, o None
     """
     schema = self.fields_per_eventid.get(event_id)
     if schema is None:
-        chunk_stats['unknown_event_ids'].add(event_id)
         return None
 
-    # Crear registro base con EventID y Computer
     record = {'EventID': event_id, 'Computer': computer}
 
-    # Poblar campos según el esquema del EventID
     for field_name in schema:
+        # Caso especial: EventID 8 usa 'SourceProcessGuid' en el XML
+        # pero la columna del CSV es 'SourceProcessGUID' (mayúsculas)
+        if event_id == 8:
+            if field_name == 'SourceProcessGuid':
+                record['SourceProcessGUID'] = self.clean_guid(fields.get(field_name))
+                continue
+            elif field_name == 'TargetProcessGuid':
+                record['TargetProcessGUID'] = self.clean_guid(fields.get(field_name))
+                continue
+
+        # Procesamiento normal con conversión de tipos
         value = fields.get(field_name)
-        # Conversiones especiales por tipo de campo
         if field_name in self.integer_columns:
             value = self.safe_int_conversion(value)
         elif field_name in self.guid_columns:
             value = self.clean_guid(value)
+        elif value is not None:
+            value = str(value).strip() or None
+
         record[field_name] = value
 
     return record
 ```
 
 **Puntos clave:**
-- **Esquema unión**: El CSV final contiene la **unión** de todos los campos de todos los EventIDs. Esto significa que un evento de tipo 1 (Process Creation) tendrá valores `NaN` en los campos específicos de tipo 3 (Network Connection) y viceversa.
-- **Conversión de tipos**: Los campos enteros (`ProcessId`, puertos) se convierten con una función segura que maneja `NaN` y whitespace. Los GUIDs se limpian de llaves (`{...}`).
+- **Esquema unión**: El CSV final contiene la **unión** de todos los campos de los 21 EventIDs (45 columnas totales). Un evento de tipo 1 (Process Creation) tendrá valores `NaN` en los campos específicos de tipo 3 (Network Connection) y viceversa.
+- **Mapeo de case EID 8**: En el esquema, EventID 8 define `SourceProcessGuid` y `TargetProcessGuid` (minúscula), pero EventID 10 usa `SourceProcessGUID` y `TargetProcessGUID` (mayúscula). El script mapea ambos a la misma columna `SourceProcessGUID`/`TargetProcessGUID` para unificación.
+- **Tracking de campos faltantes**: El script registra estadísticas de campos que no se encuentran en el XML, útil para diagnosticar problemas de calidad.
 
 ### Procesamiento multi-hilo
 
-La función que orquesta el procesamiento paralelo utiliza `ThreadPoolExecutor`:
+La función que orquesta el procesamiento paralelo utiliza `ThreadPoolExecutor` con reporte de progreso y logging estructurado:
 
 ```python
 def process_events(self, jsonl_path: str) -> pd.DataFrame:
     """
-    Orquesta el procesamiento paralelo del archivo JSONL completo.
-
-    Args:
-        jsonl_path: Ruta al archivo JSONL de Sysmon
+    Procesamiento multi-hilo del archivo JSONL completo.
 
     Returns:
         DataFrame con todos los eventos procesados
     """
     chunks = self.read_jsonl_in_chunks(jsonl_path)
     all_records = []
-    all_chunk_stats = []
+    chunk_stats_list = []
 
     with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-        # Enviar cada chunk como una tarea independiente
-        futures = {
-            executor.submit(self.process_chunk, chunk, i): i
-            for i, chunk in enumerate(chunks)
+        future_to_chunk = {
+            executor.submit(self.process_chunk, chunk, chunk_id): chunk_id
+            for chunk_id, chunk in enumerate(chunks)
         }
 
-        # Recoger resultados a medida que se completan
-        for future in as_completed(futures):
-            chunk_id = futures[future]
-            records, chunk_stats = future.result()
-            all_records.extend(records)
-            all_chunk_stats.append(chunk_stats)
+        for future in as_completed(future_to_chunk):
+            chunk_id = future_to_chunk[future]
+            chunk_records, chunk_stats = future.result()
+            all_records.extend(chunk_records)
+            chunk_stats_list.append(chunk_stats)
 
-    self.merge_chunk_stats(all_chunk_stats)
+    self.merge_chunk_stats(chunk_stats_list)
+
+    # Guardar log estructurado JSON con estadísticas
+    self._save_processing_log(jsonl_path, ...)
+
     return pd.DataFrame(all_records)
 ```
+
+El script además genera un **log de procesamiento** en formato JSON (`log-sysmon-JSONL-to-csv-run-XX.json`) que incluye: tiempos de ejecución, distribución de EventIDs, campos faltantes, tasa de errores, y velocidad de procesamiento.
 
 **Puntos clave:**
 - Se utiliza `ThreadPoolExecutor` en lugar de `ProcessPoolExecutor` porque la tarea principal es I/O-bound (lectura de archivo) con algo de CPU (parsing XML). Los hilos son suficientes para este caso de uso.
 - `as_completed()` procesa los resultados en orden de finalización, no de envío, lo que permite una barra de progreso más fluida.
 - Las estadísticas de cada chunk se agregan de forma thread-safe usando `threading.Lock`.
+- La función `merge_chunk_stats` combina contadores de EventIDs y campos faltantes de todos los hilos.
 
 ### Limpieza y optimización del DataFrame
 
@@ -356,40 +456,51 @@ Una vez construido el DataFrame con todos los registros, se aplican transformaci
 def clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
     """
     Limpia y optimiza el DataFrame para ML.
-
-    Transformaciones aplicadas:
-    1. Trim de whitespace en columnas string
-    2. Conversión de UtcTime a epoch milliseconds (columna 'timestamp')
-    3. Optimización de tipos de datos
-    4. Ordenamiento cronológico
     """
-    # Convertir UtcTime (string) → timestamp (epoch milliseconds int64)
-    df['timestamp'] = pd.to_datetime(df['UtcTime']).astype('int64') // 10**6
-    df = df.drop(columns=['UtcTime'])
+    # 1. Trim de whitespace en columnas string
+    str_cols = df.select_dtypes(['object']).columns
+    df[str_cols] = df[str_cols].apply(lambda x: x.str.strip())
 
-    # Optimización de tipos para reducir uso de memoria
+    # 2. Reemplazar strings vacíos con None
+    df.replace({'': None}, inplace=True)
+
+    # 3. Convertir UtcTime (string) → timestamp (epoch milliseconds int64)
+    if 'UtcTime' in df.columns:
+        df['UtcTime'] = pd.to_datetime(df['UtcTime'], errors='coerce')
+
+        # Ordenamiento cronológico (configurable vía YAML)
+        if enable_temporal_sorting:
+            df = df.sort_values('UtcTime', na_position='last').reset_index(drop=True)
+
+        # Conversión a epoch milliseconds como entero
+        df['timestamp'] = (df['UtcTime'].astype('int64') // 10**6).astype('int64')
+        df = df.drop(columns=['UtcTime'])
+
+    # 4. Optimización de tipos nullable para columnas enteras
     for col in self.integer_columns:
         if col in df.columns:
-            df[col] = df[col].astype('Int64')       # Nullable integer
+            df[col] = df[col].astype('Int64')
 
+    # 5. GUIDs como tipo string dedicado
     for col in self.guid_columns:
         if col in df.columns:
-            df[col] = df[col].astype('string')       # String dedicado
+            df[col] = df[col].astype('string')
 
-    # Columnas de baja cardinalidad como categorías
-    if 'Computer' in df.columns:
-        df['Computer'] = df['Computer'].astype('category')
-
-    # Ordenar cronológicamente
-    df = df.sort_values('timestamp').reset_index(drop=True)
+    # 6. Columnas de baja cardinalidad como categorías
+    categorical_columns = ['Computer', 'Protocol', 'EventType']
+    for col in categorical_columns:
+        if col in df.columns and df[col].nunique() < df.shape[0] * 0.5:
+            df[col] = df[col].astype('category')
 
     return df
 ```
 
 **Puntos clave:**
+- **Limpieza de strings vacíos**: Después del trim de whitespace, los strings vacíos se reemplazan por `None`. Esto evita que campos como `RuleName: ""` se traten como valores presentes.
 - **Epoch milliseconds**: Se reemplaza el campo `UtcTime` (string datetime) por `timestamp` (entero de milisegundos desde epoch). Este formato es más eficiente para operaciones de correlación temporal entre Sysmon y NetFlow en etapas posteriores del pipeline.
+- **Timestamps inválidos**: `errors='coerce'` convierte timestamps que no se pueden parsear en `NaT` (Not a Time), que se manejan como nulos. En nuestro dataset, solo 2 de 363,657 registros tienen este problema.
 - **Tipos nullable (`Int64`)**: Pandas usa `Int64` (con mayúscula) en lugar de `int64` para soportar valores `NaN` en columnas enteras — necesario porque no todos los eventos tienen todos los campos.
-- **Categorías**: Columnas como `Computer` que tienen pocos valores únicos se almacenan como `category`, reduciendo significativamente el uso de memoria.
+- **Categorías con cardinalidad**: Solo se convierten a `category` las columnas cuyo número de valores únicos es menor al 50% de las filas. Esto evita convertir columnas de alta cardinalidad donde el overhead del diccionario de categorías sería mayor que el ahorro.
 
 ### Uso del script
 
