@@ -12,6 +12,29 @@ Pero antes de usar estos datos para construir un sistema de detección de intrus
 El código de esta sección se puede ejecutar paso a paso en el notebook `2c-sysmon-csv-exploratory-analysis.ipynb`, que contiene el análisis completo con visualizaciones interactivas.
 ```
 
+**Pipeline del análisis de calidad:**
+
+```
+  ┌─────────────┐   ┌──────────────┐   ┌──────────────┐   ┌────────────────┐
+  │ Paso 1:     │   │ Paso 2:      │   │ Paso 3:      │   │ Paso 4:        │
+  │ Carga CSV   │──►│ Inspección   │──►│ Distribución │──►│ Análisis       │
+  │ con dtypes  │   │ básica       │   │ de eventos   │   │ temporal       │
+  └─────────────┘   └──────────────┘   └──────────────┘   └────────────────┘
+                                                                  │
+  ┌─────────────┐   ┌──────────────┐   ┌──────────────┐          │
+  │ Paso 7:     │   │ Paso 6:      │   │ Paso 5:      │          │
+  │ Sistema de  │◄──│ Actividad    │◄──│ Relaciones   │◄─────────┘
+  │ archivos    │   │ de red       │   │ de procesos  │
+  └─────────────┘   └──────────────┘   └──────────────┘
+        │
+        ▼
+  ┌─────────────┐   ┌──────────────┐   ┌──────────────┐
+  │ Paso 8:     │   │ Paso 9:      │   │ Paso 10:     │
+  │ Evaluación  │──►│ Readiness    │──►│ Reporte      │
+  │ de calidad  │   │ algorítmica  │   │ resumen      │
+  └─────────────┘   └──────────────┘   └──────────────┘
+```
+
 ## Paso 1: Carga del CSV preprocesado
 
 El CSV generado en la sección de preprocesamiento se carga con tipos de datos explícitos para garantizar un manejo correcto de valores nulos y eficiencia en memoria:
@@ -222,6 +245,12 @@ El notebook genera 4 visualizaciones adaptadas a la ventana de 72 minutos:
 2. **Histograma de eventos/minuto** — Distribución de las tasas por minuto con líneas de media y mediana. El pico de 30,563 vs media de ~5,000 confirma ráfagas significativas.
 3. **Tasa por EventID (top 5)** — Líneas separadas para los 5 EventIDs más frecuentes en ventanas de 1 minuto. Permite identificar qué tipos de eventos generan las ráfagas.
 4. **Tasa general (1 minuto)** — Área sombreada mostrando la intensidad de actividad a lo largo del tiempo con la media como referencia.
+
+**Puntos clave:**
+- La ventana de **72 minutos** confirma que el dataset captura un período específico de ejecución del escenario APT, no una monitorización continua — cada evento en esta ventana es potencialmente relevante.
+- La tasa de 84 eventos/segundo con picos de 30,563/minuto indica **ráfagas de actividad** que podrían corresponder a fases específicas del ataque (ejecución, movimiento lateral, exfiltración).
+- Solo 2 registros sin timestamp (0.0005%) representan una tasa de integridad temporal excepcional para un dataset de esta escala.
+- El epoch en milisegundos (`timestamp`) proporciona la **misma resolución temporal** que el dominio NetFlow, habilitando la correlación cruzada en la Sesión 2.
 
 ## Paso 5: Análisis de relaciones entre procesos
 
@@ -454,6 +483,12 @@ PIDs inválidos:           0
 
 La validación de GUIDs ahora reconoce correctamente el formato sin llaves (`44d66c27-4e6d-67da-...`) presente en este dataset, tras corregir la expresión regular original que solo aceptaba GUIDs con llaves (`{...}`).
 
+**Puntos clave:**
+- Los altos porcentajes de nulos (hasta 99.998%) **no son un defecto de calidad** — son una consecuencia directa del diseño CSV unificado donde cada fila solo usa las columnas de su EventID.
+- El marcado "CRITICAL" para ProcessGuid (31.57% nulos) es un **falso positivo del scoring**: los registros sin ProcessGuid son EID 8/10 que usan `SourceProcessGUID`/`TargetProcessGUID`. La información de proceso está presente, solo con nomenclatura diferente.
+- **EventID 255** (1 registro) es el único hallazgo genuino de calidad — un evento no documentado en la especificación oficial de Sysmon que requiere investigación.
+- La validación de GUIDs sin llaves demuestra la importancia de adaptar las reglas de validación al dataset real, no a la especificación teórica.
+
 ## Paso 9: Evaluación de readiness algorítmica
 
 Esta evaluación mide si los datos son aptos para alimentar un algoritmo de búsqueda de cadenas causales, puntuando la presencia de columnas críticas:
@@ -522,3 +557,34 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
    - 44.5% de tráfico hacia IPs públicas
 
 5. **Readiness para algoritmos causales**: La puntuación global de 32.1% es engañosa — la cobertura *por EventID* es del 100% para todos los campos. El dataset está listo para análisis causal siempre que el algoritmo consulte los campos correctos para cada tipo de evento.
+
+**Puntos clave:**
+- El dataset es **apto para análisis causal** a pesar de la puntuación de readiness de 32.1% — la cobertura *por EventID* es del 100% para todos los campos relevantes.
+- Los indicadores de APT detectados (SystemFailureReporter.exe, puerto 444, PowerShell Bypass) confirman que la simulación generó artefactos realistas de ataque.
+- La combinación de GUIDs confiables + cobertura temporal completa + diversidad de EventIDs proporciona los tres pilares necesarios para el análisis de cadenas causales.
+
+## Actividad Práctica
+
+### Ejercicio: Interpretación Crítica de la Calidad de Datos
+
+Responde las siguientes preguntas basándote en el análisis de calidad:
+
+1. **¿Por qué la puntuación de readiness algorítmica de 32.1% es engañosa?** Diseña un método de scoring alternativo que evalúe la cobertura de campos *dentro de cada EventID* en lugar de globalmente. ¿Qué puntuación obtendría el dataset con tu método?
+
+2. **EventID 1 (Process Create) representa solo el 0.28% del dataset (1,023 eventos), pero es el EventID con más campos (23).** ¿Por qué es desproporcionadamente importante para el análisis de amenazas? Piensa en qué información exclusiva aporta (CommandLine, ParentImage, ParentProcessGuid).
+
+3. **El análisis de red muestra 1,378 conexiones al puerto 444, que no es un servicio estándar.** Formula una hipótesis de seguridad: ¿qué tipo de actividad APT podría explicar este tráfico? Considera la proximidad al puerto 443 (HTTPS) y el contexto de la simulación de ataque.
+
+4. **El PID reuse ratio es 1.32 para ProcessGuid/ProcessId.** Diseña una prueba de validación que demuestre por qué usar PIDs (en lugar de GUIDs) para rastreo causal produciría falsos positivos. Describe los datos de entrada y el resultado esperado.
+
+5. **Si tuvieras que elegir solo 5 columnas como "mínimo viable" para entrenar un modelo IDS**, ¿cuáles elegirías y por qué? Considera: identificación del evento, contexto temporal, identificación de proceso, y actividad observable.
+
+### Resultado esperado
+
+Al finalizar esta sección, deberías comprender:
+- Cómo evaluar la calidad de un dataset de seguridad distinguiendo artefactos de diseño de problemas reales.
+- La importancia de la evaluación *por EventID* frente a la evaluación global en un CSV unificado.
+- Los indicadores de actividad APT presentes en los datos y su significancia para la detección.
+- Por qué los GUIDs son esenciales para el rastreo causal y los PIDs son insuficientes.
+
+En la **Sesión 2**, usaremos este dataset validado para la **correlación cruzada entre dominios** (Sysmon y NetFlow), aplicando los Scripts 5 y 6 del pipeline para vincular actividad de procesos con flujos de red.

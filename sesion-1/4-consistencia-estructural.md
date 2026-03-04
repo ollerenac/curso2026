@@ -45,6 +45,28 @@ El resultado es un identificador único para cada *tipo de estructura*. Dos regi
 
 **Ejemplo:** Todos los eventos de EventID 12 (Registry Object create/delete) que tienen los campos `[EventType, Image, ProcessGuid, ProcessId, RuleName, TargetObject, User, UtcTime]` con valores presentes generarán el mismo hash.
 
+```
+Concepto del Fingerprinting Estructural:
+
+  Registro XML (EventID 12)        Fingerprint
+  ┌─────────────────────────┐
+  │ EventType: CreateKey    │      1. Extraer nombres de campo
+  │ Image: C:\...\lsass.exe │  ──► [EventType, Image, ProcessGuid,
+  │ ProcessGuid: {3fc4...}  │      ProcessId, RuleName, TargetObject,
+  │ ProcessId: 648          │      User, UtcTime]
+  │ RuleName: -             │
+  │ TargetObject: HKLM\... │      2. Ordenar alfabéticamente
+  │ User: NT AUTHORITY\...  │  ──► "12|EventType:present|Image:present|..."
+  │ UtcTime: 2025-03-19...  │
+  └─────────────────────────┘      3. Hash MD5
+                                ──► "a7b3c9d1e2f4..."
+```
+
+**Puntos clave:**
+- El fingerprinting reduce un problema de comparación O(n²) a uno O(n): en lugar de comparar cada par de registros, se genera un hash por registro y se agrupan los iguales.
+- La inclusión del EventID en el hash garantiza que eventos de tipos diferentes nunca compartan fingerprint, incluso si tuvieran los mismos campos.
+- Se distingue entre campo **presente** y campo **null** — esto detectaría EventIDs con campos opcionales (que en nuestro dataset no existen, pero es una precaución de diseño).
+
 ### Integración con el parser XML
 
 En la sección anterior construimos `sanitize_xml` y `parse_sysmon_event` para extraer datos del XML. Para este análisis, extendemos el parser con una función que además genera el fingerprint:
@@ -265,6 +287,12 @@ ANÁLISIS DE COBERTURA:
 EVALUACIÓN GENERAL: ALTAMENTE CONSISTENTE
 ```
 
+**Puntos clave:**
+- La correspondencia perfecta 1:1 entre patrones y EventIDs confirma que **no existen variaciones internas** — cada EventID siempre produce exactamente los mismos campos. Esto simplifica enormemente el diseño del conversor CSV.
+- EID 17 y EID 18 comparten la misma estructura de campos pero son diferenciados por el fingerprint gracias a la inclusión del EventID en el hash. Sin esta precaución, aparecerían como un solo patrón.
+- Los 2 campos universales (`UtcTime`, `RuleName`) serán las columnas presentes en **todas las filas** del CSV final — el ancla temporal y la regla de detección.
+- La concentración del 93.9% en 5 patrones sugiere que la optimización del conversor debe priorizar estos EventIDs.
+
 **Estrategia de manejo de campos:**
 
 | Categoría | Cantidad | Estrategia |
@@ -289,4 +317,28 @@ El análisis de consistencia estructural arroja un resultado óptimo para el dis
 
 4. **74 campos únicos con jerarquía clara**: 2 universales, 4 comunes, 68 específicos por EventID. Esta estructura facilita un diseño de CSV con columnas comunes + columnas específicas.
 
-**Implicación para el preprocesamiento**: Podemos proceder con confianza a diseñar un conversor JSONL → CSV que genere un archivo CSV por EventID, donde cada archivo tiene un esquema de columnas fijo y predecible. Esta es la tarea de la siguiente sección.
+**Implicación para el preprocesamiento**: Podemos proceder con confianza a diseñar un conversor JSONL → CSV que genere un archivo CSV unificado, donde cada EventID tiene un esquema de columnas fijo y predecible. Esta es la tarea de la siguiente sección.
+
+## Actividad Práctica
+
+### Ejercicio: Análisis Crítico del Fingerprinting
+
+Responde las siguientes preguntas basándote en el análisis de consistencia:
+
+1. **¿Por qué usar MD5 de los nombres de campo ordenados en lugar de comparar conjuntos de campos directamente?** Piensa en eficiencia computacional, almacenamiento, y facilidad de agrupación.
+
+2. **Si dos EventIDs diferentes compartieran exactamente el mismo fingerprint**, ¿qué implicaría para el diseño del conversor CSV? ¿Cómo afectaría al esquema `fields_per_eventid` que se diseña en la siguiente sección?
+
+3. **El análisis reporta 74 campos únicos totales, pero el CSV final tiene 45 columnas.** ¿Qué ocurrió con los campos restantes? Pista: revisa la estrategia de manejo de campos (tabla 4e) y piensa en qué campos se incluyen vs se excluyen en el esquema del conversor.
+
+4. **¿Cómo adaptarías la técnica de fingerprinting para datos NetFlow?** Considera que NetFlow no tiene XML incrustado sino JSON con campos anidados (e.g., `source.ip`, `destination.port`). ¿Qué cambiaría en la función `generate_structure_fingerprint`?
+
+### Resultado esperado
+
+Al finalizar esta sección, deberías comprender:
+- Cómo la técnica de fingerprinting valida la consistencia estructural de forma eficiente.
+- Que los 19 EventIDs de Sysmon tienen esquemas fijos y deterministas — sin variaciones internas.
+- La distribución de campos: 2 universales, 4 comunes, 68 específicos por EventID.
+- Por qué esta consistencia permite diseñar un conversor con esquema fijo por EventID.
+
+En la siguiente sección, usaremos estos hallazgos para construir el **pipeline de preprocesamiento** completo: conversión JSONL → CSV para Sysmon (Script 2), NetFlow (Script 3), y limpieza de calidad (Script 4).

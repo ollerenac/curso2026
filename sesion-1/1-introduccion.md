@@ -22,6 +22,11 @@
 | 2021  | Water Sector Attacks         | Niveles químicos en plantas de tratamiento de agua (EE.UU.)       |
 | 2021  | Iranian Railway System Attack| Sistema ferroviario de Irán                                       |
 
+**Puntos clave:**
+- Los ataques APT reales a sistemas ciberfísicos demuestran que las amenazas son **multi-etapa** y **multi-dominio**: afectan tanto la red como los procesos del sistema operativo simultáneamente.
+- La mayoría de estos ataques fueron detectados *después* de causar daño, lo que subraya la necesidad de sistemas IDS más avanzados.
+- Para entrenar IDS efectivos, necesitamos datasets que capturen esta complejidad dual (host + red), no solo un tipo de telemetría.
+
 ### Actual enfoque de investigación sobre Sistemas de Detección de Intrusiones basados en IA
 
 - Los IDS son sistemas diseñados para detectar ciber-ataques, incluidos los ataques APT.
@@ -79,3 +84,30 @@ _**Paper**: "Learn-IDS: Bridging Gaps between Datasets and Learning-Based Networ
 - Para comunicar estas sub-redes entre sí, y para proporcionar acceso a internet a estas sub-redes, la interfaz WAN de cada router virtual debe estar en modo 'Bridge'.
 - Para que el modo 'Bridge' funcione correctamente, será necesario asignar una dirección IPv4 del mismo rango de red que las direcciones IPv4 de cada host, en el rango 114.71.51.0/24.
 - Otra solución puede ser configurar la interfaz WAN del router en modo 'NAT'. Sin embargo, se requiere una configuración más compleja. El modo 'Bridge' es la estrategia más simple y garantizada para proporcionar acceso a red externa a las sub-redes.
+
+**Puntos clave:**
+- La solución propuesta aborda las 4 limitaciones identificadas: (1) datos dual-domain (Sysmon + NetFlow), (2) ataques APT multi-etapa reales, (3) un pipeline de etiquetado estructurado, y (4) un dataset propio sin restricciones de divulgación.
+- La infraestructura virtual permite repetir experimentos con diferentes campañas APT de forma controlada y reproducible.
+- Los sensores Sysmon capturan actividad a nivel de proceso (creación, acceso a archivos, registro), mientras que NetFlow captura flujos de tráfico de red — juntos proporcionan visibilidad completa.
+
+## Actividad Práctica
+
+### Ejercicio: Reflexión sobre el Diseño del Dataset
+
+Responde las siguientes preguntas basándote en el contexto presentado:
+
+1. **De las 4 limitaciones identificadas en los datasets existentes**, ¿cuál consideras la más crítica para la investigación en IDS y por qué? Piensa en cómo cada limitación afecta la capacidad de entrenar modelos de detección.
+
+2. **Observando la tabla de infraestructura virtual**, identifica al menos 3 superficies de ataque que un adversario podría explotar. Considera: servicios expuestos, comunicación entre subredes, y puntos de recolección de datos.
+
+3. **Si un atacante ejecuta un script malicioso en un cliente Windows 10 (ITM4) que se conecta a un servidor C2 externo**, ¿qué información capturaría un sensor Sysmon vs un sensor NetFlow? ¿Qué información solo estaría disponible combinando ambos dominios?
+
+### Resultado esperado
+
+Al finalizar esta sección, deberías comprender:
+- La motivación detrás de la creación de un dataset dual-domain propio.
+- Las limitaciones de los datasets existentes que este proyecto busca superar.
+- La arquitectura de red virtual donde se ejecutan las campañas APT.
+- Por qué la combinación de Sysmon y NetFlow proporciona una visión más completa que cualquier dominio por separado.
+
+En la siguiente sección, veremos cómo **extraer los datos crudos** desde el clúster Elasticsearch donde se almacenan las dos fuentes de telemetría.
