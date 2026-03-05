@@ -14,6 +14,18 @@ Si la respuesta es sí, podemos diseñar un esquema fijo por EventID. Si la resp
 El código de esta sección se puede ejecutar paso a paso en el notebook `2b-structure-consistency-analyzer.ipynb`, que contiene el análisis completo con celdas interactivas y resultados detallados.
 ```
 
+```{admonition} Antes de continuar — haz una predicción
+:class: tip
+
+En la sección anterior descubrimos 19 EventIDs con esquemas de campos diferentes. Antes de ver los resultados:
+
+1. Si analizas 200,000 registros, ¿cuántos **patrones estructurales únicos** esperarías? ¿Exactamente 19, más de 19, o menos?
+2. ¿Crees que todos los registros del mismo EventID tendrán **siempre los mismos campos**, o habrá variaciones internas?
+3. ¿Cuántos campos crees que son **compartidos** entre todos los EventIDs?
+
+Anota tus predicciones y compáralas con los resultados.
+```
+
 ## Paso 1: La técnica de fingerprinting estructural
 
 Para comparar la estructura de 200,000 registros de forma eficiente, no podemos comparar cada registro con cada otro — eso sería O(n²). En su lugar, generamos una **huella digital (fingerprint)** para cada registro basada en su estructura:

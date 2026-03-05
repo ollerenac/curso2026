@@ -19,6 +19,18 @@ La diferencia fundamental con Sysmon es que los datos NetFlow son **JSON anidado
 El análisis completo con celdas interactivas y resultados detallados se encuentra en el notebook `3a-exploratory_network-traffic-flow-index.ipynb`. Los números y hallazgos de esta sección provienen directamente de ese notebook.
 ```
 
+```{admonition} Antes de continuar — haz una predicción
+:class: tip
+
+Ya conoces la estructura de Sysmon: JSON con XML incrustado, namespaces XML, y 19 tipos de EventID. Ahora explorarás NetFlow:
+
+1. ¿Esperarías la misma complejidad de **doble capa** (JSON + otro formato incrustado), o una estructura más directa?
+2. ¿Cuántas claves de primer nivel crees que tendrá un registro NetFlow — más o menos que las 16 de Sysmon?
+3. ¿Todos los registros NetFlow tendrán **exactamente los mismos campos**, o habrá campos opcionales?
+
+Anota tus predicciones y compáralas con los resultados.
+```
+
 ## Paso 1: La unidad mínima — un registro NetFlow
 
 Como siempre, comenzamos leyendo **una sola línea** del archivo JSONL:

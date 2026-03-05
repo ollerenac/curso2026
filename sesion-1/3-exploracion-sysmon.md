@@ -20,6 +20,18 @@ Este paso de exploración no es opcional. Sin entender la estructura interna de 
 El código de esta sección se puede ejecutar paso a paso en el notebook `2a-exploratory_sysmon-index.ipynb`, que contiene el análisis completo con celdas interactivas y resultados detallados.
 ```
 
+```{admonition} Antes de continuar — haz una predicción
+:class: tip
+
+Tienes un archivo JSONL de 2.1 GB con 363,657 registros Sysmon. Antes de explorar:
+
+1. ¿Cada registro será un diccionario plano (claves simples con valores de texto) o contendrá **estructuras anidadas**?
+2. Si hay estructuras anidadas, ¿en qué formato crees que estarán los datos del evento (JSON, XML, texto plano)?
+3. ¿Esperarías que todos los registros tengan **los mismos campos**, o que varíen según el tipo de evento?
+
+Anota tus predicciones y compáralas con los resultados.
+```
+
 ## Paso 1: La unidad mínima de información
 
 Cada línea de un archivo JSONL es un registro independiente — un documento JSON completo. El primer paso es leer **una sola línea** y examinarla:
