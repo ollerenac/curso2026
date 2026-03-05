@@ -103,7 +103,7 @@ El subcampo `event['original']` contiene un string particularmente largo:
 >>> len(record['event']['original'])
 2370
 
->>> print(record['event']['original'][:1000])
+>>> print(record['event']['original'][:])
 ```
 
 El resultado es un **bloque continuo de texto sin formato** — una sola línea larga sin saltos ni indentación:
@@ -236,7 +236,7 @@ Esto funciona sin error — tenemos un árbol XML parseado. Ahora intentamos nav
 # None
 ```
 
-Ambas búsquedas devuelven `None`. El XML está parseado pero no encontramos los elementos. ¿Por qué?
+Ambas búsquedas devuelven `None`. Esto es inesperado: la variable `xml_content` contiene el XML extraído correctamente desde `record['event']['original']`, y `ET.fromstring()` lo parseó sin errores — es decir, el XML es válido y está cargado en memoria como un árbol de elementos. Sin embargo, cuando intentamos buscar elementos con `root.find()`, no los encuentra. ¿Por qué?
 
 ### El problema: XML Namespaces
 
