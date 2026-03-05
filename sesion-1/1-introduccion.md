@@ -89,6 +89,21 @@ _**Paper**: "Learn-IDS: Bridging Gaps between Datasets and Learning-Based Networ
 - La infraestructura virtual permite repetir experimentos con diferentes campañas APT de forma controlada y reproducible.
 - Los sensores Sysmon capturan actividad a nivel de proceso (creación, acceso a archivos, registro), mientras que NetFlow captura flujos de tráfico de red — juntos proporcionan visibilidad completa.
 
+### Dominios de telemetría: Sysmon y NetFlow
+
+Nuestra infraestructura recolecta datos desde dos **dominios de telemetría** complementarios. Cada dominio observa la actividad del sistema desde una perspectiva diferente:
+
+| Dominio | Fuente | Qué observa | Ejemplos de eventos |
+|---------|--------|-------------|---------------------|
+| **Host** | Sysmon (System Monitor) | Actividad interna de cada máquina: procesos, archivos, registro, conexiones | Creación de proceso (`cmd.exe`), acceso a archivo, modificación de registro, conexión de red saliente |
+| **Red** | NetFlow | Tráfico de red entre máquinas: flujos de comunicación | Flujo TCP de 10.1.0.5 → 192.168.0.4 (puerto 443), volumen de datos transferido, duración de la conexión |
+
+- **Sysmon** es un servicio de Windows (parte de Sysinternals) que se instala en cada host de la red objetivo. Registra eventos detallados del sistema operativo: qué procesos se crean, qué archivos se modifican, qué conexiones de red inicia cada proceso. Cada evento se identifica con un **EventID** (por ejemplo, EventID 1 = creación de proceso, EventID 3 = conexión de red).
+
+- **NetFlow** es un protocolo de monitoreo de red que registra los **flujos de tráfico** que pasan por el router. Un flujo es un resumen de una comunicación entre dos endpoints: IPs de origen y destino, puertos, protocolo, bytes transferidos y duración. A diferencia de una captura de paquetes (PCAP), NetFlow no registra el contenido de los paquetes, sino los metadatos del flujo.
+
+La combinación de ambos dominios es lo que hace a este dataset **dual-domain**: Sysmon nos dice *qué ocurre dentro de cada máquina*, y NetFlow nos dice *cómo se comunican las máquinas entre sí*. Un ataque APT deja huellas en ambos dominios simultáneamente.
+
 ## Actividad Práctica
 
 ### Ejercicio: Reflexión sobre el Diseño del Dataset
