@@ -510,18 +510,24 @@ Las verificaciones anteriores comprueban la validez *formal* de los datos (forma
 >
 > **Invariante 2**: Un ProcessGuid → exactamente 1 Image (ruta de ejecutable)
 
+Ambas verificaciones excluyen el GUID nulo (`00000000-0000-0000-0000-000000000000`), que es un centinela de Sysmon para eventos que no puede atribuir a un proceso específico (36 eventos, 14 PIDs diferentes en nuestro dataset).
+
 **Verificación 1: GUID → PID**
 
 ```python
-# Verificar que cada ProcessGuid mapea a exactamente 1 ProcessId
+NULL_GUID = '00000000-0000-0000-0000-000000000000'
+
 guid_pid = df[['ProcessGuid', 'ProcessId']].dropna().drop_duplicates()
+guid_pid = guid_pid[guid_pid['ProcessGuid'] != NULL_GUID]
 pids_per_guid = guid_pid.groupby('ProcessGuid')['ProcessId'].nunique()
 pid_violations = pids_per_guid[pids_per_guid > 1]
 print(f"GUIDs con múltiples PIDs: {len(pid_violations)}")
 ```
 
 ```
-GUIDs con múltiples PIDs: 0
+Unique ProcessGuids checked: 1,632
+GUIDs con múltiples PIDs:    0
+  ✅ No PID violations — each GUID maps to exactly 1 PID
 ```
 
 ✅ **Sin violaciones.** Cada ProcessGuid mapea a exactamente 1 PID. Esto confirma que el ratio de reutilización (1.32) del Paso 5 opera en dirección *inversa*: múltiples GUIDs comparten PIDs (reutilización normal del sistema operativo), pero ningún GUID tiene PIDs inconsistentes.
@@ -529,9 +535,10 @@ GUIDs con múltiples PIDs: 0
 **Verificación 2: GUID → Image**
 
 ```python
-# Verificar que cada ProcessGuid mapea a exactamente 1 Image
-# Comparación case-insensitive (Windows no distingue mayúsculas en rutas)
+import ntpath  # Para manejar rutas Windows correctamente en Linux
+
 guid_image = df[['ProcessGuid', 'Image']].dropna().copy()
+guid_image = guid_image[guid_image['ProcessGuid'] != NULL_GUID]
 guid_image['Image_lower'] = guid_image['Image'].str.lower()
 guid_image_unique = guid_image[['ProcessGuid', 'Image_lower']].drop_duplicates()
 images_per_guid = guid_image_unique.groupby('ProcessGuid')['Image_lower'].nunique()
@@ -540,29 +547,36 @@ print(f"GUIDs con múltiples Images: {len(image_violations)}")
 ```
 
 ```
-GUIDs con múltiples Images: 10
+Unique ProcessGuids checked: 1,632
+GUIDs con múltiples Images:  28
 ```
 
-⚠️ **10 ProcessGuids mapean a 2 o más rutas de ejecutable diferentes.** Examinando las violaciones:
+⚠️ **28 ProcessGuids mapean a 2 o más rutas de ejecutable diferentes.** El notebook categoriza cada violación por su causa raíz:
 
-| Causa | GUIDs | Ejemplo |
-|-------|-------|---------|
-| Ruta versionada vs symlink | 8 | `Elastic\Agent\elastic-agent.exe` vs `Elastic\Agent\data\elastic-agent-8.17.0-96f2b9\elastic-agent.exe` |
-| Ejecutables diferentes | 2 | `svchost.exe` vs `dxgiadaptercache.exe` comparten el mismo GUID |
+| Categoría | GUIDs | Eventos | Acción |
+|-----------|-------|---------|--------|
+| Artefacto `<unknown process>` | 17 | 6,812 | Filtrar |
+| Falso positivo por prefijo `\\?\` | 2 | 173 | Filtrar |
+| Mismo binario, ruta diferente | 7 | 414 | Normalizar |
+| Ejecutables diferentes (genuina) | 2 | 119 | Revisión manual |
 
-**Falsos positivos (8 de 10):** Elastic Agent registra su ejecutable desde dos rutas diferentes según el contexto del evento — la ruta real (con versión) y el symlink de instalación. Ambas apuntan al mismo binario:
+**Artefactos `<unknown process>` (17 GUIDs):** Sysmon registra `<unknown process>` como Image cuando el proceso aún no está completamente inicializado (típico en procesos del sistema al arranque: `svchost.exe`, `services.exe`, `LogonUI.exe`). Incluye también los GUIDs del proceso System (PID 4), que aparece como `System` y `<unknown process>`.
+
+**Falsos positivos `\\?\` (2 GUIDs):** El prefijo `\\?\` de Windows para rutas extendidas crea duplicados: `C:\Windows\System32\wbem\WMIADAP.exe` vs `\\?\C:\Windows\system32\wbem\WMIADAP.EXE` son el mismo archivo.
+
+**Rutas diferentes al mismo binario (7 GUIDs):** Elastic Agent registra su ejecutable desde dos rutas según el contexto:
 
 ```
-C:\Program Files\Elastic\Agent\elastic-agent.exe                                      ← symlink
-C:\Program Files\Elastic\Agent\data\elastic-agent-8.17.0-96f2b9\elastic-agent.exe     ← ruta real
+C:\Program Files\Elastic\Agent\elastic-agent.exe                                   ← symlink
+C:\Program Files\Elastic\Agent\data\elastic-agent-8.17.0-96f2b9\elastic-agent.exe  ← ruta real
 ```
 
-**Violaciones genuinas (2 de 10):** Dos ejecutables completamente distintos (`svchost.exe` y `dxgiadaptercache.exe`) comparten ProcessGuid. Esto indica una colisión de GUIDs que corrompe las relaciones causales — al seguir este GUID, mezclaríamos eventos de dos procesos diferentes.
+**Violaciones genuinas (2 GUIDs):** Dos ejecutables distintos (`svchost.exe` y `dxgiadaptercache.exe`) comparten ProcessGuid — una colisión real que corrompe las relaciones causales.
 
-En total, **564 eventos** (0.15% del dataset) están afectados por estas 10 violaciones. Aunque el porcentaje es bajo, el impacto es crítico: un único GUID corrupto puede generar una cadena causal falsa completa.
+En total, **7,518 eventos** (2.07% del dataset) están afectados por estas 28 violaciones. Aunque las genuinas son solo 2 GUIDs (119 eventos), todas las categorías deben resolverse para garantizar la integridad del rastreo causal.
 
 ```{note}
-Esta detección utiliza la misma lógica de los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/`. En la **siguiente sección** aplicaremos el Script 4 (`4_sysmon_data_cleaner.py`), que orquesta estos scripts junto con la normalización y corrección de las violaciones detectadas.
+Esta detección utiliza la misma lógica de los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/`. En la **siguiente sección** aplicaremos el Script 4 (`4_sysmon_data_cleaner.py`), que orquesta estos scripts junto con la normalización y corrección de todas las categorías de violaciones.
 ```
 
 ## Paso 9: Evaluación de readiness algorítmica
@@ -624,7 +638,7 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
 
 2. **Consistencia temporal**: Ventana de 72 minutos (05:00-06:12 UTC) con tasa media de 84 eventos/segundo. Ráfagas significativas (pico de 30,563 eventos/minuto) sugieren períodos de actividad intensa.
 
-3. **Identificadores de proceso confiables**: Los GUIDs proporcionan identificación unívoca (1,632 procesos únicos). PID reuse confirmado (ratio 1.32), reforzando la necesidad de usar GUIDs para rastreo causal.
+3. **Identificadores de proceso confiables**: Los GUIDs proporcionan identificación unívoca (1,632 procesos únicos). PID reuse confirmado (ratio 1.32), reforzando la necesidad de usar GUIDs para rastreo causal. Sin embargo, **28 GUIDs presentan violaciones de Image** (2.07% de eventos) que deben corregirse antes del análisis causal — la mayoría son artefactos (`<unknown process>`, prefijo `\\?\`, rutas versionadas), pero 2 son colisiones genuinas.
 
 4. **Indicadores de actividad APT detectados**:
    - `SystemFailureReporter.exe` en `C:\Users\Public\` (implante sospechoso, 31 procesos hijos)
@@ -635,8 +649,9 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
 5. **Readiness para algoritmos causales**: La puntuación global de 32.1% es engañosa — la cobertura *por EventID* es del 100% para todos los campos. El dataset está listo para análisis causal siempre que el algoritmo consulte los campos correctos para cada tipo de evento.
 
 **Puntos clave:**
-- El dataset es **apto para análisis causal** a pesar de la puntuación de readiness de 32.1% — la cobertura *por EventID* es del 100% para todos los campos relevantes.
+- El dataset es **apto para análisis causal** tras resolver las 28 violaciones de Image detectadas en el Paso 8d — la cobertura *por EventID* es del 100% para todos los campos relevantes.
 - Los indicadores de APT detectados (SystemFailureReporter.exe, puerto 444, PowerShell Bypass) confirman que la simulación generó artefactos realistas de ataque.
+- Las violaciones de ProcessGuid→Image (artefactos `<unknown process>`, prefijo `\\?\`, rutas versionadas, colisiones genuinas) deben corregirse antes del análisis causal — el Script 4 del pipeline automatiza esta corrección.
 - La combinación de GUIDs confiables + cobertura temporal completa + diversidad de EventIDs proporciona los tres pilares necesarios para el análisis de cadenas causales.
 
 ## Actividad Práctica
@@ -662,5 +677,6 @@ Al finalizar esta sección, deberías comprender:
 - La importancia de la evaluación *por EventID* frente a la evaluación global en un CSV unificado.
 - Los indicadores de actividad APT presentes en los datos y su significancia para la detección.
 - Por qué los GUIDs son esenciales para el rastreo causal y los PIDs son insuficientes.
+- Cómo detectar violaciones semánticas de ProcessGuid (GUID→PID, GUID→Image) y clasificarlas por causa raíz.
 
 En la **Sesión 3**, usaremos este dataset validado para la **correlación cruzada entre dominios** (Sysmon y NetFlow), aplicando los Scripts 5 y 6 del pipeline para vincular actividad de procesos con flujos de red.

@@ -10,20 +10,20 @@ En la sección anterior, el análisis de consistencia semántica (Paso 8d) verif
 >
 > **Invariante 2**: Un ProcessGuid → exactamente 1 Image (ruta del ejecutable)
 
-Los resultados confirmaron **0 violaciones PID** (cada GUID mapea a un único PID), pero detectaron **10 violaciones de Image**: 10 ProcessGuids que aparecen con 2 o más rutas de ejecutable diferentes. De estas, 8 son falsos positivos (rutas versionadas vs symlink de Elastic Agent) y 2 son colisiones genuinas (`svchost.exe` vs `dxgiadaptercache.exe` compartiendo GUID).
+Los resultados confirmaron **0 violaciones PID** (cada GUID mapea a un único PID), pero detectaron **28 violaciones de Image**: 28 ProcessGuids que aparecen con 2 o más rutas de ejecutable diferentes, afectando 7,518 eventos (2.07% del dataset).
 
 Si no se corrigen, estas violaciones contaminarán los análisis de causalidad de los Scripts 7 y 8 (etiquetado). El Script 4 automatiza la detección y corrección de estas inconsistencias.
 
 ## El problema: Violaciones de ProcessGuid
 
-Las violaciones de Image detectadas tienen dos causas raíz:
+Las violaciones de Image detectadas se clasifican en 4 categorías:
 
-| Causa | GUIDs | Naturaleza |
-|-------|-------|------------|
-| **Ruta versionada vs symlink** | 8 | Falso positivo — dos rutas al mismo binario |
-| **Colisión de GUID** | 2 | Genuina — ejecutables diferentes comparten GUID |
-
-Además, en otros runs del dataset pueden aparecer violaciones adicionales causadas por el prefijo `\\?\` que Windows usa para rutas extendidas, creando falsos positivos donde `C:\Windows\cmd.exe` y `\\?\C:\Windows\cmd.exe` son realmente la misma imagen.
+| Categoría | GUIDs | Naturaleza |
+|-----------|-------|------------|
+| **Artefacto `<unknown process>`** | 17 | Sysmon no pudo determinar el ejecutable al momento del registro |
+| **Prefijo `\\?\`** | 2 | Falso positivo — Windows usa `\\?\` para rutas extendidas |
+| **Mismo binario, ruta diferente** | 7 | Falso positivo — Elastic Agent con ruta real vs symlink |
+| **Ejecutables diferentes** | 2 | Genuina — `svchost.exe` vs `dxgiadaptercache.exe` comparten GUID |
 
 ## Arquitectura del pipeline de limpieza
 
