@@ -591,7 +591,7 @@ def clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
 
 **Puntos clave:**
 - **Limpieza de strings vacíos**: Después del trim de whitespace, los strings vacíos se reemplazan por `None`. Esto evita que campos como `RuleName: ""` se traten como valores presentes.
-- **Epoch milliseconds**: Se reemplaza el campo `UtcTime` (string datetime) por `timestamp` (entero de milisegundos desde epoch). Este formato es más eficiente para operaciones de correlación temporal entre Sysmon y NetFlow en etapas posteriores del pipeline.
+- **Epoch milliseconds**: Se reemplaza el campo `UtcTime` (string datetime) por `timestamp` (entero de milisegundos desde epoch), y se **elimina** la columna `UtcTime` original. Esto significa que el CSV resultante no contiene `UtcTime` — en su lugar, la columna 45 es `timestamp`. Este formato entero es más eficiente para operaciones de correlación temporal entre Sysmon y NetFlow en etapas posteriores del pipeline.
 - **Timestamps inválidos**: `errors='coerce'` convierte timestamps que no se pueden parsear en `NaT` (Not a Time), que se manejan como nulos. En nuestro dataset, solo 2 de 363,657 registros tienen este problema.
 - **Tipos nullable (`Int64`)**: Pandas usa `Int64` (con mayúscula) en lugar de `int64` para soportar valores `NaN` en columnas enteras — necesario porque no todos los eventos tienen todos los campos.
 - **Categorías con cardinalidad**: Solo se convierten a `category` las columnas cuyo número de valores únicos es menor al 50% de las filas. Esto evita convertir columnas de alta cardinalidad donde el overhead del diccionario de categorías sería mayor que el ahorro.

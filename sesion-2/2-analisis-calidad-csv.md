@@ -104,7 +104,7 @@ Rango de EventID:   1 - 255
 Hosts únicos:       4
 ```
 
-**Las 45 columnas** representan la unión de todos los campos de los 19+ EventIDs, más una columna `timestamp` añadida durante el preprocesamiento. Las columnas son:
+**Las 45 columnas** representan la unión de todos los campos de los 19+ EventIDs. La columna 45, `timestamp`, es el resultado de convertir `UtcTime` (string datetime) a epoch en milisegundos durante el preprocesamiento (Script 2) — la columna original `UtcTime` se elimina y `timestamp` ocupa su lugar. Las columnas son:
 
 | # | Columna | # | Columna | # | Columna |
 |---|---------|---|---------|---|---------|
