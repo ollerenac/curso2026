@@ -35,6 +35,19 @@ El código de esta sección se puede ejecutar paso a paso en el notebook `2c-sys
   └─────────────┘   └──────────────┘   └──────────────┘
 ```
 
+**¿Por qué cada paso?**
+
+1. **Carga con dtypes** — Garantizar tipos correctos desde el inicio evita errores silenciosos (ej. ProcessId como float por NaNs).
+2. **Inspección básica** — Conocer dimensiones, columnas y proporción de nulos para saber con qué estamos trabajando.
+3. **Distribución de eventos** — Identificar qué tipos de EventID dominan y cuáles son escasos, lo que afecta directamente al balance del dataset.
+4. **Análisis temporal** — Verificar que la captura cubre el período esperado y detectar huecos o ráfagas anómalas de eventos.
+5. **Relaciones de procesos** — Comprobar si los campos ProcessGuid y ParentProcessGuid permiten reconstruir árboles de procesos (esencial para trazar ataques).
+6. **Actividad de red** — Evaluar si los eventos de conexión (EventID 3) contienen IPs, puertos y protocolos suficientes para correlacionar con NetFlow.
+7. **Sistema de archivos** — Verificar la cobertura de eventos de creación/eliminación de archivos, que son indicadores clave de actividad maliciosa.
+8. **Evaluación de calidad** — Cuantificar problemas concretos: duplicados, campos críticos vacíos, inconsistencias en GUIDs.
+9. **Readiness algorítmica** — Determinar si el dataset cumple los requisitos mínimos para alimentar algoritmos de correlación causal.
+10. **Reporte resumen** — Consolidar todos los hallazgos en un diagnóstico accionable que guíe la limpieza posterior.
+
 ## Paso 1: Carga del CSV preprocesado
 
 El CSV generado en la sección de preprocesamiento se carga con tipos de datos explícitos para garantizar un manejo correcto de valores nulos y eficiencia en memoria:
