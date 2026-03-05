@@ -120,7 +120,7 @@ Las dos líneas son **independientes** y pueden ejecutarse en paralelo. Dentro d
 
 ---
 
-## Parte A: Conversión de Sysmon JSONL a CSV (Script 2)
+## Conversión de Sysmon JSONL a CSV (Script 2)
 
 ### El desafío: XML dentro de JSON
 
@@ -634,207 +634,6 @@ Results:
 
 ---
 
-## Parte C: Limpieza de Calidad de Datos Sysmon (Script 4)
-
-### El problema: Violaciones de ProcessGuid
-
-Después de generar el CSV de Sysmon con el Script 2, puede haber problemas de calidad que deben corregirse antes de avanzar en el pipeline. El más crítico es la **violación de ProcessGuid**.
-
-En Sysmon, el `ProcessGuid` es un identificador único que debería identificar de forma unívoca un proceso. La regla fundamental es:
-
-> **Un ProcessGuid debe corresponder a exactamente un ProcessId y exactamente una Image (ruta del ejecutable).**
-
-Sin embargo, en la práctica encontramos dos tipos de violaciones:
-
-| Tipo de violación | Descripción | Ejemplo |
-|-------------------|-------------|---------|
-| **PID violation** | Un GUID mapea a múltiples PIDs | `{GUID-abc}` → PID 1234, PID 5678 |
-| **Image violation** | Un GUID mapea a múltiples rutas de ejecutable | `{GUID-xyz}` → `C:\Windows\cmd.exe`, `\\?\C:\Windows\cmd.exe` |
-
-Las violaciones de Image son frecuentemente causadas por el prefijo `\\?\` que Windows usa para rutas extendidas. Esto crea **falsos positivos** donde `C:\Windows\cmd.exe` y `\\?\C:\Windows\cmd.exe` son realmente la misma imagen.
-
-### Arquitectura del pipeline de limpieza
-
-El Script 4 es un **orquestador** que ejecuta 5 sub-scripts en secuencia:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│            Script 4: Pipeline de Limpieza                    │
-│                                                              │
-│  Paso 1  ┌──────────────────────────────────┐               │
-│  ───────►│ find_processguid_pid_violations   │               │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 2  ┌──────────────────────────────────┐               │
-│  ───────►│ find_processguid_image_violations │               │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 3  ┌──────────────────────────────────┐               │
-│  ───────►│ normalize_path_duplicates         │  ← \\?\ fix  │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 4  ┌──────────────────────────────────┐               │
-│  ───────►│ extract_violation_events          │               │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 5  ┌──────────────────────────────────┐               │
-│   (opt)  │ Manual editing (LibreOffice Calc) │  ← Humano    │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 6  ┌──────────────────────────────────┐               │
-│  ───────►│ apply_violation_fixes             │               │
-│          └──────────────────────────────────┘               │
-│                                                              │
-│  Input:  sysmon-run-XX.csv                                   │
-│  Output: sysmon-run-XX.csv (corregido in-place)              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Paso 1-2: Detección de violaciones
-
-Los dos primeros pasos analizan el CSV de Sysmon buscando GUIDs que violen la regla de unicidad:
-
-```python
-def detect_violations(run_id) -> bool:
-    """
-    Ejecuta los scripts de detección de violaciones PID e Image.
-    Genera archivos CSV con las violaciones encontradas en exploration/violations/.
-    """
-    # Paso 1: Detectar violaciones de PID
-    run_command(
-        [sys.executable, str(QUALITY_DIR / "find_processguid_pid_violations.py"),
-         "--run-id", run_id],
-        "Detecting ProcessGuid-PID violations"
-    )
-
-    # Paso 2: Detectar violaciones de Image
-    run_command(
-        [sys.executable, str(QUALITY_DIR / "find_processguid_image_violations.py"),
-         "--run-id", run_id],
-        "Detecting ProcessGuid-Image violations"
-    )
-
-    return True
-```
-
-**Archivos generados:**
-```
-exploration/violations/
-├── processguid_pid_violations_runXX.csv
-└── processguid_image_violations_runXX.csv
-```
-
-### Paso 3: Normalización de rutas
-
-La normalización elimina falsos positivos causados por el prefijo de rutas extendidas de Windows:
-
-```python
-def normalize_violations(run_id, skip_normalization) -> bool:
-    """
-    Normaliza duplicados causados por el prefijo '\\\\?\\' de Windows.
-
-    Ejemplo:
-    - Antes: {GUID} → ['C:\\Windows\\cmd.exe', '\\\\?\\C:\\Windows\\cmd.exe']
-    - Después: {GUID} → ['C:\\Windows\\cmd.exe']  (ya no es violación)
-    """
-    if skip_normalization:
-        return True
-
-    run_command(
-        [sys.executable, str(QUALITY_DIR / "normalize_path_duplicates.py"),
-         "--run-id", run_id],
-        "Normalizing path duplicates"
-    )
-    return True
-```
-
-### Paso 4-5: Extracción y edición manual
-
-Las violaciones que no son falsos positivos se extraen a un archivo CSV separado para revisión manual:
-
-```python
-def extract_violations(run_id) -> bool:
-    """
-    Extrae los eventos con violaciones a un archivo separado para edición.
-    """
-    run_command(
-        [sys.executable, str(QUALITY_DIR / "extract_violation_events.py"),
-         "--run-id", run_id],
-        "Extracting violation events"
-    )
-    return True
-
-
-def manual_editing_pause(violations_file, auto_skip) -> bool:
-    """
-    Pausa interactiva para revisión manual de las violaciones.
-    Opcionalmente abre LibreOffice Calc para editar el CSV.
-
-    El archivo contiene columnas adicionales:
-    - _original_row_index: Posición en el CSV original (para trazabilidad)
-    - _row_hash: Hash del registro original (para validación de integridad)
-    """
-    if auto_skip:
-        return True
-
-    print(f"\nViolations file ready for manual review: {violations_file}")
-    response = input("Open in LibreOffice Calc? [y/N]: ")
-    if response.lower() == 'y':
-        subprocess.run(['libreoffice', '--calc', str(violations_file)])
-
-    input("Press Enter when done editing...")
-    return True
-```
-
-**Puntos clave:**
-- Este paso introduce un componente **human-in-the-loop**: el analista revisa las violaciones y decide cómo corregirlas (ej: asignar el PID correcto, eliminar registros duplicados).
-- Las columnas `_original_row_index` y `_row_hash` permiten rastrear cada corrección hasta su registro original en el CSV.
-
-### Paso 6: Aplicación de correcciones
-
-Finalmente, las correcciones manuales se aplican al CSV original:
-
-```python
-def apply_fixes(run_id, dry_run, verbose) -> bool:
-    """
-    Aplica las correcciones del archivo de violaciones al CSV original.
-
-    Args:
-        run_id: Identificador del run
-        dry_run: Si True, solo muestra los cambios sin aplicarlos
-        verbose: Si True, muestra cada cambio individual
-    """
-    cmd = [sys.executable, str(QUALITY_DIR / "apply_violation_fixes.py"),
-           "--run-id", run_id]
-
-    if dry_run:
-        cmd.append("--dry-run")
-    if verbose:
-        cmd.append("--verbose")
-
-    run_command(cmd, "Applying violation fixes")
-    return True
-```
-
-### Uso del script
-
-```bash
-# Flujo completo: detectar, normalizar, extraer, editar, aplicar
-python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05
-
-# Solo detección (sin correcciones)
-python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --detect-only
-
-# Solo aplicar correcciones (si ya se editó el archivo de violaciones)
-python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --apply-only
-
-# Vista previa de cambios sin aplicar
-python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --dry-run --verbose
-```
-
-
----
-
 ## Actividad Práctica
 
 ### Ejercicio 1: Decisiones de Diseño del Conversor Sysmon
@@ -855,37 +654,21 @@ Usando la tabla de EventIDs de Sysmon presentada en esta sección, mapea los sig
 | Un proceso accede a la memoria de LSASS | ? |
 | El atacante borra archivos para cubrir sus huellas | ? |
 
-### Ejercicio 3: Violaciones de ProcessGuid
-
-Dado el siguiente fragmento de datos de Sysmon:
-
-| ProcessGuid | ProcessId | Image |
-|-------------|-----------|-------|
-| {ABC-123} | 4520 | `C:\Windows\System32\cmd.exe` |
-| {ABC-123} | 4520 | `\\?\C:\Windows\System32\cmd.exe` |
-| {DEF-456} | 1234 | `C:\Tools\nc.exe` |
-| {DEF-456} | 5678 | `C:\Tools\nc.exe` |
-
-1. **¿Cuántas violaciones hay y de qué tipo?** Identifica si son violaciones PID, Image, o ambas.
-2. **¿Cuál de ellas se resolvería automáticamente** con la normalización del prefijo `\\?\`?
-3. **¿Cuál requiere intervención manual?** ¿Qué información adicional necesitarías para decidir la corrección?
-
 ---
 
 ## Conclusiones
 
 ### Lo que hemos construido
 
-En esta sección hemos recorrido los dos scripts que transforman los datos crudos de Sysmon en un CSV limpio y listo para análisis:
+En esta sección hemos recorrido el Script 2, que transforma los datos crudos de Sysmon en un CSV tabular listo para análisis:
 
-| Etapa | Script | Entrada | Salida | Decisión clave |
-|-------|--------|---------|--------|----------------|
-| Conversión | Script 2 | JSONL con XML embebido | CSV tabular (45 columnas) | Esquema unión de 22 EventIDs |
-| Limpieza | Script 4 | CSV con violaciones | CSV corregido | Human-in-the-loop para casos ambiguos |
+| Entrada | Salida | Decisión clave |
+|---------|--------|----------------|
+| JSONL con XML embebido (2.1 GB) | CSV tabular (45 columnas, 363K filas) | Esquema unión de 22 EventIDs |
 
 ### Decisiones de diseño y sus consecuencias
 
-Las decisiones tomadas en estos scripts no son arbitrarias — cada una tiene consecuencias directas en etapas posteriores del pipeline:
+Las decisiones tomadas en este script no son arbitrarias — cada una tiene consecuencias directas en etapas posteriores del pipeline:
 
 1. **Epoch milliseconds en lugar de datetime strings**: Permite la correlación temporal con NetFlow en el Script 5 (Sesión 3). Ambos dominios comparten la misma escala numérica, haciendo que las operaciones de ventana temporal sean simples restas de enteros.
 
@@ -897,6 +680,6 @@ Las decisiones tomadas en estos scripts no son arbitrarias — cada una tiene co
 
 ### Conexión con lo que sigue
 
-El CSV de Sysmon que hemos producido es solo uno de los dos dominios. En la **siguiente sección** aplicamos la misma conversión al dominio NetFlow, donde el reto no es parsear XML sino aplanar una jerarquía JSON de múltiples niveles en 39 columnas fijas.
+Tenemos un CSV de Sysmon con 45 columnas y ~363K filas. Pero antes de continuar con el pipeline, necesitamos verificar la calidad de este CSV: ¿la distribución de EventIDs es coherente? ¿Hay relaciones rotas entre procesos? ¿El dataset está listo para ML?
 
-Después, en la **sección 3** de esta sesión, evaluaremos la calidad del CSV resultante: distribución de EventIDs, patrones temporales, relaciones entre procesos, y readiness para algoritmos de ML.
+En la **siguiente sección** analizamos la calidad del CSV resultante — distribución de eventos, patrones temporales, relaciones entre procesos, y readiness para algoritmos de machine learning. Ese análisis nos revelará problemas concretos (como violaciones de ProcessGuid) que motivarán la sección de limpieza que viene después.

@@ -4,14 +4,15 @@
 
 ## Contexto
 
-En la sección anterior convertimos los datos Sysmon de JSONL a CSV, enfrentando el reto de parsear XML embebido con namespaces y mapear 21 esquemas de EventID diferentes. Ahora aplicamos la misma conversión al dominio NetFlow, donde el reto es fundamentalmente diferente: no hay XML, pero sí una **jerarquía JSON de hasta 3 niveles** que debe aplanarse a un CSV de 39 columnas.
+En las secciones anteriores convertimos los datos Sysmon de JSONL a CSV (sección 1), analizamos la calidad del CSV resultante (sección 2), y limpiamos las violaciones de ProcessGuid detectadas (sección 3). Ahora aplicamos la misma conversión JSONL → CSV al dominio NetFlow, donde el reto es fundamentalmente diferente: no hay XML, pero sí una **jerarquía JSON de hasta 3 niveles** que debe aplanarse a un CSV de 39 columnas.
 
 ```
 Pipeline de preprocesamiento (contexto):
 
-  Script 2 (Sysmon)  ── ✅ Completado en la sección anterior
+  Script 2 (Sysmon)  ── ✅ Sección 1: Conversión JSONL → CSV
+  Notebook 2c        ── ✅ Sección 2: Análisis de calidad del CSV
+  Script 4 (Limpieza)── ✅ Sección 3: Limpieza de violaciones
   Script 3 (NetFlow)  ── ◄── Esta sección
-  Script 4 (Limpieza) ── ✅ Completado en la sección anterior
 ```
 
 ## Conversión de NetFlow JSONL a CSV
