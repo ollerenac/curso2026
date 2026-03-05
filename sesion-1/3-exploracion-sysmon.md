@@ -518,7 +518,7 @@ Cada etapa posterior añade latencia (escritura en log, lectura por el agente, t
 
 ### 7e. Eventos de ejemplo por EventID
 
-Para tener una visión concreta de los datos, examinamos un evento de ejemplo para cada uno de los EventIDs más relevantes:
+Para tener una visión concreta de los datos, examinamos un evento de ejemplo para cada uno de los EventIDs más relevantes. La descripción completa de todos los EventIDs de Sysmon (del 1 al 29), incluyendo sus campos y significado, está disponible en la [documentación oficial de Microsoft Sysinternals](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon).
 
 **EventID 1 — Process Creation:**
 ```
