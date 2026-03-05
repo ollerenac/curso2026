@@ -4,22 +4,26 @@
 
 ## Contexto: ¿Qué descubrimos en el análisis de calidad?
 
-En la sección anterior analizamos la calidad del CSV de Sysmon producido por el Script 2. Entre los hallazgos, encontramos que el **PID reuse ratio** para ProcessGuid/ProcessId es de 1.32 — lo que significa que hay GUIDs que mapean a más de un PID. Esto viola la invariante fundamental de Sysmon:
+En la sección anterior, el análisis de consistencia semántica (Paso 8d) verificó las dos invariantes fundamentales de ProcessGuid:
 
-> **Un ProcessGuid debe corresponder a exactamente un ProcessId y exactamente una Image (ruta del ejecutable).**
+> **Invariante 1**: Un ProcessGuid → exactamente 1 ProcessId
+>
+> **Invariante 2**: Un ProcessGuid → exactamente 1 Image (ruta del ejecutable)
 
-Estas violaciones, si no se corrigen, contaminarán los análisis de causalidad entre procesos de los Scripts 7 y 8 (etiquetado). El Script 4 automatiza la detección y corrección de estas inconsistencias.
+Los resultados confirmaron **0 violaciones PID** (cada GUID mapea a un único PID), pero detectaron **10 violaciones de Image**: 10 ProcessGuids que aparecen con 2 o más rutas de ejecutable diferentes. De estas, 8 son falsos positivos (rutas versionadas vs symlink de Elastic Agent) y 2 son colisiones genuinas (`svchost.exe` vs `dxgiadaptercache.exe` compartiendo GUID).
+
+Si no se corrigen, estas violaciones contaminarán los análisis de causalidad de los Scripts 7 y 8 (etiquetado). El Script 4 automatiza la detección y corrección de estas inconsistencias.
 
 ## El problema: Violaciones de ProcessGuid
 
-Encontramos dos tipos de violaciones:
+Las violaciones de Image detectadas tienen dos causas raíz:
 
-| Tipo de violación | Descripción | Ejemplo |
-|-------------------|-------------|---------|
-| **PID violation** | Un GUID mapea a múltiples PIDs | `{GUID-abc}` → PID 1234, PID 5678 |
-| **Image violation** | Un GUID mapea a múltiples rutas de ejecutable | `{GUID-xyz}` → `C:\Windows\cmd.exe`, `\\?\C:\Windows\cmd.exe` |
+| Causa | GUIDs | Naturaleza |
+|-------|-------|------------|
+| **Ruta versionada vs symlink** | 8 | Falso positivo — dos rutas al mismo binario |
+| **Colisión de GUID** | 2 | Genuina — ejecutables diferentes comparten GUID |
 
-Las violaciones de Image son frecuentemente causadas por el prefijo `\\?\` que Windows usa para rutas extendidas. Esto crea **falsos positivos** donde `C:\Windows\cmd.exe` y `\\?\C:\Windows\cmd.exe` son realmente la misma imagen.
+Además, en otros runs del dataset pueden aparecer violaciones adicionales causadas por el prefijo `\\?\` que Windows usa para rutas extendidas, creando falsos positivos donde `C:\Windows\cmd.exe` y `\\?\C:\Windows\cmd.exe` son realmente la misma imagen.
 
 ## Arquitectura del pipeline de limpieza
 

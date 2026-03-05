@@ -499,8 +499,71 @@ La validación de GUIDs ahora reconoce correctamente el formato sin llaves (`44d
 **Puntos clave:**
 - Los altos porcentajes de nulos (hasta 99.998%) **no son un defecto de calidad** — son una consecuencia directa del diseño CSV unificado donde cada fila solo usa las columnas de su EventID.
 - El marcado "CRITICAL" para ProcessGuid (31.57% nulos) es un **falso positivo del scoring**: los registros sin ProcessGuid son EID 8/10 que usan `SourceProcessGUID`/`TargetProcessGUID`. La información de proceso está presente, solo con nomenclatura diferente.
-- **EventID 255** (1 registro) es el único hallazgo genuino de calidad — un evento no documentado en la especificación oficial de Sysmon que requiere investigación.
+- **EventID 255** (1 registro) es un hallazgo de calidad a nivel de formato — un evento no documentado en la especificación oficial de Sysmon que requiere investigación.
 - La validación de GUIDs sin llaves demuestra la importancia de adaptar las reglas de validación al dataset real, no a la especificación teórica.
+
+### 8d. Consistencia semántica de ProcessGuid
+
+Las verificaciones anteriores comprueban la validez *formal* de los datos (formatos, rangos). Pero para análisis causal necesitamos **consistencia semántica**: que un ProcessGuid identifique siempre al mismo proceso. Esto requiere dos invariantes:
+
+> **Invariante 1**: Un ProcessGuid → exactamente 1 ProcessId
+>
+> **Invariante 2**: Un ProcessGuid → exactamente 1 Image (ruta de ejecutable)
+
+**Verificación 1: GUID → PID**
+
+```python
+# Verificar que cada ProcessGuid mapea a exactamente 1 ProcessId
+guid_pid = df[['ProcessGuid', 'ProcessId']].dropna().drop_duplicates()
+pids_per_guid = guid_pid.groupby('ProcessGuid')['ProcessId'].nunique()
+pid_violations = pids_per_guid[pids_per_guid > 1]
+print(f"GUIDs con múltiples PIDs: {len(pid_violations)}")
+```
+
+```
+GUIDs con múltiples PIDs: 0
+```
+
+✅ **Sin violaciones.** Cada ProcessGuid mapea a exactamente 1 PID. Esto confirma que el ratio de reutilización (1.32) del Paso 5 opera en dirección *inversa*: múltiples GUIDs comparten PIDs (reutilización normal del sistema operativo), pero ningún GUID tiene PIDs inconsistentes.
+
+**Verificación 2: GUID → Image**
+
+```python
+# Verificar que cada ProcessGuid mapea a exactamente 1 Image
+# Comparación case-insensitive (Windows no distingue mayúsculas en rutas)
+guid_image = df[['ProcessGuid', 'Image']].dropna().copy()
+guid_image['Image_lower'] = guid_image['Image'].str.lower()
+guid_image_unique = guid_image[['ProcessGuid', 'Image_lower']].drop_duplicates()
+images_per_guid = guid_image_unique.groupby('ProcessGuid')['Image_lower'].nunique()
+image_violations = images_per_guid[images_per_guid > 1]
+print(f"GUIDs con múltiples Images: {len(image_violations)}")
+```
+
+```
+GUIDs con múltiples Images: 10
+```
+
+⚠️ **10 ProcessGuids mapean a 2 o más rutas de ejecutable diferentes.** Examinando las violaciones:
+
+| Causa | GUIDs | Ejemplo |
+|-------|-------|---------|
+| Ruta versionada vs symlink | 8 | `Elastic\Agent\elastic-agent.exe` vs `Elastic\Agent\data\elastic-agent-8.17.0-96f2b9\elastic-agent.exe` |
+| Ejecutables diferentes | 2 | `svchost.exe` vs `dxgiadaptercache.exe` comparten el mismo GUID |
+
+**Falsos positivos (8 de 10):** Elastic Agent registra su ejecutable desde dos rutas diferentes según el contexto del evento — la ruta real (con versión) y el symlink de instalación. Ambas apuntan al mismo binario:
+
+```
+C:\Program Files\Elastic\Agent\elastic-agent.exe                                      ← symlink
+C:\Program Files\Elastic\Agent\data\elastic-agent-8.17.0-96f2b9\elastic-agent.exe     ← ruta real
+```
+
+**Violaciones genuinas (2 de 10):** Dos ejecutables completamente distintos (`svchost.exe` y `dxgiadaptercache.exe`) comparten ProcessGuid. Esto indica una colisión de GUIDs que corrompe las relaciones causales — al seguir este GUID, mezclaríamos eventos de dos procesos diferentes.
+
+En total, **564 eventos** (0.15% del dataset) están afectados por estas 10 violaciones. Aunque el porcentaje es bajo, el impacto es crítico: un único GUID corrupto puede generar una cadena causal falsa completa.
+
+```{note}
+Esta detección utiliza la misma lógica de los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/`. En la **siguiente sección** aplicaremos el Script 4 (`4_sysmon_data_cleaner.py`), que orquesta estos scripts junto con la normalización y corrección de las violaciones detectadas.
+```
 
 ## Paso 9: Evaluación de readiness algorítmica
 
