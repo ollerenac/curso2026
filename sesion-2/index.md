@@ -10,8 +10,9 @@
 
 ## Contenido
 
-1. [Preprocesamiento: De JSONL a CSV Estructurado](1-preprocesamiento.md) (90 min) — Scripts 2, 3, 4 del pipeline
-2. [Análisis de Calidad del CSV](2-analisis-calidad-csv.md) (75 min) — Notebook 2c
+1. [Preprocesamiento Sysmon: De JSONL a CSV](1-preprocesamiento-sysmon.md) (60 min) — Scripts 2, 4 del pipeline
+2. [Preprocesamiento NetFlow: De JSONL a CSV](2-preprocesamiento-netflow.md) (30 min) — Script 3 del pipeline
+3. [Análisis de Calidad del CSV](3-analisis-calidad-csv.md) (75 min) — Notebook 2c
 
 ## Scripts del Pipeline
 
