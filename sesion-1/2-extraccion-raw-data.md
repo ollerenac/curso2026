@@ -19,16 +19,16 @@ Estos datos son recolectados de forma continua y centralizada en un clúster de 
 ┌──────────────────────────────────────────────────────────────────┐
 │                   Infraestructura Virtual                        │
 │                                                                  │
-│  ┌─────────┐    ┌─────────┐    ┌──────────────┐                │
-│  │  ITM2   │    │  ITM4   │    │     ITMX     │                │
-│  │ Servers │    │ Clients │    │ Elasticsearch │◄──────────┐   │
-│  └────┬────┘    └────┬────┘    └──────┬───────┘           │   │
-│       │              │                │                    │   │
-│       │   Sysmon + NetFlow            │                    │   │
-│       └──────────────┴────────────────┘                    │   │
-│                      │                               Beats/    │
-│                      │                              Agents     │
-│                      └─────────────────────────────────────┘   │
+│  ┌─────────────┐ ┌──────────┐  ┌────────────────┐              │
+│  │  Servidores  │ │ Clientes │  │  Elasticsearch │              │
+│  │ DC DDBB EWS │ │ WS1  WS2│  │   (10.2.0.20)  │◄──────────┐ │
+│  └──────┬───────┘ └────┬─────┘  └───────┬────────┘           │ │
+│         │              │                 │                     │ │
+│         │   Sysmon + NetFlow             │                     │ │
+│         └──────────────┴─────────────────┘                     │ │
+│                        │                                Beats/ │ │
+│                        │                               Agents  │ │
+│                        └───────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
                        │
                        │  Script de extracción
@@ -43,7 +43,7 @@ Estos datos son recolectados de forma continua y centralizada en un clúster de 
                        │
                        ▼
               Preprocesamiento
-              (Sesión 1.3)
+              (Sesión 2)
 ```
 
 ### Estructuras de datos en JSON
