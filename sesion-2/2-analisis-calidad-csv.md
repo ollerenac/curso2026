@@ -4,7 +4,7 @@
 
 ## Contexto: ¿Por qué analizar la calidad del CSV?
 
-En la Sesión 1, completamos tres pasos fundamentales: exploramos los datos crudos JSONL (sección 3), verificamos la consistencia estructural (sección 4) y convertimos los datos a CSV (sección 5). Ahora tenemos un archivo CSV limpio con un esquema fijo por EventID.
+En la Sesión 1, completamos tres pasos fundamentales: exploramos los raw data JSONL (sección 3), verificamos la consistencia estructural (sección 4) y convertimos los datos a CSV (sección 5). Ahora tenemos un archivo CSV limpio con un esquema fijo por EventID.
 
 Pero antes de usar estos datos para construir un sistema de detección de intrusiones, necesitamos responder: **¿los datos tienen la calidad suficiente para alimentar algoritmos de análisis causal?** Este análisis cubre distribución de eventos, patrones temporales, relaciones entre procesos, actividad de red/archivos, y una evaluación de "readiness" algorítmica.
 

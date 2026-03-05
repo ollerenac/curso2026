@@ -4,7 +4,7 @@
 
 ## Contexto: ¿Por qué necesitamos CSV?
 
-En las secciones anteriores exploramos los datos crudos en formato JSONL y validamos su consistencia estructural. Ahora debemos transformarlos en un formato tabular (CSV) adecuado para análisis y machine learning.
+En las secciones anteriores exploramos los raw data en formato JSONL y validamos su consistencia estructural. Ahora debemos transformarlos en un formato tabular (CSV) adecuado para análisis y machine learning.
 
 Recordemos el estado actual de nuestros datos:
 

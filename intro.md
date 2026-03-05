@@ -9,7 +9,7 @@ Curso práctico sobre datasets para sistema IDS (Intrusion Detection Systems), s
 
 ## Descripción
 
-Este curso guía a los participantes a través del proceso completo de construcción de un dataset de ciberseguridad, desde la adquisición de datos crudos hasta la generación de datasets etiquetados listos para experimentación con modelos de ML.
+Este curso guía a los participantes a través del proceso completo de construcción de un dataset de ciberseguridad, desde la adquisición de raw data hasta la generación de datasets etiquetados listos para experimentación con modelos de ML.
 
 ## Estructura del Curso
 

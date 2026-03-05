@@ -1,4 +1,4 @@
-# Exploración de Datos Crudos
+# Exploración de Raw Data Sysmon
 
 **Duración**: 60 minutos
 
@@ -574,7 +574,7 @@ Realiza la misma exploración inicial:
 
 Al finalizar esta sección, deberías comprender:
 
-- Cómo realizar una exploración sistemática de datos crudos antes de cualquier procesamiento.
+- Cómo realizar una exploración sistemática de raw data antes de cualquier procesamiento.
 - La estructura de doble capa (JSON + XML) de los eventos Sysmon exportados desde Elasticsearch.
 - La importancia de entender la distribución de EventIDs y la variabilidad de campos antes de diseñar un esquema de conversión.
 - Las diferencias estructurales entre los dos dominios de telemetría (Sysmon vs NetFlow) y sus implicaciones para el procesamiento.

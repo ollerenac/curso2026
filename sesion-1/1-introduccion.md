@@ -39,7 +39,7 @@ _**Paper**: "Learn-IDS: Bridging Gaps between Datasets and Learning-Based Networ
 
 - Básicamente, los investigadores utilizan datasets disponibles que contienen algún tipo de datos basados en telemetría de red, de la red bajo ataque.
 
-- Los investigadores emplean datasets públicos que contienen alguna forma de información de red donde ocurren los ataques. Luego, existe una etapa de preprocesamiento de datos crudos en la cual los diferentes datasets son acondicionados y formateados de manera uniforme para las siguientes etapas. La siguiente etapa es la Personalización de Datos, en la cual se extraen características siguiendo formatos tabulares, series temporales, arreglos o grafos. Estas características posteriormente son ingresadas al modelo de IA del IDS, donde el modelo es entrenado y evaluado.
+- Los investigadores emplean datasets públicos que contienen alguna forma de información de red donde ocurren los ataques. Luego, existe una etapa de preprocesamiento de raw data en la cual los diferentes datasets son acondicionados y formateados de manera uniforme para las siguientes etapas. La siguiente etapa es la Personalización de Datos, en la cual se extraen características siguiendo formatos tabulares, series temporales, arreglos o grafos. Estas características posteriormente son ingresadas al modelo de IA del IDS, donde el modelo es entrenado y evaluado.
 
 - Continuando con la siguiente figura, como es fácil deducir, los esfuerzos de los investigadores se enfocan en nuevas tecnologías y algoritmos para la etapa de Preprocesamiento y las etapas relacionadas con el Modelo.
 - Se están proponiendo técnicas novedosas de pipeline de datos en la etapa de preprocesamiento.
@@ -109,4 +109,4 @@ Al finalizar esta sección, deberías comprender:
 - La arquitectura de red virtual donde se ejecutan las campañas APT.
 - Por qué la combinación de Sysmon y NetFlow proporciona una visión más completa que cualquier dominio por separado.
 
-En la siguiente sección, veremos cómo **extraer los datos crudos** desde el clúster Elasticsearch donde se almacenan las dos fuentes de telemetría.
+En la siguiente sección, veremos cómo **extraer los raw data** desde el clúster Elasticsearch donde se almacenan las dos fuentes de telemetría.
