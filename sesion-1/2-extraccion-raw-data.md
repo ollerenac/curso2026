@@ -144,6 +144,17 @@ Nuestro script exporta en formato JSONL porque combina las ventajas de JSON (pre
 
 El script `1_elastic_index_downloader.py` implementa un pipeline de extracción en 5 pasos. A continuación, analizamos cada componente.
 
+```{tip}
+**¿Encontraste una función o sintaxis de Python que no conoces?** A lo largo de este curso aparecerán funciones y patrones que pueden ser nuevos. Estas son las herramientas para investigar por tu cuenta:
+
+- **`help(funcion)`** — muestra la documentación integrada. Por ejemplo, `help(json.dumps)` explica qué hace y qué parámetros acepta. En Jupyter notebooks también puedes usar `json.dumps?`.
+- **`type(variable)`** — muestra el tipo de un objeto (`str`, `dict`, `list`, etc.), útil para entender qué estás manipulando.
+- **`dir(objeto)`** — lista todos los métodos y atributos disponibles de un objeto.
+- **Documentación oficial** — [docs.python.org](https://docs.python.org/3/) es la referencia definitiva para la librería estándar de Python.
+
+Estas herramientas son parte del flujo de trabajo habitual de cualquier programador, no solo de principiantes.
+```
+
 ### Paso 1: Configuración y Conexión
 
 Primero, se establece la conexión con el clúster de Elasticsearch. En un entorno de laboratorio, es común desactivar la verificación de certificados SSL ya que se utilizan certificados autofirmados.
