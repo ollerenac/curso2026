@@ -50,7 +50,7 @@ Estos datos son recolectados de forma continua y centralizada en un clúster de 
 
 Antes de hablar del formato de exportación, es importante entender las estructuras de datos que maneja **JSON** (JavaScript Object Notation), ya que los datos de Elasticsearch se almacenan internamente en este formato.
 
-JSON soporta los siguientes tipos de datos:
+Un documento JSON se compone de **valores**, y cada valor puede ser de uno de los siguientes tipos. Dentro de un mismo documento, estos tipos se pueden combinar libremente:
 
 | Tipo | Python equivalente | Ejemplo JSON |
 |------|-------------------|--------------|
@@ -115,12 +115,14 @@ Cuando exportamos datos desde Elasticsearch, debemos elegir un formato de archiv
 ]
 ```
 
-**JSONL** (JSON Lines) — Un documento JSON por línea, sin array contenedor:
+**JSONL** (JSON Lines) — Cada línea del archivo es un objeto JSON completo e independiente (desde `{` hasta `}`), sin el array `[...]` que los envuelve en el formato JSON estándar. Nótese que, a diferencia del formato JSON anterior, aquí no hay corchetes `[]` ni comas entre documentos:
 
 ```json
 {"@timestamp": "2025-01-29T04:24:54.863Z", "event": {"category": "process"}, "process": {"name": "cmd.exe"}}
 {"@timestamp": "2025-01-29T04:24:55.120Z", "event": {"category": "network"}, "source": {"ip": "10.2.0.10"}}
 ```
+
+Cada línea es un registro independiente que contiene pares clave-valor, donde los valores pueden ser de cualquier tipo JSON: strings, números, objetos anidados (como `"event": {"category": "process"}`), arrays, booleanos o nulos.
 
 | Criterio | CSV | JSON | JSONL |
 |----------|-----|------|-------|
