@@ -52,11 +52,13 @@ La respuesta depende del **uso posterior** de los datos:
 - **Si el objetivo es entrenar un modelo por tipo de evento** (ej: detectar anomalías solo en conexiones de red), un CSV por EventID elimina toda la dispersión y es más limpio.
 - **Si el objetivo es trazar cadenas causales entre tipos de eventos** — que es exactamente lo que hacen los Scripts 7 y 8 del pipeline (etiquetado y trazado de ciclo de vida de ataques) — necesitamos todos los eventos en un solo DataFrame para poder seguir un `ProcessGuid` a través de: creación de proceso (EID 1) → conexión de red (EID 3) → creación de archivo (EID 11) → eliminación de archivo (EID 23).
 
-El script elige la **unión de esquemas** porque el pipeline completo necesita análisis cruzado entre EventIDs. La dispersión resultante (~85% NaN) no es un problema en la práctica porque:
+El script elige la **unión de esquemas** porque el pipeline completo necesita análisis cruzado entre EventIDs.
 
-1. **Los NaN son deterministas**: cada NaN se explica por el EventID de la fila. Filtrar `df[df.EventID == 3]` antes de analizar tráfico de red produce un subset con cero NaN en las columnas de red.
-2. **Los frameworks de ML modernos lo manejan nativamente**: XGBoost y LightGBM tratan NaN como una dirección de split aprendible, y las matrices dispersas (`scipy.sparse`) almacenan solo los valores no nulos.
-3. **Es el estándar de la industria**: los datasets de ciberseguridad (CICIDS, UNSW-NB15) y las herramientas SIEM (Splunk, Elastic) usan esquemas unificados con dispersión estructural.
+El coste de esta decisión es evidente: ~85% de las celdas del CSV resultante serán `NaN`. ¿Es esto un problema para machine learning? En la práctica, no — por tres razones:
+
+1. **Los NaN son deterministas, no aleatorios**: cada NaN se explica por el EventID de la fila. Filtrar `df[df.EventID == 3]` antes de analizar tráfico de red produce un subset con cero NaN en las columnas de red. La dispersión desaparece al segmentar por tipo de evento.
+2. **Los frameworks de ML modernos lo manejan nativamente**: XGBoost y LightGBM tratan NaN como una dirección de split aprendible, y las matrices dispersas (`scipy.sparse`) almacenan solo los valores no nulos — el 85% de celdas vacías no consume memoria.
+3. **Es el estándar de la industria**: los datasets de ciberseguridad de referencia (CICIDS, UNSW-NB15) y las herramientas SIEM (Splunk, Elastic) usan esquemas unificados con dispersión estructural.
 
 ### ¿Por qué no usar pandas directamente?
 
