@@ -423,4 +423,4 @@ Al finalizar esta sección, deberías comprender:
 - Cómo se conecta el script de extracción con la infraestructura presentada en la introducción.
 - El rol de Elasticsearch como punto centralizado de recolección de telemetría.
 - Cómo la Scroll API permite extraer grandes volúmenes de datos de forma eficiente.
-- El formato JSONL como puente entre Elasticsearch y las etapas de preprocesamiento que veremos en la siguiente sección.
+- El formato JSONL como puente entre Elasticsearch y las etapas posteriores: exploración de datos (secciones 3-6 de esta sesión) y preprocesamiento (Sesión 2).
