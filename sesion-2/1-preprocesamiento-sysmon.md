@@ -158,32 +158,31 @@ El script debe:
 El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar el procesamiento de archivos grandes:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  SysmonCSVCreator                         │
-│                                                          │
-│  Archivo JSONL                                           │
-│       │                                                  │
-│       ▼                                                  │
-│  read_jsonl_in_chunks()                                  │
-│       │                                                  │
-│       ├──► Chunk 1 ──► ThreadPoolExecutor ──┐            │
-│       ├──► Chunk 2 ──►   (process_chunk)   ──┤          │
-│       ├──► Chunk 3 ──►                     ──┤          │
-│       └──► Chunk N ──►                     ──┘          │
-│                          Cada hilo:                      │
-│                          json.loads → parse_sysmon_event │
-│                          → _build_event_record           │
-│                                              │           │
-│                                    merge_chunk_stats()   │
-│                                              │           │
-│                                              ▼           │
-│                                     pd.DataFrame         │
-│                                              │           │
-│                                    clean_dataframe()     │
-│                                              │           │
-│                                              ▼           │
-│                                        CSV final         │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                  SysmonCSVCreator                                              │
+│                                                                                │
+│  Archivo JSONL                                                                 │
+│       │                                                                        │
+│       ▼                                                                        │
+│  read_jsonl_in_chunks()                                                        │
+│       │                                                                        │
+│       ├──► Chunk 1 ──►  ThreadPoolExecutor ──┐                                 │
+│       ├──► Chunk 2 ──►   (process_chunk)   ──┤                                 │
+│       ├──► Chunk 3 ──►                     ──┤                                 │
+│       └──► Chunk N ──►                     ──┘                                 │
+│                          Cada hilo:                                            │
+│                          json.loads → parse_sysmon_event → _build_event_record │
+│                                              │                                 │
+│                                    merge_chunk_stats()                         │
+│                                              │                                 │
+│                                              ▼                                 │
+│                                     pd.DataFrame                               │
+│                                              │                                 │
+│                                    clean_dataframe()                           │
+│                                              │                                 │
+│                                              ▼                                 │
+│                                        CSV final                               │
+└────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Lectura y partición en chunks
