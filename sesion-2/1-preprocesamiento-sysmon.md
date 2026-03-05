@@ -246,6 +246,36 @@ def sanitize_xml(self, xml_str: str) -> str:
 
 La sanitización elimina **todos los caracteres fuera del rango ASCII imprimible** (códigos 32-126) y los caracteres de control, excepto tabuladores y saltos de línea. Esto es más agresivo que un simple filtrado de caracteres de control — protege contra cualquier byte no estándar que pudiera romper el parser XML.
 
+Una vez que el XML está limpio, necesitamos entender su estructura para saber **qué extraer y de dónde**. Un evento Sysmon en XML de Windows Event Log tiene dos bloques principales dentro del elemento raíz `<Event>`:
+
+```xml
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+
+  <System>                              ← Bloque 1: metadatos del evento
+    <EventID>1</EventID>                   Valor directo como texto del elemento
+    <Computer>PC1.domain.local</Computer>  Valor directo como texto del elemento
+    <TimeCreated SystemTime="..." />
+    ...
+  </System>
+
+  <EventData>                           ← Bloque 2: campos específicos de Sysmon
+    <Data Name="UtcTime">2025-01-29 04:25:12.345</Data>
+    <Data Name="ProcessGuid">{abc-123...}</Data>
+    <Data Name="Image">C:\Windows\cmd.exe</Data>
+    <Data Name="CommandLine">cmd /c whoami</Data>
+    ...                                    Cada campo es un <Data Name="X">valor</Data>
+  </EventData>
+
+</Event>
+```
+
+La diferencia es fundamental para la extracción:
+
+- **`<System>`** contiene elementos con **nombres fijos** (`<EventID>`, `<Computer>`). El valor se obtiene directamente del texto del elemento: `element.text` → `"1"`, `"PC1.domain.local"`.
+- **`<EventData>`** contiene una **lista de elementos `<Data>`**, todos con el mismo tag pero diferenciados por el atributo `Name`. El valor se obtiene del texto, pero la clave se obtiene del atributo: `data.get('Name')` → `"Image"`, `data.text` → `"C:\Windows\cmd.exe"`.
+
+Esta diferencia explica por qué la función de parsing tiene dos bloques separados de extracción — uno navega por nombre de elemento fijo, el otro itera sobre una lista genérica de pares nombre-valor:
+
 ```python
 def parse_sysmon_event(self, xml_str: str) -> Tuple[Optional[int], Optional[str], Dict]:
     """
@@ -290,12 +320,13 @@ def parse_sysmon_event(self, xml_str: str) -> Tuple[Optional[int], Optional[str]
         return None, None, {}
 ```
 
-**Puntos clave:**
-- **Sanitización agresiva**: Se eliminan todos los caracteres no-ASCII, no solo los caracteres de control XML. Esto maneja bytes corruptos que a veces aparecen en logs de Windows.
-- **Namespace-aware parsing**: El XML de Windows Event Log usa el namespace `http://schemas.microsoft.com/win/2004/08/events/event`, que debe especificarse para que las búsquedas XPath funcionen.
-- **Computer en minúsculas**: El hostname se convierte a minúsculas con `.lower()` para normalización. Esto explica por qué en el CSV los hosts aparecen como `waterfalls.boombox.local` en lugar de `WATERFALLS.boombox.local` del JSONL original.
-- **Preservación de nulos**: Los campos cuyo texto es `None` o vacío se almacenan como `None` en el diccionario — no se descartan. Esto es importante para distinguir entre "campo presente pero vacío" y "campo ausente".
-- **Logging de errores**: Los eventos con XML que falla el parsing se registran en `bad_xml_samples.txt` para depuración posterior.
+**Puntos clave del código:**
+- **Namespace obligatorio**: Todas las llamadas a `find()` y `findall()` requieren el prefijo `ns:` porque el XML de Windows Event Log declara el namespace `http://schemas.microsoft.com/win/2004/08/events/event`. Sin el diccionario `namespaces`, las búsquedas no encontrarían ningún elemento.
+- **`<System>` → acceso directo**: `system.find('ns:EventID')` localiza un elemento con nombre fijo. Su valor se lee con `.text` y se convierte a entero.
+- **`<EventData>` → iteración genérica**: `event_data.findall('ns:Data')` devuelve *todos* los elementos `<Data>` sin importar cuántos haya. El nombre del campo se obtiene del atributo `Name` con `.get('Name')`, y el valor del texto del elemento.
+- **Computer en minúsculas**: El hostname se normaliza con `.lower()`. Esto explica por qué en el CSV los hosts aparecen como `waterfalls.boombox.local` en lugar de `WATERFALLS.boombox.local` del JSONL original.
+- **Preservación de nulos**: Los campos cuyo texto es `None` o vacío se almacenan como `None` — no se descartan. Esto permite distinguir entre "campo presente pero vacío" y "campo ausente".
+- **Logging de errores**: Los eventos con XML que falla el parsing se registran en `bad_xml_samples.txt` para depuración posterior, en lugar de abortar la ejecución.
 
 ### Esquema por EventID
 
