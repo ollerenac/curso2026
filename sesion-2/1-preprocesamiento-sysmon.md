@@ -299,7 +299,7 @@ def parse_sysmon_event(self, xml_str: str) -> Tuple[Optional[int], Optional[str]
 
 ### Esquema por EventID
 
-La función `parse_sysmon_event` nos devuelve el `EventID`, el `Computer`, y un diccionario con **todos** los campos de `EventData` — pero no todos esos campos son relevantes para cada tipo de evento. ¿Cómo sabe el script qué campos conservar? Mediante un mapa de esquema que define exactamente qué campos extraer para cada EventID:
+La función `parse_sysmon_event` nos devuelve el `EventID`, el `Computer`, y un diccionario con **todos** los campos de `EventData` — pero no todos esos campos son relevantes para cada tipo de evento. ¿Cómo sabe el script qué campos conservar? Mediante un mapa de esquema que define exactamente qué campos extraer para cada EventID (para una descripción detallada de cada campo por EventID, ver el [Apéndice: Event Data Collection](../appendices/event-data-collection.md#sysmon-events-and-fields-per-event)):
 
 ```python
 self.fields_per_eventid = {
