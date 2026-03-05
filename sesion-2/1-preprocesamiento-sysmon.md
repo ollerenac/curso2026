@@ -16,7 +16,7 @@ Anota tus respuestas y compáralas con las decisiones del script a lo largo de e
 
 ## Contexto: ¿Por qué necesitamos CSV?
 
-En las secciones anteriores exploramos los raw data en formato JSONL y validamos su consistencia estructural. Ahora debemos transformarlos en un formato tabular (CSV) adecuado para análisis y machine learning.
+En las secciones anteriores exploramos los raw data en formato JSONL y validamos su consistencia estructural. Ahora debemos transformarlos en un formato que permita dos cosas: **análisis exploratorio eficiente** (filtrado, agrupación, estadísticas) y **alimentar algoritmos de machine learning** (que esperan datos tabulares). El formato JSONL no sirve para ninguna de las dos — cada registro es un documento anidado que requiere parsing individual.
 
 Recordemos el estado actual de nuestros datos:
 
@@ -36,9 +36,31 @@ dataset/run-XX-apt-Y/
 └── log-netflow-JSONL-to-csv-run-XX.json  ← Log de procesamiento NetFlow
 ```
 
+### Decisión de diseño: ¿un CSV por EventID o uno unificado?
+
+Sysmon tiene 22 tipos de eventos, cada uno con entre 3 y 16 campos diferentes. Podríamos generar un CSV por EventID (20 archivos densos, sin columnas vacías) o un CSV unificado (un solo archivo con la unión de todos los campos, donde ~85% de las celdas serán `NaN`). ¿Cuál es mejor?
+
+| Aspecto | CSV por EventID (20 archivos) | CSV unificado (45 columnas) |
+|---------|-------------------------------|---------------------------|
+| **Columnas por archivo** | 5–18 (según EventID) | 45 (fijas) |
+| **NaN estructurales** | ~0% | ~85% de las celdas |
+| **Análisis cruzado** | Requiere joins por ProcessGuid | Directo (un solo DataFrame) |
+| **Lifecycle tracing** | Multi-join entre 20 archivos | `df[df.ProcessGuid == guid]` |
+
+La respuesta depende del **uso posterior** de los datos:
+
+- **Si el objetivo es entrenar un modelo por tipo de evento** (ej: detectar anomalías solo en conexiones de red), un CSV por EventID elimina toda la dispersión y es más limpio.
+- **Si el objetivo es trazar cadenas causales entre tipos de eventos** — que es exactamente lo que hacen los Scripts 7 y 8 del pipeline (etiquetado y trazado de ciclo de vida de ataques) — necesitamos todos los eventos en un solo DataFrame para poder seguir un `ProcessGuid` a través de: creación de proceso (EID 1) → conexión de red (EID 3) → creación de archivo (EID 11) → eliminación de archivo (EID 23).
+
+El script elige la **unión de esquemas** porque el pipeline completo necesita análisis cruzado entre EventIDs. La dispersión resultante (~85% NaN) no es un problema en la práctica porque:
+
+1. **Los NaN son deterministas**: cada NaN se explica por el EventID de la fila. Filtrar `df[df.EventID == 3]` antes de analizar tráfico de red produce un subset con cero NaN en las columnas de red.
+2. **Los frameworks de ML modernos lo manejan nativamente**: XGBoost y LightGBM tratan NaN como una dirección de split aprendible, y las matrices dispersas (`scipy.sparse`) almacenan solo los valores no nulos.
+3. **Es el estándar de la industria**: los datasets de ciberseguridad (CICIDS, UNSW-NB15) y las herramientas SIEM (Splunk, Elastic) usan esquemas unificados con dispersión estructural.
+
 ### ¿Por qué no usar pandas directamente?
 
-Una primera aproximación sería simplemente cargar el JSONL con pandas:
+Dado que elegimos un CSV unificado, una primera aproximación sería simplemente cargar el JSONL con pandas:
 
 ```python
 import pandas as pd
@@ -334,30 +356,6 @@ Los EventIDs más relevantes para la detección de APTs son:
 | 10 | Process Access | 10 | Credential dumping (LSASS), injection |
 | 11 | File Create | 7 | Descarga de payloads, creación de archivos maliciosos |
 | 23 | File Delete | 7 | Anti-forensics, limpieza de huellas |
-
-### Decisión de diseño: ¿un CSV unificado o uno por EventID?
-
-Con 22 EventIDs que tienen entre 3 y 16 campos cada uno, surge una pregunta natural: ¿por qué combinarlos todos en un CSV de 45 columnas donde la mayoría de las celdas serán `NaN`? ¿No sería más eficiente — y más amigable para machine learning — crear un CSV por EventID?
-
-Consideremos las dos alternativas:
-
-| Aspecto | CSV unificado (45 columnas) | CSV por EventID (20 archivos) |
-|---------|---------------------------|-------------------------------|
-| **Columnas por archivo** | 45 (fijas) | 5–18 (según EventID) |
-| **NaN estructurales** | ~85% de las celdas | ~0% |
-| **Análisis cruzado** | Directo (un solo DataFrame) | Requiere joins por ProcessGuid |
-| **Lifecycle tracing** | Posible: `df[df.ProcessGuid == guid]` | Multi-join entre 20 archivos |
-
-La respuesta depende del **uso posterior** de los datos:
-
-- **Si el objetivo es entrenar un modelo por tipo de evento** (ej: detectar anomalías solo en conexiones de red), un CSV por EventID elimina toda la dispersión y es más limpio.
-- **Si el objetivo es trazar cadenas causales entre tipos de eventos** — que es exactamente lo que hacen los Scripts 7 y 8 del pipeline (etiquetado y trazado de ciclo de vida de ataques) — necesitamos todos los eventos en un solo DataFrame para poder seguir un `ProcessGuid` a través de: creación de proceso (EID 1) → conexión de red (EID 3) → creación de archivo (EID 11) → eliminación de archivo (EID 23).
-
-El script elige la **unión de esquemas** porque el pipeline completo necesita análisis cruzado entre EventIDs. La dispersión resultante (~85% NaN) no es un problema en la práctica porque:
-
-1. **Los NaN son deterministas**: cada NaN se explica por el EventID de la fila. Filtrar `df[df.EventID == 3]` antes de analizar tráfico de red produce un subset con cero NaN en las columnas de red.
-2. **Los frameworks de ML modernos lo manejan nativamente**: XGBoost y LightGBM tratan NaN como una dirección de split aprendible, y las matrices dispersas (`scipy.sparse`) almacenan solo los valores no nulos.
-3. **Es el estándar de la industria**: los datasets de ciberseguridad (CICIDS, UNSW-NB15) y las herramientas SIEM (Splunk, Elastic) usan esquemas unificados con dispersión estructural.
 
 ### Tipos de datos y columnas especiales
 
