@@ -184,6 +184,10 @@ El resultado muestra 12 campos totales, pero con una diferencia importante: **11
 
 **Hallazgo clave:** El campo `process` solo aparece en el **62.8%** de los registros. Esto se debe a que Packetbeat (el agente de captura de red) solo puede asociar un flujo de red con un proceso del sistema operativo cuando tiene suficiente información para hacer esa correlación. Los flujos donde no se identifica el proceso origen/destino simplemente omiten el campo.
 
+```{important}
+Este porcentaje (62.8%) corresponde **exclusivamente a la ejecución `run-01-apt-1`**. Nuestro dataset contiene 48 ejecuciones (*runs*) con diferentes campañas APT, y cada una puede presentar una proporción diferente de registros con información de proceso — dependiendo de la naturaleza del ataque, los servicios activos en la red, y las condiciones de captura. En sesiones posteriores analizaremos la consistencia estructural a lo largo de todos los runs para determinar si este patrón se mantiene o varía.
+```
+
 Veamos la diferencia entre un registro con y sin `process`:
 
 ```python
@@ -410,7 +414,7 @@ NetFlow:  navegar_dict() → aplanar jerarquía → CSV
 **Puntos clave:**
 
 - NetFlow almacena los datos como **JSON anidado puro**, eliminando la necesidad del parsing XML y la sanitización que requiere Sysmon.
-- De los 12 campos de primer nivel, **11 están siempre presentes** y el campo `process` aparece en el **62.8%** de los registros.
+- De los 12 campos de primer nivel, **11 están siempre presentes** y el campo `process` aparece en el **62.8%** de los registros en `run-01-apt-1` (este porcentaje puede variar en otros runs).
 - La jerarquía JSON contiene **87 rutas de campo únicas**, organizadas en una estructura de árbol con hasta 4 niveles de profundidad.
 - La calidad de los datos es excepcional: **cero valores nulos o vacíos** en los campos obligatorios, y completitud del 100% para el campo `process` cuando está presente.
 
