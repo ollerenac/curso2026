@@ -14,6 +14,18 @@ La respuesta, como veremos, es diferente a la de Sysmon — y las razones de esa
 El código de esta sección se puede ejecutar paso a paso en el notebook `3b-structure-consistency-analyzer.ipynb`, que contiene el análisis completo de consistencia estructural para NetFlow con celdas interactivas y resultados detallados.
 ```
 
+```{admonition} Antes de continuar — haz una predicción
+:class: tip
+
+Antes de ver los resultados, piensa:
+
+1. NetFlow no tiene EventID. ¿Esperarías **más** o **menos** patrones estructurales que los 19 de Sysmon?
+2. Sin un discriminador de tipo, ¿sería la consistencia **mayor** o **menor**?
+3. ¿Qué campo crees que causa la mayor variación?
+
+Anota tus predicciones y compáralas con los resultados.
+```
+
 ## Paso 1: Aplicación del fingerprinting a NetFlow
 
 En la sección 4 construimos una función `generate_structure_fingerprint()` que tomaba el EventID y los nombres de campo del XML para generar un hash MD5. Para NetFlow, la técnica es la misma pero la implementación cambia: en lugar de parsear XML para extraer nombres de campo, **hasheamos la estructura del JSON directamente**.
@@ -220,12 +232,19 @@ La estrategia de conversión JSONL a CSV para NetFlow debe contemplar las tres c
 
 A diferencia del conversor Sysmon — que usa un esquema fijo por EventID — el conversor NetFlow debe emplear un **esquema unificado** con manejo de nulos para los campos opcionales. Esto se implementa con la función `get_nested_value()` de la sección anterior, que devuelve un valor por defecto cuando la ruta no existe en el registro.
 
-**Puntos clave:**
+## Conclusiones e implicaciones
 
-- NetFlow presenta **14 patrones estructurales** frente a los 19 de Sysmon, pero su evaluación es **MODERADAMENTE CONSISTENTE** (vs ALTAMENTE CONSISTENTE) porque carece de un discriminador de tipo natural como EventID.
-- El eje principal de variación es la presencia/ausencia de campos de proceso: `process` (64.0%), `source.process` (61.2%), y `destination.process` (2.8%).
-- De las 89 rutas de campo, **64 están siempre presentes** (100%), 17 son condicionales (ligadas a la atribución de proceso), y 8 son raras (ligadas al proceso destino).
-- El conversor CSV debe implementar un esquema unificado con manejo de nulos, en contraste con el esquema fijo por EventID de Sysmon.
+El análisis de consistencia estructural de NetFlow revela un panorama cualitativamente distinto al de Sysmon:
+
+1. **Menos patrones, menor consistencia (14 vs 19)**: Puede parecer contraintuitivo que 14 patrones produzcan una evaluación de MODERADAMENTE CONSISTENTE mientras que 19 patrones producen ALTAMENTE CONSISTENTE. La diferencia está en la **naturaleza** de la variación: en Sysmon, cada patrón corresponde a un EventID conocido y predecible; en NetFlow, los 14 patrones reflejan combinaciones impredecibles de campos opcionales.
+
+2. **Un solo eje de variación**: Toda la diversidad estructural se reduce a una pregunta binaria: ¿se pudo atribuir el flujo de red a un proceso? Cuando sí, aparecen `process` y `source.process`; cuando no, ambos se omiten. Esta atribución depende de factores operativos (si Packetbeat monitoriza el host), no del tipo de evento.
+
+3. **Núcleo estable de 64 campos**: De las 89 rutas de campo, 64 están presentes en el 100% de los registros. Toda la infraestructura de red (`source.*`, `destination.*`, `network.*`) está siempre completa — solo la atribución a proceso es variable. Esto contrasta con Sysmon, donde solo 2 campos (`UtcTime`, `RuleName`) son universales.
+
+4. **Variación determinista vs estocástica**: En Sysmon, conocer el EventID permite predecir exactamente qué campos contendrá el registro. En NetFlow, no existe esa predicción — la presencia de `process` depende de si el host estaba monitorizado en el momento del flujo. Esta distinción tiene consecuencias directas para el diseño de los conversores CSV.
+
+**Implicación para el preprocesamiento**: El conversor NetFlow (Script 3) debe implementar un **esquema unificado** donde las 89 rutas se extraen con `get_nested_value()`, usando valores por defecto (`None`) para los campos ausentes. En contraste, el conversor Sysmon (Script 2) usa un esquema fijo por EventID con el diccionario `fields_per_eventid`.
 
 ## Actividad Práctica
 
@@ -252,4 +271,4 @@ Al finalizar esta sección, deberías comprender:
 
 ---
 
-Con esta sección concluimos la **Sesión 1: Exploración y Análisis Estructural**. Hemos explorado ambos dominios de telemetría (Sysmon y NetFlow), verificado su consistencia estructural, y comprendido las implicaciones para el diseño de los conversores. En la **Sesión 2** abordaremos el preprocesamiento: la conversión de estos archivos JSONL a CSV estructurados, aplicando las estrategias de extracción que la exploración nos ha revelado.
+En la siguiente sección cerramos la Sesión 1 con una síntesis de todo lo aprendido y una vista previa de cómo estos hallazgos alimentan las sesiones siguientes.

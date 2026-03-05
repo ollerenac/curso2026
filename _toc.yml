@@ -12,6 +12,7 @@ parts:
           - file: sesion-1/4-consistencia-sysmon
           - file: sesion-1/5-exploracion-netflow
           - file: sesion-1/6-consistencia-netflow
+          - file: sesion-1/7-conclusiones-sesion-1
 
   - caption: "Sesión 2: Preprocesamiento y Calidad"
     chapters:

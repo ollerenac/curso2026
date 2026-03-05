@@ -17,3 +17,4 @@
 4. [Consistencia Estructural Sysmon](4-consistencia-sysmon.md) (45 min)
 5. [Exploración de Datos NetFlow](5-exploracion-netflow.md) (50 min)
 6. [Consistencia Estructural NetFlow](6-consistencia-netflow.md) (35 min)
+7. [Conclusiones de la Sesión 1](7-conclusiones-sesion-1.md) (15 min)
