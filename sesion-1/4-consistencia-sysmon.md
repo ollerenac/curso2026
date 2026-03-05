@@ -10,12 +10,12 @@ Pero antes de construir un conversor JSONL → CSV, necesitamos responder una pr
 
 Si la respuesta es sí, podemos diseñar un esquema fijo por EventID. Si la respuesta es no, necesitamos manejar variaciones — campos que a veces están presentes y a veces no, o campos que cambian de nombre entre registros.
 
-```{tip}
+```{note}
 El código de esta sección se puede ejecutar paso a paso en el notebook `2b-structure-consistency-analyzer.ipynb`, que contiene el análisis completo con celdas interactivas y resultados detallados.
 ```
 
 ```{admonition} Antes de continuar — haz una predicción
-:class: tip
+:class: note
 
 En la sección anterior descubrimos 19 EventIDs con esquemas de campos diferentes. Antes de ver los resultados:
 

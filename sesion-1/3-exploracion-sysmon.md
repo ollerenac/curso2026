@@ -16,12 +16,12 @@ Tenemos dos archivos JSONL — uno por dominio de telemetría. Pero antes de esc
 
 Este paso de exploración no es opcional. Sin entender la estructura interna de los datos, cualquier intento de conversión a CSV sería a ciegas: no sabríamos qué campos extraer, cómo manejar las estructuras anidadas, ni qué variaciones esperar entre registros.
 
-```{tip}
+```{note}
 El código de esta sección se puede ejecutar paso a paso en el notebook `2a-exploratory_sysmon-index.ipynb`, que contiene el análisis completo con celdas interactivas y resultados detallados.
 ```
 
 ```{admonition} Antes de continuar — haz una predicción
-:class: tip
+:class: note
 
 Tienes un archivo JSONL de 2.1 GB con 363,657 registros Sysmon. Antes de explorar:
 

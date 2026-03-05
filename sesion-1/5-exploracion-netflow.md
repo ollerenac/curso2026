@@ -15,12 +15,12 @@ dataset/run-01-apt-1/
 
 La diferencia fundamental con Sysmon es que los datos NetFlow son **JSON anidado puro** — no hay XML incrustado en ningún campo. Esto significa que la complejidad no está en el parsing de un formato externo, sino en la **navegación de estructuras anidadas** dentro del propio JSON.
 
-```{tip}
+```{note}
 El análisis completo con celdas interactivas y resultados detallados se encuentra en el notebook `3a-exploratory_network-traffic-flow-index.ipynb`. Los números y hallazgos de esta sección provienen directamente de ese notebook.
 ```
 
 ```{admonition} Antes de continuar — haz una predicción
-:class: tip
+:class: note
 
 Ya conoces la estructura de Sysmon: JSON con XML incrustado, namespaces XML, y 19 tipos de EventID. Ahora explorarás NetFlow:
 

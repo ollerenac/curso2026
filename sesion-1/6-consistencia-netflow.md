@@ -10,12 +10,12 @@ Ahora aplicamos la **misma técnica** al dominio NetFlow. En la sección anterio
 
 La respuesta, como veremos, es diferente a la de Sysmon — y las razones de esa diferencia revelan aspectos fundamentales sobre la naturaleza de cada dominio de telemetría.
 
-```{tip}
+```{note}
 El código de esta sección se puede ejecutar paso a paso en el notebook `3b-structure-consistency-analyzer.ipynb`, que contiene el análisis completo de consistencia estructural para NetFlow con celdas interactivas y resultados detallados.
 ```
 
 ```{admonition} Antes de continuar — haz una predicción
-:class: tip
+:class: note
 
 Antes de ver los resultados, piensa:
 

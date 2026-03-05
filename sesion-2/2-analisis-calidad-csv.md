@@ -8,7 +8,7 @@ En la sección anterior convertimos los datos Sysmon de formato JSONL a un CSV t
 
 Pero antes de usar estos datos para construir un sistema de detección de intrusiones, necesitamos responder: **¿los datos tienen la calidad suficiente para alimentar algoritmos de análisis causal?** Este análisis cubre distribución de eventos, patrones temporales, relaciones entre procesos, actividad de red/archivos, y una evaluación de "readiness" algorítmica.
 
-```{tip}
+```{note}
 El código de esta sección se puede ejecutar paso a paso en el notebook `2c-sysmon-csv-exploratory-analysis.ipynb`, que contiene el análisis completo con visualizaciones interactivas.
 ```
 

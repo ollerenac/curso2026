@@ -3,7 +3,7 @@
 **Duración**: 60 minutos
 
 ```{admonition} Antes de continuar — haz una predicción
-:class: tip
+:class: note
 
 Tienes un archivo JSONL de 2.1 GB con 363,657 eventos Sysmon. Necesitas convertirlo a CSV. Antes de ver cómo lo resuelve el script:
 
