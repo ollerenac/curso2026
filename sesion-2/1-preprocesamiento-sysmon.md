@@ -1,6 +1,19 @@
 # Preprocesamiento Sysmon: De JSONL a CSV (Scripts 2 y 4)
 
 **Duración**: 60 minutos
+
+```{admonition} Antes de continuar — haz una predicción
+:class: tip
+
+Tienes un archivo JSONL de 2.1 GB con 363,657 eventos Sysmon. Necesitas convertirlo a CSV. Antes de ver cómo lo resuelve el script:
+
+1. ¿Podrías simplemente hacer `pd.read_json("sysmon.jsonl", lines=True)` y obtener un CSV usable? ¿Qué obstáculo principal lo impide?
+2. Con 400,000+ eventos, ¿procesarías el archivo entero de una vez o lo dividirías? Si lo divides, ¿cómo combinarías los resultados?
+3. Sysmon tiene 22 tipos de eventos con campos diferentes. ¿El CSV resultante tendría columnas diferentes por tipo, o **todas** las columnas posibles con muchos valores vacíos?
+
+Anota tus respuestas y compáralas con las decisiones del script a lo largo de esta sección.
+```
+
 ## Contexto: ¿Por qué necesitamos CSV?
 
 En las secciones anteriores exploramos los raw data en formato JSONL y validamos su consistencia estructural. Ahora debemos transformarlos en un formato tabular (CSV) adecuado para análisis y machine learning.
@@ -46,27 +59,40 @@ Por estas razones, necesitamos scripts especializados que manejen cada dominio d
 
 ### Pipeline de preprocesamiento
 
-El preprocesamiento se realiza en tres pasos, cada uno implementado por un script independiente:
+El preprocesamiento se organiza en **dos líneas de trabajo independientes**, una por dominio de telemetría. Dentro de la línea Sysmon, los scripts son secuenciales (el Script 4 corrige el CSV generado por el Script 2):
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│                    Preprocesamiento                        │
-│                                                            │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐  │
-│  │  Script 2    │   │  Script 3    │   │  Script 4    │  │
-│  │  Sysmon      │   │  NetFlow     │   │  Limpieza    │  │
-│  │  JSONL→CSV   │   │  JSONL→CSV   │   │  de Calidad  │  │
-│  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘  │
-│         │                  │                   │           │
-│         ▼                  ▼                   ▼           │
-│   sysmon-run-XX.csv  netflow-run-XX.csv  sysmon-run-XX.csv│
-│   (generación)       (generación)        (corrección)     │
-│                                                            │
-│  ◄── Independientes ──►              ◄── Secuencial ──►   │
-└───────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                      Preprocesamiento                         │
+│                                                               │
+│   Línea Sysmon                        Línea NetFlow           │
+│   ─────────────                       ──────────────          │
+│                                                               │
+│   ┌──────────────┐                    ┌──────────────┐       │
+│   │  Script 2    │                    │  Script 3    │       │
+│   │  Sysmon      │                    │  NetFlow     │       │
+│   │  JSONL → CSV │                    │  JSONL → CSV │       │
+│   └──────┬───────┘                    └──────┬───────┘       │
+│          │                                   │                │
+│          ▼                                   ▼                │
+│   sysmon-run-XX.csv                   netflow-run-XX.csv     │
+│          │                            (resultado final)       │
+│          ▼                                                    │
+│   ┌──────────────┐                                           │
+│   │  Script 4    │                                           │
+│   │  Limpieza    │                                           │
+│   │  de Calidad  │                                           │
+│   └──────┬───────┘                                           │
+│          │                                                    │
+│          ▼                                                    │
+│   sysmon-run-XX.csv                                          │
+│   (corregido)                                                │
+│                                                               │
+│   ◄──── Secuencial ────►   ◄── Independiente ──►             │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-Los Scripts 2 y 3 son **independientes** y pueden ejecutarse en paralelo. El Script 4 es **secuencial** y debe ejecutarse después del Script 2, ya que corrige problemas de calidad en el CSV de Sysmon.
+Las dos líneas son **independientes** y pueden ejecutarse en paralelo. Dentro de la línea Sysmon, el Script 4 debe ejecutarse **después** del Script 2, ya que corrige problemas de calidad en el CSV generado.
 
 ---
 
@@ -135,7 +161,7 @@ El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar e
 
 ### Lectura y partición en chunks
 
-El primer paso es leer el archivo JSONL y dividirlo en bloques para procesamiento paralelo. El script usa una lectura **en streaming** (línea por línea) en lugar de cargar todo el archivo en memoria:
+Siguiendo el diagrama de arquitectura, el primer paso del pipeline es `read_jsonl_in_chunks`: leer el archivo JSONL completo y dividirlo en bloques independientes que los hilos procesarán en paralelo. El script usa una lectura **en streaming** (línea por línea) en lugar de cargar todo el archivo en memoria:
 
 ```python
 def read_jsonl_in_chunks(self, jsonl_path: str) -> List[List[str]]:
@@ -178,7 +204,7 @@ def read_jsonl_in_chunks(self, jsonl_path: str) -> List[List[str]]:
 
 ### Parsing de eventos Sysmon: de XML a diccionario
 
-Cada línea JSONL contiene un evento con XML embebido. El parsing requiere dos etapas: primero sanitizar el XML (que puede contener caracteres inválidos), y luego extraer los campos:
+Una vez que tenemos los chunks, cada hilo debe procesar sus líneas individualmente. Pero antes de poder extraer campos, el XML embebido puede contener caracteres inválidos (bytes corruptos de logs de Windows). Por eso el parsing se divide en dos pasos: primero **sanitizar** el XML para hacerlo parseable, y luego **extraer** los campos estructurados:
 
 ```python
 def sanitize_xml(self, xml_str: str) -> str:
@@ -247,7 +273,7 @@ def parse_sysmon_event(self, xml_str: str) -> Tuple[Optional[int], Optional[str]
 
 ### Esquema por EventID
 
-Sysmon genera 21 tipos de eventos diferentes en nuestro dataset, cada uno con campos específicos. El script define un mapa de esquema completo que determina qué campos extraer para cada EventID:
+La función `parse_sysmon_event` nos devuelve el `EventID`, el `Computer`, y un diccionario con **todos** los campos de `EventData` — pero no todos esos campos son relevantes para cada tipo de evento. ¿Cómo sabe el script qué campos conservar? Mediante un mapa de esquema que define exactamente qué campos extraer para cada EventID:
 
 ```python
 self.fields_per_eventid = {
@@ -311,7 +337,7 @@ Los EventIDs más relevantes para la detección de APTs son:
 
 ### Tipos de datos y columnas especiales
 
-El script define conjuntos de columnas que requieren tratamiento especial durante la conversión:
+El esquema nos dice **qué campos** extraer, pero no **cómo** convertirlos. Algunos campos requieren transformaciones de tipo: los PIDs y puertos deben ser enteros (no strings), y los GUIDs deben limpiarse de llaves y whitespace. El script define conjuntos de columnas que requieren tratamiento especial:
 
 ```python
 self.integer_columns = {
@@ -356,7 +382,9 @@ def clean_guid(self, value) -> Optional[str]:
 
 ### Construcción de registros tabulares
 
-Cada evento se convierte en un registro plano usando el esquema correspondiente a su EventID. Un caso especial importante es el **EventID 8** (Create Remote Thread), donde los nombres de campo en el XML difieren en capitalización de los nombres de columna del CSV:
+Ahora podemos combinar todas las piezas anteriores. Para cada evento, `_build_event_record` realiza el flujo completo: consulta `fields_per_eventid` para obtener el esquema, extrae los valores del diccionario de campos XML, aplica `safe_int_conversion` o `clean_guid` según el tipo de columna, y produce un diccionario plano listo para insertar en el DataFrame.
+
+Un caso especial importante es el **EventID 8** (Create Remote Thread), donde los nombres de campo en el XML difieren en capitalización de los nombres de columna del CSV:
 
 ```python
 def _build_event_record(self, event_id: int, computer: str,
@@ -405,7 +433,7 @@ def _build_event_record(self, event_id: int, computer: str,
 
 ### Procesamiento multi-hilo
 
-La función que orquesta el procesamiento paralelo utiliza `ThreadPoolExecutor` con reporte de progreso y logging estructurado:
+Hasta ahora hemos visto las piezas individuales: `read_jsonl_in_chunks` divide el archivo, `parse_sysmon_event` extrae los campos XML, `fields_per_eventid` define el esquema, y `_build_event_record` construye cada registro. La función `process_events` es el **orquestador** que las conecta: distribuye chunks entre hilos, cada hilo procesa sus eventos llamando a las funciones anteriores, y finalmente se combinan todos los resultados en un único DataFrame.
 
 ```python
 def process_events(self, jsonl_path: str) -> pd.DataFrame:
@@ -449,7 +477,7 @@ El script además genera un **log de procesamiento** en formato JSON (`log-sysmo
 
 ### Limpieza y optimización del DataFrame
 
-Una vez construido el DataFrame con todos los registros, se aplican transformaciones para optimizar el almacenamiento y la usabilidad:
+El DataFrame que sale de `process_events` contiene todos los registros, pero aún en estado "crudo": timestamps como strings, enteros mezclados con NaN, GUIDs con llaves. La función `clean_dataframe` lo transforma en un DataFrame optimizado para ML — y, crucialmente, estandariza el formato temporal para que sea compatible con NetFlow en etapas posteriores del pipeline.
 
 ```python
 def clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -775,15 +803,33 @@ Dado el siguiente fragmento de datos de Sysmon:
 2. **¿Cuál de ellas se resolvería automáticamente** con la normalización del prefijo `\\?\`?
 3. **¿Cuál requiere intervención manual?** ¿Qué información adicional necesitarías para decidir la corrección?
 
-### Resultado Esperado
+---
 
-Al finalizar esta sección, deberías comprender:
+## Conclusiones
 
-- El flujo completo de transformación de datos Sysmon JSONL a CSV.
-- Cómo el parser maneja XML embebido con namespaces y sanitización.
-- Por qué el procesamiento multi-hilo es necesario para archivos de cientos de miles de eventos.
-- La importancia de la estandarización temporal (epoch milliseconds) para la correlación entre dominios.
-- Cómo detectar y corregir violaciones de integridad de ProcessGuid.
-- El rol del componente human-in-the-loop en el pipeline de calidad de datos.
+### Lo que hemos construido
 
-En la siguiente sección aplicamos la misma conversión JSONL → CSV al dominio NetFlow, donde el reto no es parsear XML sino aplanar una jerarquía JSON de múltiples niveles.
+En esta sección hemos recorrido los dos scripts que transforman los datos crudos de Sysmon en un CSV limpio y listo para análisis:
+
+| Etapa | Script | Entrada | Salida | Decisión clave |
+|-------|--------|---------|--------|----------------|
+| Conversión | Script 2 | JSONL con XML embebido | CSV tabular (45 columnas) | Esquema unión de 22 EventIDs |
+| Limpieza | Script 4 | CSV con violaciones | CSV corregido | Human-in-the-loop para casos ambiguos |
+
+### Decisiones de diseño y sus consecuencias
+
+Las decisiones tomadas en estos scripts no son arbitrarias — cada una tiene consecuencias directas en etapas posteriores del pipeline:
+
+1. **Epoch milliseconds en lugar de datetime strings**: Permite la correlación temporal con NetFlow en el Script 5 (Sesión 3). Ambos dominios comparten la misma escala numérica, haciendo que las operaciones de ventana temporal sean simples restas de enteros.
+
+2. **Esquema unión (45 columnas con NaN)**: Mantiene todos los eventos en un solo DataFrame. La alternativa — un CSV por EventID — haría imposible el análisis cruzado entre tipos de eventos que el Script 8 (trazado de ciclo de vida) necesita.
+
+3. **Normalización de Computer a minúsculas**: Evita que `ITM2-DC.intmaniac.local` y `ITM2-DC.INTMANIAC.LOCAL` se traten como hosts diferentes en el análisis de movimiento lateral.
+
+4. **ProcessGuid sin llaves**: El formato limpio (`3fc4fefd-de08-67da-...`) facilita las operaciones de join y groupby que los Scripts 7 y 8 (etiquetado) realizan intensivamente.
+
+### Conexión con lo que sigue
+
+El CSV de Sysmon que hemos producido es solo uno de los dos dominios. En la **siguiente sección** aplicamos la misma conversión al dominio NetFlow, donde el reto no es parsear XML sino aplanar una jerarquía JSON de múltiples niveles en 39 columnas fijas.
+
+Después, en la **sección 3** de esta sesión, evaluaremos la calidad del CSV resultante: distribución de EventIDs, patrones temporales, relaciones entre procesos, y readiness para algoritmos de ML.
