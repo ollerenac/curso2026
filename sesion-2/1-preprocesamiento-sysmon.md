@@ -223,10 +223,10 @@ def read_jsonl_in_chunks(self, jsonl_path: str) -> List[List[str]]:
 ```
 
 **Puntos clave:**
-- El `chunk_size` por defecto es **10,000 líneas** por bloque, configurable vía YAML.
+- El `chunk_size` por defecto es **10,000 líneas** por bloque. Este valor, junto con otros parámetros como `max_workers`, se puede modificar mediante un archivo de configuración YAML opcional que se pasa al script con `--config config.yaml` (ver Apéndice: Configuración del Pipeline).
 - La lectura en streaming (`for line in f`) evita cargar todo el archivo en memoria — crítico para archivos JSONL de cientos de miles de eventos.
 - Al dividir en chunks, cada hilo de ejecución procesa un bloque independiente sin compartir estado.
-- El número de workers se auto-detecta con `multiprocessing.cpu_count()` o se configura manualmente.
+- El número de workers se auto-detecta con `multiprocessing.cpu_count()` o se configura manualmente en el mismo archivo YAML.
 
 ### Parsing de eventos Sysmon: de XML a diccionario
 
