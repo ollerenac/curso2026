@@ -269,12 +269,14 @@ Hora más activa:  05:00 UTC (305,542 eventos)
 Hora menos activa: 06:00 UTC (58,113 eventos)
 ```
 
-El notebook genera 4 visualizaciones adaptadas a la ventana de 72 minutos:
+El notebook genera 4 visualizaciones adaptadas a la ventana de 72 minutos, agrupadas en una única figura 2×2:
 
-1. **Timeline acumulativa** — Línea que muestra la acumulación de eventos. Cambios de pendiente revelan períodos de actividad intensa vs calma.
-2. **Histograma de eventos/minuto** — Distribución de las tasas por minuto con líneas de media y mediana. El pico de 30,563 vs media de ~5,000 confirma ráfagas significativas.
-3. **Tasa por EventID (top 5)** — Líneas separadas para los 5 EventIDs más frecuentes en ventanas de 1 minuto. Permite identificar qué tipos de eventos generan las ráfagas.
-4. **Tasa general (1 minuto)** — Área sombreada mostrando la intensidad de actividad a lo largo del tiempo con la media como referencia.
+![Análisis temporal de eventos Sysmon — 4 visualizaciones](/images/sysmon-temporal-analysis.png)
+
+1. **Timeline acumulativa** (arriba izquierda) — La línea acumulativa revela una curva en S con fases de intensidad variable. La pendiente más pronunciada se observa en los primeros ~10 minutos (05:00-05:10), donde se acumulan rápidamente más de 100K eventos. Después la pendiente se suaviza y vuelve a aumentar en torno a 05:30-05:40. Estos cambios de pendiente son la señal visual de ráfagas de actividad.
+2. **Histograma de eventos/minuto** (arriba derecha) — La distribución está fuertemente sesgada a la derecha: la mayoría de los minutos registran menos de 2,000 eventos (las barras más altas, frecuencia ~11), pero la cola se extiende hasta ~30,000 eventos/minuto con una única ocurrencia. Esta forma confirma que la actividad no es uniforme — hay pocos minutos con ráfagas extremas que elevan drásticamente la media (~5,000) por encima de la moda (<2,000).
+3. **Eventos por hora del día** (abajo izquierda) — Solo aparecen 2 barras (hora 5 con ~305K y hora 6 con ~58K), reflejando que la captura abarca únicamente 05:00-06:12 UTC. La proporción ~5:1 entre ambas barras es simplemente consecuencia de que la hora 5 tiene 60 minutos de datos y la hora 6 solo 12 — no indica un cambio real de intensidad.
+4. **Tasa de eventos en ventanas de 5 minutos** (abajo derecha) — La visualización más reveladora. Se identifican **3 ráfagas diferenciadas**: un pico inicial de ~72K eventos (05:00-05:05), un segundo pico de ~45K (05:30-05:40), y un tercero de ~33K (05:55-06:05). Entre los picos, la tasa desciende a ~10K-15K. Este patrón multi-fase podría reflejar etapas distintas del escenario APT (ej: acceso inicial, movimiento lateral, exfiltración), aunque la correlación con fases específicas requiere el análisis de los Scripts 7-8 en sesiones posteriores.
 
 **Puntos clave:**
 - La ventana de **72 minutos** confirma que el dataset captura un período específico de ejecución del escenario APT, no una monitorización continua — cada evento en esta ventana es potencialmente relevante.
