@@ -55,11 +55,11 @@ Concepto del Fingerprinting Estructural:
   │ ProcessGuid: {3fc4...}  │      ProcessId, RuleName, TargetObject,
   │ ProcessId: 648          │      User, UtcTime]
   │ RuleName: -             │
-  │ TargetObject: HKLM\... │      2. Ordenar alfabéticamente
+  │ TargetObject: HKLM\...  │      2. Ordenar alfabéticamente
   │ User: NT AUTHORITY\...  │  ──► "12|EventType:present|Image:present|..."
   │ UtcTime: 2025-03-19...  │
   └─────────────────────────┘      3. Hash MD5
-                                ──► "a7b3c9d1e2f4..."
+                               ──► "a7b3c9d1e2f4..."
 ```
 
 **Puntos clave:**
