@@ -476,7 +476,7 @@ Se confirman **4 hosts** en el dominio `boombox.local`, con una distribución de
 
 Este análisis responde a las preguntas: *¿Qué campos tiene cada tipo de evento?* y *¿Es consistente la estructura?*
 
-Cada EventID de Sysmon tiene un **esquema de campos diferente**, definido en la documentación oficial de Microsoft Sysinternals: [Sysmon — Event IDs](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon). Por ejemplo:
+Cada EventID de Sysmon tiene un **esquema de campos diferente**, definido en la documentación oficial de Microsoft Sysinternals: [Sysmon — Event IDs](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon). Para una descripción detallada de cada EventID, sus campos y sus definiciones, consulta el [Apéndice: Event Data Collection](../appendices/event-data-collection.md). Por ejemplo:
 
 | EventID | Descripción | Campos esperados | Ejemplo de campos específicos |
 |---------|------------|-----------------|------------------------------|

@@ -51,3 +51,7 @@ parts:
           - file: sesion-6/1-workshop-integrador
           - file: sesion-6/2-troubleshooting
           - file: sesion-6/3-aplicaciones-mundo-real
+
+  - caption: "Apéndices"
+    chapters:
+      - file: appendices/event-data-collection
