@@ -505,10 +505,16 @@ Duración total:         ~72 minutos
 
 La ejecución completa de este run de ataque APT duró aproximadamente **72 minutos**. Los timestamps están disponibles en dos fuentes:
 
-- **`@timestamp`** (campo JSON de primer nivel): timestamp de ingestión en Elasticsearch.
-- **`UtcTime`** (campo XML dentro de EventData): timestamp original del evento Sysmon.
+- **`UtcTime`** (campo XML dentro de EventData): timestamp registrado por el driver de Sysmon en el host en el momento en que captura el evento. Según la documentación oficial de Microsoft Sysinternals, este campo representa el *"Time in UTC when event was created"* ([referencia](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon)).
+- **`@timestamp`** (campo JSON de primer nivel): timestamp asignado durante la ingestión en Elasticsearch, típicamente establecido por Winlogbeat/Elastic Agent al procesar el evento desde el Windows Event Log.
 
-Ambos están presentes en prácticamente todos los registros de la muestra y son consistentes entre sí.
+Ambos están presentes en prácticamente todos los registros de la muestra y son consistentes entre sí. Sin embargo, **`UtcTime` es el timestamp más cercano al momento real del evento**, ya que se registra en el punto más temprano de la cadena de procesamiento:
+
+```
+Evento real → Sysmon captura (UtcTime) → Windows Event Log → Winlogbeat lee → transferencia de red → Elasticsearch indexa (@timestamp)
+```
+
+Cada etapa posterior añade latencia (escritura en log, lectura por el agente, transmisión por red, indexación). Por esta razón, en la etapa de preprocesamiento (Sesión 2), el script de conversión a CSV utiliza `UtcTime` como fuente de tiempo principal: lo convierte a formato epoch (milisegundos) en una columna llamada `timestamp`, y descarta la columna `UtcTime` original y el campo `@timestamp`.
 
 ### 7e. Eventos de ejemplo por EventID
 
