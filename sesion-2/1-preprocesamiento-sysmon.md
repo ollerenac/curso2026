@@ -167,9 +167,12 @@ El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar e
 │  read_jsonl_in_chunks()                                  │
 │       │                                                  │
 │       ├──► Chunk 1 ──► ThreadPoolExecutor ──┐            │
-│       ├──► Chunk 2 ──► (process_chunk)  ──┤            │
-│       ├──► Chunk 3 ──►                    ──┤            │
-│       └──► Chunk N ──►                    ──┘            │
+│       ├──► Chunk 2 ──►   (process_chunk)   ──┤          │
+│       ├──► Chunk 3 ──►                     ──┤          │
+│       └──► Chunk N ──►                     ──┘          │
+│                          Cada hilo:                      │
+│                          json.loads → parse_sysmon_event │
+│                          → _build_event_record           │
 │                                              │           │
 │                                    merge_chunk_stats()   │
 │                                              │           │
