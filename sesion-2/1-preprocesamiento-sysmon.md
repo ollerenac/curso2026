@@ -361,6 +361,16 @@ Los EventIDs más relevantes para la detección de APTs son:
 | 11 | File Create | 7 | Descarga de payloads, creación de archivos maliciosos |
 | 23 | File Delete | 7 | Anti-forensics, limpieza de huellas |
 
+Algunos de estos conceptos merecen una aclaración porque son fundamentales para entender por qué estos EventIDs caracterizan el comportamiento de un proceso:
+
+- **Image / Image Loaded (EID 7)**: En el contexto de Windows, una *image* es cualquier archivo ejecutable cargado en memoria — no solo `.exe`, sino también librerías dinámicas (`.dll`), drivers (`.sys`) y otros binarios. Cuando un proceso carga una DLL, Sysmon registra un evento EID 7 con el campo `ImageLoaded` indicando la ruta de la librería. Esto es crítico para detectar técnicas como *DLL side-loading* (donde el atacante coloca una DLL maliciosa en una ubicación donde un proceso legítimo la cargará automáticamente) o *DLL injection* (donde se fuerza a un proceso a cargar una librería que no debería).
+
+- **Create Remote Thread (EID 8)**: Un *thread* (hilo de ejecución) es la unidad mínima de código que el sistema operativo programa para ejecución dentro de un proceso. Un proceso puede tener múltiples threads ejecutándose simultáneamente. Lo normal es que un proceso cree threads *dentro de sí mismo*. Un **remote thread** es un thread que un proceso crea *dentro de otro proceso* — esto es intrínsecamente sospechoso porque es la base de técnicas de inyección de código: el atacante usa un proceso legítimo (ej: `explorer.exe`) para ejecutar código malicioso creando un thread remoto que apunta a código inyectado previamente en la memoria del proceso víctima.
+
+- **Process Access (EID 10)**: Este evento se registra cuando un proceso abre un *handle* (descriptor de acceso) a otro proceso con permisos específicos (lectura de memoria, escritura, etc.). En operación normal, pocos procesos necesitan acceder a la memoria de otros. La razón principal por la que este EventID es crítico es la técnica de *credential dumping*: herramientas como `mimikatz` acceden al proceso `lsass.exe` (Local Security Authority Subsystem Service) para extraer credenciales almacenadas en memoria. Cada vez que un proceso accede a LSASS, Sysmon lo registra con EID 10, identificando quién (`SourceImage`) accedió a quién (`TargetImage`).
+
+Estos tres EventIDs, junto con EID 1 (Process Creation) y EID 3 (Network Connection), forman el núcleo de la telemetría necesaria para reconstruir el comportamiento completo de un proceso: qué ejecutó, qué librerías cargó, a qué otros procesos accedió, qué threads inyectó, y con qué IPs se comunicó.
+
 ### Tipos de datos y columnas especiales
 
 El esquema nos dice **qué campos** extraer, pero no **cómo** convertirlos. Algunos campos requieren transformaciones de tipo: los PIDs y puertos deben ser enteros (no strings), y los GUIDs deben limpiarse de llaves y whitespace. El script define conjuntos de columnas que requieren tratamiento especial:
