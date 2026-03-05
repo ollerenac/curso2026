@@ -192,6 +192,8 @@ El análisis por EventID revela que **los 19 EventIDs tienen estructura completa
 - La complejidad varía significativamente: desde 4 campos (EID 4, estado del servicio Sysmon) hasta 23 campos (EID 1, creación de procesos).
 - Los eventos raros (EID 4, 8, 15, 24, 25) aparecen en menos hosts, lo cual es esperable dado su naturaleza específica.
 
+Para consultar la descripción completa de cada EventID, sus campos y sus definiciones, ver el [Apéndice: Event Data Collection](../appendices/event-data-collection.md).
+
 ### 4c. Análisis detallado de patrones
 
 Los 5 patrones más frecuentes concentran el **93.91%** de todos los registros:
