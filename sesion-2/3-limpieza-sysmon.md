@@ -75,14 +75,14 @@ def detect_violations(run_id) -> bool:
     # Paso 1: Detectar violaciones de PID
     run_command(
         [sys.executable, str(QUALITY_DIR / "find_processguid_pid_violations.py"),
-         "--run-id", run_id],
+         "--run", run_id],
         "Detecting ProcessGuid-PID violations"
     )
 
     # Paso 2: Detectar violaciones de Image
     run_command(
         [sys.executable, str(QUALITY_DIR / "find_processguid_image_violations.py"),
-         "--run-id", run_id],
+         "--run", run_id],
         "Detecting ProcessGuid-Image violations"
     )
 
@@ -114,7 +114,7 @@ def normalize_violations(run_id, skip_normalization) -> bool:
 
     run_command(
         [sys.executable, str(QUALITY_DIR / "normalize_path_duplicates.py"),
-         "--run-id", run_id],
+         violations_file],
         "Normalizing path duplicates"
     )
     return True
@@ -131,7 +131,7 @@ def extract_violations(run_id) -> bool:
     """
     run_command(
         [sys.executable, str(QUALITY_DIR / "extract_violation_events.py"),
-         "--run-id", run_id],
+         "--run", run_id],
         "Extracting violation events"
     )
     return True
@@ -177,7 +177,7 @@ def apply_fixes(run_id, dry_run, verbose) -> bool:
         verbose: Si True, muestra cada cambio individual
     """
     cmd = [sys.executable, str(QUALITY_DIR / "apply_violation_fixes.py"),
-           "--run-id", run_id]
+           "--run", run_id]
 
     if dry_run:
         cmd.append("--dry-run")
@@ -187,6 +187,18 @@ def apply_fixes(run_id, dry_run, verbose) -> bool:
     run_command(cmd, "Applying violation fixes")
     return True
 ```
+
+**Mecanismos de seguridad:**
+
+El sub-script `apply_violation_fixes.py` incorpora dos protecciones antes de modificar el CSV original:
+
+1. **Backup automático**: Antes de aplicar cualquier cambio, crea una copia con marca temporal:
+   ```
+   sysmon-run-05.csv.backup_20260305_143052
+   ```
+   Si algo sale mal, se puede restaurar con `cp sysmon-run-05.csv.backup_... sysmon-run-05.csv`.
+
+2. **Verificación de hash por fila**: Para cada fila del archivo de violaciones, recalcula el hash MD5 desde el CSV original y lo compara con `_row_hash`. Si no coinciden — porque el CSV original fue modificado entre la extracción y la aplicación — la fila se **salta** con un warning. Esto impide aplicar correcciones obsoletas sobre datos que ya cambiaron.
 
 ## Uso del script
 
@@ -199,6 +211,9 @@ python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --detect-only
 
 # Solo aplicar correcciones (si ya se editó el archivo de violaciones)
 python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --apply-only
+
+# Saltar normalización de rutas (para inspeccionar violaciones sin filtrar)
+python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --skip-normalization
 
 # Vista previa de cambios sin aplicar
 python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --dry-run --verbose
