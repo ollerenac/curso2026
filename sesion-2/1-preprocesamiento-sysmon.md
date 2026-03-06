@@ -2,6 +2,14 @@
 
 **Duración**: 60 minutos
 
+```{admonition} Script de trabajo
+:class: note
+
+**Script principal**: `scripts/pipeline/2_sysmon_csv_creator.py`
+**Script de limpieza**: `scripts/pipeline/4_sysmon_data_cleaner.py`
+**Sub-scripts de calidad**: `scripts/pipeline/quality/`
+```
+
 ```{admonition} Antes de continuar — haz una predicción
 :class: note
 

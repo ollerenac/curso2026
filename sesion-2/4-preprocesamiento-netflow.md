@@ -2,6 +2,12 @@
 
 **Duración**: 30 minutos
 
+```{admonition} Script de trabajo
+:class: note
+
+**Script**: `scripts/pipeline/3_netflow_csv_creator.py`
+```
+
 ## Contexto
 
 En las secciones anteriores convertimos los datos Sysmon de JSONL a CSV (sección 1), analizamos la calidad del CSV resultante (sección 2), y limpiamos las violaciones de ProcessGuid detectadas (sección 3). Ahora aplicamos la misma conversión JSONL → CSV al dominio NetFlow, donde el reto es fundamentalmente diferente: no hay XML, pero sí una **jerarquía JSON de hasta 3 niveles** que debe aplanarse a un CSV de 39 columnas.

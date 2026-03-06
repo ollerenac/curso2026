@@ -2,6 +2,13 @@
 
 **Duración**: 30 minutos
 
+```{admonition} Script de trabajo
+:class: note
+
+**Orquestador**: `scripts/pipeline/4_sysmon_data_cleaner.py`
+**Sub-scripts**: `scripts/pipeline/quality/` (detección, normalización, extracción, aplicación)
+```
+
 ## Contexto: ¿Qué descubrimos en el análisis de calidad?
 
 En la sección anterior, el análisis de consistencia semántica (Paso 8d) verificó las dos invariantes fundamentales de ProcessGuid:

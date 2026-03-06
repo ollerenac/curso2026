@@ -2,6 +2,13 @@
 
 **Duración**: 60 minutos
 
+```{admonition} Script de trabajo
+:class: note
+
+**Notebook**: `scripts/exploratory/notebooks/2c-sysmon-csv-exploratory-analysis.ipynb`
+**Scripts de detección**: `scripts/pipeline/quality/find_processguid_pid_violations.py`, `find_processguid_image_violations.py`
+```
+
 ## Contexto: ¿Por qué analizar la calidad del CSV?
 
 En la sección anterior convertimos los datos Sysmon de formato JSONL a un CSV tabular de 45 columnas usando el Script 2. Ahora tenemos un archivo CSV con un esquema unión que abarca los 22 tipos de EventID.
