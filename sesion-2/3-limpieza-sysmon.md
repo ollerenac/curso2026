@@ -34,40 +34,86 @@ Las violaciones de Image detectadas se clasifican en 4 categorías:
 
 ## Arquitectura del pipeline de limpieza
 
-El Script 4 es un **orquestador** que ejecuta 5 sub-scripts en secuencia:
+El Script 4 es un **orquestador** que ejecuta 5 sub-scripts en secuencia. Antes de comenzar, verifica que existan tanto el CSV de Sysmon de entrada como los 5 sub-scripts en `pipeline/quality/`. Si falta algún prerequisito, el script termina con un mensaje indicando qué pasos ejecutar primero.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│            Script 4: Pipeline de Limpieza                    │
-│                                                              │
-│  Paso 1  ┌──────────────────────────────────┐               │
-│  ───────►│ find_processguid_pid_violations   │               │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 2  ┌──────────────────────────────────┐               │
-│  ───────►│ find_processguid_image_violations │               │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 3  ┌──────────────────────────────────┐               │
-│  ───────►│ normalize_path_duplicates         │  ← \\?\ fix  │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 4  ┌──────────────────────────────────┐               │
-│  ───────►│ extract_violation_events          │               │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 5  ┌──────────────────────────────────┐               │
-│   (opt)  │ Manual editing (LibreOffice Calc) │  ← Humano    │
-│          └──────────────┬───────────────────┘               │
-│                         ▼                                    │
-│  Paso 6  ┌──────────────────────────────────┐               │
-│  ───────►│ apply_violation_fixes             │               │
-│          └──────────────────────────────────┘               │
-│                                                              │
-│  Input:  sysmon-run-XX.csv                                   │
-│  Output: sysmon-run-XX.csv (corregido in-place)              │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                    VERIFICACIÓN DE PREREQUISITOS                  │
+│  Verifica: sysmon-run-XX.csv existe + 5 sub-scripts existen     │
+└──────────────────────┬───────────────────────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  PASO 1-2: DETECCIÓN DE VIOLACIONES                              │
+│  ┌─────────────────────────────────────┐                         │
+│  │ find_processguid_pid_violations.py  │→ exploration/violations/│
+│  │   --run {run_num}                   │  pid_violations_runXX   │
+│  └─────────────────────────────────────┘                         │
+│  ┌─────────────────────────────────────┐                         │
+│  │ find_processguid_image_violations.py│→ exploration/violations/│
+│  │   --run {run_num}                   │  image_violations_runXX │
+│  └─────────────────────────────────────┘                         │
+│  ← Si --detect-only: TERMINA AQUÍ                                │
+└──────────────────────┬───────────────────────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  PASO 3: NORMALIZACIÓN DE RUTAS                                  │
+│  ┌─────────────────────────────────────┐                         │
+│  │ normalize_path_duplicates.py        │  Elimina falsos         │
+│  │   {image_violations_file}           │  positivos \\?\         │
+│  └─────────────────────────────────────┘                         │
+│  Renombra _normalized.csv → original                             │
+│  ← Si --skip-normalization: SALTA este paso                     │
+└──────────────────────┬───────────────────────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  PASO 4: EXTRACCIÓN DE EVENTOS                                   │
+│  ┌─────────────────────────────────────┐                         │
+│  │ extract_violation_events.py         │→ dataset/run-XX-apt-Y/  │
+│  │   --run {run_num}                   │  sysmon-run-XX-         │
+│  └─────────────────────────────────────┘  violations.csv         │
+│  Añade: _original_row_index + _row_hash                          │
+└──────────────────────┬───────────────────────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  PASO 5: 🧑 EDICIÓN MANUAL (HUMAN-IN-THE-LOOP)                  │
+│                                                                   │
+│  1. Abre LibreOffice Calc automáticamente                        │
+│  2. El analista corrige valores en el CSV de violaciones         │
+│  3. NO tocar _original_row_index ni _row_hash                   │
+│  4. Pulsar Enter en terminal al terminar                         │
+│                                                                   │
+│  ← Si --apply-only: SALTA pasos 1-5, usa archivo existente      │
+└──────────────────────┬───────────────────────────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  PASO 6: APLICACIÓN DE CORRECCIONES                              │
+│  ┌─────────────────────────────────────┐                         │
+│  │ apply_violation_fixes.py            │  Modifica in-place:     │
+│  │   --run {run_num}                   │  sysmon-run-XX.csv      │
+│  │   [--dry-run] [--verbose]           │                         │
+│  └─────────────────────────────────────┘                         │
+│  Seguridad: backup automático + verificación hash por fila       │
+└──────────────────────────────────────────────────────────────────┘
 ```
+
+### Flujo de datos (I/O)
+
+```
+INPUT:
+  dataset/run-XX-apt-Y/sysmon-run-XX.csv
+
+INTERMEDIOS (generados por pasos 1-4):
+  exploration/violations/processguid_pid_violations_runXX.csv      ← Paso 1
+  exploration/violations/processguid_image_violations_runXX.csv    ← Paso 2
+  exploration/violations/..._normalized.csv → renombrado           ← Paso 3
+  dataset/run-XX-apt-Y/sysmon-run-XX-violations.csv                ← Paso 4
+
+OUTPUT:
+  dataset/run-XX-apt-Y/sysmon-run-XX.csv                           (modificado in-place)
+  dataset/run-XX-apt-Y/sysmon-run-XX.csv.backup_YYYYMMDD_HHMMSS   (backup automático)
+```
+
+Nótese que los archivos de detección (pasos 1-2) se almacenan en `exploration/violations/`, separados del dataset, mientras que el archivo de violaciones editables (paso 4) se genera junto al CSV original en `dataset/`. Esta separación es intencional: los archivos de detección son artefactos de diagnóstico, mientras que el archivo de violaciones es el que el analista edita y el paso 6 consume.
 
 ## Paso 1-2: Detección de violaciones
 
@@ -166,8 +212,9 @@ def manual_editing_pause(violations_file, auto_skip) -> bool:
 ```
 
 **Puntos clave:**
-- Este paso introduce un componente **human-in-the-loop**: el analista revisa las violaciones y decide cómo corregirlas (ej: asignar el PID correcto, eliminar registros duplicados).
-- Las columnas `_original_row_index` y `_row_hash` permiten rastrear cada corrección hasta su registro original en el CSV.
+- Este paso introduce un componente **human-in-the-loop**: el script abre LibreOffice Calc automáticamente con `subprocess.Popen()` (no bloquea el proceso) y luego espera con `input()` hasta que el analista pulse Enter en la terminal.
+- El analista debe: corregir valores de `Image` o `ProcessGuid` en las filas con violaciones, opcionalmente eliminar filas que considere irrecuperables, y **nunca** modificar las columnas `_original_row_index` ni `_row_hash` — son la clave de trazabilidad que permite al paso 6 ubicar y verificar cada fila en el CSV original.
+- Si LibreOffice no está instalado, el script avisa y espera igualmente a que el analista edite el archivo con la herramienta que prefiera.
 
 ## Paso 6: Aplicación de correcciones
 
@@ -207,7 +254,19 @@ El sub-script `apply_violation_fixes.py` incorpora dos protecciones antes de mod
 
 2. **Verificación de hash por fila**: Para cada fila del archivo de violaciones, recalcula el hash MD5 desde el CSV original y lo compara con `_row_hash`. Si no coinciden — porque el CSV original fue modificado entre la extracción y la aplicación — la fila se **salta** con un warning. Esto impide aplicar correcciones obsoletas sobre datos que ya cambiaron.
 
-## Uso del script
+## Modos de ejecución
+
+El orquestador soporta múltiples modos que permiten ejecutar el pipeline completo o solo fases específicas:
+
+| Flag | Pasos ejecutados | Caso de uso |
+|------|-----------------|-------------|
+| *(ninguno)* | 1→2→3→4→5→6 | Flujo completo interactivo |
+| `--detect-only` | 1→2 | Inspeccionar violaciones sin corregir |
+| `--apply-only` | 6 | Aplicar correcciones sobre archivo ya editado |
+| `--dry-run` | 6 (sin escritura) | Vista previa de cambios (implica `--apply-only`) |
+| `--skip-normalization` | 1→2→(salta 3)→4→5→6 | Mantener prefijos `\\?\` para inspección |
+
+### Uso del script
 
 ```bash
 # Flujo completo: detectar, normalizar, extraer, editar, aplicar
@@ -251,7 +310,9 @@ Al finalizar esta sección, deberías comprender:
 
 - Qué tipos de violaciones de integridad pueden existir en el CSV de Sysmon y cómo se detectan.
 - El patrón de diseño **orquestador** que coordina múltiples sub-scripts en un pipeline secuencial.
+- El flujo de datos completo: qué archivos se generan en cada paso, dónde se almacenan, y cómo fluyen de un paso al siguiente.
+- Los diferentes modos de ejecución (`--detect-only`, `--apply-only`, `--dry-run`) y cuándo usar cada uno.
 - Por qué la corrección incluye un paso **human-in-the-loop** en lugar de ser completamente automática.
-- La importancia de las columnas de trazabilidad (`_original_row_index`, `_row_hash`) para auditar las correcciones.
+- La importancia de los mecanismos de seguridad (backup automático, verificación de hash) y las columnas de trazabilidad (`_original_row_index`, `_row_hash`) para auditar las correcciones.
 
 En la **siguiente sección** aplicamos la misma conversión JSONL → CSV al dominio NetFlow, donde el reto no es parsear XML sino aplanar una jerarquía JSON de múltiples niveles en 39 columnas fijas.
