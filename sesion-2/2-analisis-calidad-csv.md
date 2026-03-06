@@ -523,6 +523,40 @@ La validación de GUIDs ahora reconoce correctamente el formato sin llaves (`44d
 
 ### 8d. Consistencia semántica de ProcessGuid
 
+#### Procesos, PIDs y GUIDs en Sysmon
+
+Antes de verificar la consistencia semántica, es necesario entender los dos mecanismos con los que Sysmon identifica procesos — y por qué uno de ellos es insuficiente para análisis forense.
+
+**El problema: ambigüedad del PID.** Supongamos que `cmd.exe` se ejecuta con PID 4520, crea un archivo (EID 11), establece una conexión de red (EID 3), y luego termina (EID 5). Segundos después, el sistema operativo asigna PID 4520 a `svchost.exe`. Ahora aparecen nuevos eventos con PID 4520 — ¿pertenecen a `cmd.exe` o a `svchost.exe`? Sin más información, es imposible saberlo.
+
+**PID (Process ID):** Entero asignado por el sistema operativo a cada proceso activo. Es único *solo mientras el proceso está vivo* — cuando termina, el OS recicla su número para nuevos procesos. En nuestro dataset, el ratio de reutilización es 1.32 (Paso 5): 1,632 instancias de proceso únicas comparten solo 1,240 PIDs. Consecuencia: los PIDs **no pueden identificar procesos de forma unívoca** a lo largo del tiempo.
+
+**ProcessGuid (Globally Unique Identifier):** Sysmon genera un identificador único para cada *instancia* de proceso en el momento de su creación. El formato `{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}` combina información de la máquina, un timestamp y un número secuencial, garantizando que **nunca se repite** — ni entre reinicios del sistema, ni entre máquinas diferentes. Un ProcessGuid nace con el proceso y muere con él: no se recicla.
+
+**Ciclo de vida de un proceso en eventos Sysmon.** Un proceso genera múltiples eventos a lo largo de su existencia. El ProcessGuid es el hilo conductor que los une en una cadena causal:
+
+```
+    Proceso: cmd.exe
+    GUID: {ABC-123}    PID: 4520
+
+    EID 1  (Process Create)      ← GUID nace aquí
+      │
+      ├── EID 7  (Image Load)       carga DLLs
+      ├── EID 11 (File Create)      crea archivo
+      ├── EID 3  (Network Conn)     conecta a red
+      ├── EID 10 (Process Access)   accede a otro proceso
+      │
+    EID 5  (Process Terminate)   ← GUID muere aquí
+
+    → Todos estos eventos comparten el mismo GUID {ABC-123}
+    → Después de EID 5, el PID 4520 puede reutilizarse para otro proceso
+      (con un GUID diferente)
+```
+
+**Por qué importa para análisis causal.** Si un ProcessGuid mapea a más de un PID o más de un ejecutable, la cadena causal se rompe: no podemos saber qué proceso generó qué evento. Las verificaciones siguientes comprueban exactamente esto.
+
+#### Verificación de invariantes
+
 Las verificaciones anteriores comprueban la validez *formal* de los datos (formatos, rangos). Pero para análisis causal necesitamos **consistencia semántica**: que un ProcessGuid identifique siempre al mismo proceso. Esto requiere dos invariantes:
 
 > **Invariante 1**: Un ProcessGuid → exactamente 1 ProcessId
