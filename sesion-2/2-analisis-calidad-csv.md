@@ -668,7 +668,29 @@ El algoritmo de cadenas causales no necesita que *todos* los registros tengan Co
 ✅ Diversidad de eventos: 20 EventIDs
 ```
 
-**Recomendación**: Un scoring más apropiado evaluaría la cobertura de cada campo *dentro de su EventID correspondiente*, no globalmente. Esa evaluación (realizada en la sección de consistencia estructural) confirmó 100% de campos presentes para todos los 19 EventIDs estándar.
+### Evaluación corregida: cobertura por grupo de eventos
+
+El notebook incluye una segunda evaluación que verifica la cobertura de cada columna *dentro de su grupo de eventos correspondiente*:
+
+| Grupo | Eventos | Columnas verificadas | Cobertura |
+|-------|---------|---------------------|-----------|
+| **Core** (todos) | 363,657 | EventID, Computer, timestamp | 100% ✅ |
+| **Estándar** (excepto EID 8, 10) | 248,915 | ProcessGuid, ProcessId, Image | 100% ✅ |
+| **Inter-proceso** (EID 8, 10) | 114,742 | SourceProcessGUID, TargetProcessGUID, SourceProcessId, TargetProcessId | 100% ✅ |
+| **Ciclo de vida** (EID 1) | 1,023 | ParentProcessGuid, ParentProcessId, CommandLine, Image | 100% ✅ |
+| **Red** (EID 3) | 14,424 | SourceIp, DestinationIp, DestinationPort, Protocol | 100% ✅ |
+| **Archivos** (EID 11) | 6,782 | TargetFilename | 100% ✅ |
+
+```
+Puntuación corregida:  15 / 15 (100.0%)
+Estado:                🟢 EXCELLENT - Ready for causal chain analysis
+```
+
+**La clave**: los eventos de EID 8 y 10 (Process Access, Create Remote Thread) no usan `ProcessGuid`/`ProcessId` como columna principal — usan `SourceProcessGUID`/`TargetProcessGUID` porque modelan *interacciones entre dos procesos*. La evaluación global trataba estas columnas como si debieran existir en todos los eventos, penalizando su ausencia en EIDs donde no aplican.
+
+Del mismo modo, `ParentProcessGuid` y `CommandLine` solo existen en EID 1 (Process Create) — pero con 100% de cobertura interna. Y `TargetFilename` solo existe en EID 11 (File Create) — también al 100%.
+
+**Lección metodológica**: Al trabajar con CSVs unificados (una tabla para múltiples tipos de evento), las métricas de calidad deben evaluarse **por tipo de evento**, no globalmente. Una cobertura global baja no indica datos de mala calidad — indica un esquema disperso por diseño.
 
 ## Paso 10: Reporte resumen
 
@@ -699,10 +721,10 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
    - PowerShell ExecutionPolicy Bypass, comandos de descarga
    - 44.5% de tráfico hacia IPs públicas
 
-5. **Readiness para algoritmos causales**: La puntuación global de 32.1% es engañosa — la cobertura *por EventID* es del 100% para todos los campos. El dataset está listo para análisis causal siempre que el algoritmo consulte los campos correctos para cada tipo de evento.
+5. **Readiness para algoritmos causales**: La puntuación global de 32.1% (POOR) es un artefacto de evaluar cobertura globalmente en un CSV unificado. La evaluación corregida, que verifica cada columna *dentro de su grupo de eventos* (estándar, inter-proceso EID 8/10, ciclo de vida EID 1, red, archivos), obtiene **15/15 (100%) — EXCELLENT**. El dataset está completamente listo para análisis causal.
 
 **Puntos clave:**
-- El dataset es **apto para análisis causal** tras resolver las 28 violaciones de Image detectadas en el Paso 8d — la cobertura *por EventID* es del 100% para todos los campos relevantes.
+- El dataset es **apto para análisis causal** tras resolver las 28 violaciones de Image detectadas en el Paso 8d — la evaluación por grupo de eventos (Paso 9) confirma cobertura del 100% en las 15 columnas críticas.
 - Los indicadores de APT detectados (SystemFailureReporter.exe, puerto 444, PowerShell Bypass) confirman que la simulación generó artefactos realistas de ataque.
 - Las violaciones de ProcessGuid→Image (artefactos `<unknown process>`, prefijo `\\?\`, rutas versionadas, colisiones genuinas) deben corregirse antes del análisis causal — el Script 4 del pipeline automatiza esta corrección.
 - La combinación de GUIDs confiables + cobertura temporal completa + diversidad de EventIDs proporciona los tres pilares necesarios para el análisis de cadenas causales.
