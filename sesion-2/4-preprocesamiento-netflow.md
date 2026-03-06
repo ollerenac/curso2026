@@ -296,4 +296,4 @@ Al finalizar esta sección, deberías comprender:
 - La importancia de la estandarización temporal a epoch milliseconds para habilitar la correlación cruzada entre dominios.
 - Por qué el agrupamiento por `flow_id` es necesario para evitar doble conteo en métricas de tráfico.
 
-En la siguiente sección analizaremos la **calidad del CSV de Sysmon** resultante, evaluando distribuciones de eventos, patrones temporales, relaciones entre procesos, y readiness para algoritmos de análisis causal.
+Con esta sección concluye la **Sesión 2**, habiendo cubierto el preprocesamiento de ambos dominios (Sysmon y NetFlow), el análisis de calidad del CSV resultante, y la limpieza de violaciones de integridad. En la **Sesión 3** abordaremos la correlación temporal cruzada entre ambos dominios (Script 5) y el marco teórico de clasificación que guiará el etiquetado.
