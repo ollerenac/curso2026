@@ -29,6 +29,17 @@
   Deferred TODOs:
     - TODO(RATIFICATION_DATE): exact project inception date unknown; approximate
       2026-01-01 used. Update when confirmed.
+
+  ---
+
+  Version change: 1.0.0 → 1.1.0 (2026-03-11)
+  Principles defined (new):
+    VI.  Script-First Coherence
+
+  Version change: 1.1.0 → 1.1.1 (2026-03-12)
+  Additions (PATCH):
+    - Tech Stack: dataset-venv entry
+    - Development Workflow: existing-code and greenfield methodology guidance
 -->
 
 # curso2026 Constitution
@@ -72,7 +83,7 @@ Rationale: A course that cannot be reproduced by the reader is a reference docum
 Course content MUST be written in Spanish. The following rules apply:
 
 - Technical proper nouns and standards (EventID, ProcessGuid, NetFlow, CSV, JSONL, APT, Sysmon, IDS) MUST remain in English as they appear in tooling and literature
-- On first use of a technical English term, a Spanish gloss or brief parenthetical MUST be provided (e.g., "el ProcessGuid (identificador de proceso)")
+- On first use of a technical English term, a Spanish gloss or brief parenthetical MUST be provided (e.g., "el ProcessGuid (identificador global de proceso)")
 - Ambiguous translations that could mislead MUST default to the English term with a Spanish explanation, not a forced translation
 - Code identifiers, variable names, and comments inside code blocks MAY be in English to match upstream codebases
 
@@ -127,6 +138,8 @@ actual codebase — becoming misleading rather than instructive.
 - **Repository**: https://github.com/ollerenac/curso2026, branch `main`
 - **Dataset dependency**: fullapt2025 at `/home/researcher/Research/phd-thesis/fullapt2025/`
   (referenced but not committed; readers use their own installation)
+- **Python environment**: `fullapt2025/dataset-venv` — activate before running any
+  fullapt2025 script or notebook
 
 ## Development Workflow
 
@@ -140,6 +153,15 @@ New section additions MUST follow this sequence:
 6. Update `_toc.yml` if the file is new (Principle V)
 7. Run `jupyter-book build .` and confirm zero errors
 8. Commit
+
+**Working with existing fullapt2025 scripts**: The default assumption is that existing
+code is correct. Approach by understanding what it does before modifying it. Modify
+only to fix actual problems or improve what it already does — then Principle VI gates
+apply before documenting.
+
+**Greenfield case**: When a missing pipeline or exploration step is discovered, write
+the new script first, bring it to a clean state (per Principle VI), then document it.
+Do not draft course content for a script that does not yet exist.
 
 Session restructuring (reorder, merge, split sessions) MUST include:
 - Updated `_toc.yml`
@@ -162,7 +184,7 @@ is ratified.
 4. Re-run `.specify/templates/constitution-template.md` consistency checks
 
 **Compliance**: All session additions and content PRs MUST be reviewed against
-Principles I–V. The plan-template's "Constitution Check" section MUST list the
+Principles I–VI. The plan-template's "Constitution Check" section MUST list the
 applicable gates from this constitution for each feature.
 
-**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): confirm inception date | **Last Amended**: 2026-03-11
+**Version**: 1.1.1 | **Ratified**: TODO(RATIFICATION_DATE): confirm inception date | **Last Amended**: 2026-03-12
