@@ -14,13 +14,13 @@
 |-------|------------------------------|-------------------------------------------------------------------|
 | 2010  | [Stuxnet Worm](https://ieeexplore.ieee.org/document/6120048)                 | Sistema nuclear iraní (CPS)                                       |
 | 2015  | [BlackEnergy Malware](https://attack.mitre.org/software/S0089/)          | Red eléctrica de Ucrania                                          |
-| 2016  | CrashOverride Malware        | Red eléctrica de Ucrania                                          |
-| 2017  | Triton Malware               | Planta petroquímica en Arabia Saudita                             |
-| 2017  | NotPetya Ransomware          | Sistemas ciber-físicos de Maersk y Merck                          |
-| 2021  | Oldsmar APT                  | Niveles químicos en planta de suministro de agua (EE.UU.)         |
-| 2021  | Colonial Pipeline Ransomware | Oleoductos de combustible en EE.UU.                               |
+| 2016  | [CrashOverride Malware](https://www.cisa.gov/news-events/alerts/2017/06/12/crashoverride-malware)        | Red eléctrica de Ucrania                                          |
+| 2017  | [Triton Malware](https://www.cyberark.com/resources/threat-research-blog/anatomy-of-the-triton-malware-attack)               | Planta petroquímica en Arabia Saudita                             |
+| 2017  | [NotPetya Ransomware](https://gvnshtn.com/posts/maersk-me-notpetya/)          | Sistemas ciber-físicos de Maersk y Merck                          |
+| 2021  | [Oldsmar APT](https://www.cisa.gov/news-events/cybersecurity-advisories/aa21-042a)                  | Niveles químicos en planta de suministro de agua (EE.UU.)         |
+| 2021  | [Colonial Pipeline Ransomware](https://www.cisa.gov/news-events/news/attack-colonial-pipeline-what-weve-learned-what-weve-done-over-past-two-years) | Oleoductos de combustible en EE.UU.                               |
 | 2021  | Water Sector Attacks         | Niveles químicos en plantas de tratamiento de agua (EE.UU.)       |
-| 2021  | Iranian Railway System Attack| Sistema ferroviario de Irán                                       |
+| 2021  | [Iranian Railway System Attack](https://www.youtube.com/watch?v=MsuCC50UMlc)| Sistema ferroviario de Irán                                       |
 
 **Puntos clave:**
 - Los ataques APT reales a sistemas ciberfísicos demuestran que las amenazas son **multi-etapa** y **multi-dominio**: afectan tanto la red como los procesos del sistema operativo simultáneamente.
