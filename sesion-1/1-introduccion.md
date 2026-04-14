@@ -12,8 +12,8 @@
 
 | Año   | Ataque                       | Objetivo o Sistema afectado                                       |
 |-------|------------------------------|-------------------------------------------------------------------|
-| 2010  | Stuxnet Worm                 | Sistema nuclear iraní (CPS)                                       |
-| 2015  | BlackEnergy Malware          | Red eléctrica de Ucrania                                          |
+| 2010  | [Stuxnet Worm](https://ieeexplore.ieee.org/document/6120048)                 | Sistema nuclear iraní (CPS)                                       |
+| 2015  | [BlackEnergy Malware](https://attack.mitre.org/software/S0089/)          | Red eléctrica de Ucrania                                          |
 | 2016  | CrashOverride Malware        | Red eléctrica de Ucrania                                          |
 | 2017  | Triton Malware               | Planta petroquímica en Arabia Saudita                             |
 | 2017  | NotPetya Ransomware          | Sistemas ciber-físicos de Maersk y Merck                          |
