@@ -11,10 +11,10 @@
 
 ## Contenido
 
-1. [Introducción](1-introduccion.md) (45 min)
-2. [Extracción de Raw Data](2-extraccion-raw-data.md) (45 min)
-3. [Exploración de Datos Sysmon](3-exploracion-sysmon.md) (60 min)
-4. [Consistencia Estructural Sysmon](4-consistencia-sysmon.md) (45 min)
-5. [Exploración de Datos NetFlow](5-exploracion-netflow.md) (50 min)
-6. [Consistencia Estructural NetFlow](6-consistencia-netflow.md) (35 min)
-7. [Conclusiones de la Sesión 1](7-conclusiones-sesion-1.md) (15 min)
+0. [Introducción](0-introduccion.md) (45 min)
+1. [Extracción de Raw Data](1-extraccion-raw-data.md) (45 min)
+2. [Exploración de Datos Sysmon](2-exploracion-sysmon.md) (60 min)
+3. [Consistencia Estructural Sysmon](3-consistencia-sysmon.md) (45 min)
+4. [Exploración de Datos NetFlow](4-exploracion-netflow.md) (50 min)
+5. [Consistencia Estructural NetFlow](5-consistencia-netflow.md) (35 min)
+6. [Conclusiones de la Sesión 1](6-conclusiones-sesion-1.md) (15 min)

@@ -6,13 +6,13 @@ parts:
     chapters:
       - file: sesion-1/index
         sections:
-          - file: sesion-1/1-introduccion
-          - file: sesion-1/2-extraccion-raw-data
-          - file: sesion-1/3-exploracion-sysmon
-          - file: sesion-1/4-consistencia-sysmon
-          - file: sesion-1/5-exploracion-netflow
-          - file: sesion-1/6-consistencia-netflow
-          - file: sesion-1/7-conclusiones-sesion-1
+          - file: sesion-1/0-introduccion
+          - file: sesion-1/1-extraccion-raw-data
+          - file: sesion-1/2-exploracion-sysmon
+          - file: sesion-1/3-consistencia-sysmon
+          - file: sesion-1/4-exploracion-netflow
+          - file: sesion-1/5-consistencia-netflow
+          - file: sesion-1/6-conclusiones-sesion-1
 
   - caption: "Sesión 2: Preprocesamiento y Calidad"
     chapters:
