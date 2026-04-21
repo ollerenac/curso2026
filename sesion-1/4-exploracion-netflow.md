@@ -192,12 +192,12 @@ El resultado muestra 12 campos totales, pero con una diferencia importante: **11
 | `data_stream` | 200,000 | 100.0% | dict |
 | `host` | 200,000 | 100.0% | dict |
 | `event` | 200,000 | 100.0% | dict |
-| `process` | 125,679 | **62.8%** | dict |
+| `process` | 97,947 | **49.0%** | dict |
 
 **Hallazgo clave:** El campo `process` solo aparece en el **62.8%** de los registros. Esto se debe a que Packetbeat (el agente de captura de red) solo puede asociar un flujo de red con un proceso del sistema operativo cuando tiene suficiente información para hacer esa correlación. Los flujos donde no se identifica el proceso origen/destino simplemente omiten el campo.
 
 ```{important}
-Este porcentaje (62.8%) corresponde **exclusivamente a la ejecución `run-01-apt-1`**. Nuestro dataset contiene 48 ejecuciones (*runs*) con diferentes campañas APT, y cada una puede presentar una proporción diferente de registros con información de proceso — dependiendo de la naturaleza del ataque, los servicios activos en la red, y las condiciones de captura. En sesiones posteriores analizaremos la consistencia estructural a lo largo de todos los runs para determinar si este patrón se mantiene o varía.
+Este porcentaje (49.0%) corresponde **exclusivamente a la ejecución `run-01-apt-1`**. Nuestro dataset contiene 48 ejecuciones (*runs*) con diferentes campañas APT, y cada una puede presentar una proporción diferente de registros con información de proceso — dependiendo de la naturaleza del ataque, los servicios activos en la red, y las condiciones de captura. En sesiones posteriores analizaremos la consistencia estructural a lo largo de todos los runs para determinar si este patrón se mantiene o varía.
 ```
 
 Veamos la diferencia entre un registro con y sin `process`:
@@ -261,21 +261,21 @@ def get_all_field_paths(obj, prefix="", max_depth=4, current_depth=0):
     return paths
 ```
 
-Aplicando esta función a múltiples registros de la muestra, el análisis identificó **87 rutas de campo únicas** distribuidas en 12 grupos de primer nivel:
+Aplicando esta función a múltiples registros de la muestra, el análisis identificó **96 rutas de campo únicas** distribuidas en 12 grupos de primer nivel:
 
 ```
 @timestamp               1 ruta    ─── valor directo (str)
 agent                    6 rutas   ─── agente Packetbeat
 data_stream              4 rutas   ─── metadatos del índice
-destination              7 rutas   ─── IP, puerto, bytes, MAC, paquetes + process
+destination             15 rutas   ─── IP, puerto, bytes, MAC, paquetes + process
 ecs                      2 rutas   ─── versión ECS
 elastic_agent            4 rutas   ─── agente Elastic
-event                   11 rutas   ─── tipo, categoría, duración, timestamps
-host                    16 rutas   ─── hostname, OS, IPs, MACs, arquitectura
+event                   12 rutas   ─── tipo, categoría, duración, timestamps
+host                    17 rutas   ─── hostname, OS, IPs, MACs, arquitectura
 network                  6 rutas   ─── bytes totales, protocolo, community_id
-network_traffic          3 rutas   ─── flow.id, flow.final
-process                  9 rutas   ─── nombre, PID, ejecutable, args, parent
-source                  18 rutas   ─── IP, puerto, bytes + process anidado
+network_traffic          4 rutas   ─── flow.id, flow.final
+process                 10 rutas   ─── nombre, PID, ejecutable, args, parent
+source                  15 rutas   ─── IP, puerto, bytes + process anidado
 ```
 
 La jerarquía completa para los campos más relevantes se puede visualizar así:
@@ -367,7 +367,7 @@ El notebook `4a` analizó 200,000 registros muestreados aleatoriamente y los res
 | `data_stream` | 0 | 100.0% | Siempre presente |
 | `host` | 0 | 100.0% | Siempre presente |
 | `event` | 0 | 100.0% | Siempre presente |
-| `process` | 0 | 100.0% | **Cuando está presente** (62.8% de registros) |
+| `process` | 0 | 100.0% | **Cuando está presente** (49.0% de registros) |
 
 **Hallazgo:** Los 11 campos obligatorios tienen **cero valores nulos o vacíos** en toda la muestra. Y el campo `process`, cuando está presente, también tiene completitud del 100% -- nunca aparece con un valor vacío o malformado.
 
@@ -393,7 +393,7 @@ event               : 0 nulos de 200,000
 host                : 0 nulos de 200,000
 ```
 
-Para el conversor CSV, esto simplifica considerablemente el diseño: no necesitamos lógica de imputación de valores faltantes para los campos obligatorios. Solo necesitamos manejar la **ausencia del campo `process`** en el 37.2% de los registros.
+Para el conversor CSV, esto simplifica considerablemente el diseño: no necesitamos lógica de imputación de valores faltantes para los campos obligatorios. Solo necesitamos manejar la **ausencia del campo `process`** en el 51.0% de los registros.
 
 ## Paso 5: Contraste con el dominio Sysmon
 
@@ -407,10 +407,10 @@ Habiendo explorado ambos dominios de telemetría, podemos establecer una compara
 | Campos de primer nivel | 16 (todos constantes) | 12 (11 fijos + 1 opcional) |
 | Fuente de variación | 21 esquemas de EventID | Presencia/ausencia de `process` |
 | Campos nulos | 0% en `EventID`, `Computer` | 0% en 11 campos obligatorios |
-| Rutas de campo únicas | 74 (a través de 21 EventIDs) | 87 (en la jerarquía JSON) |
+| Rutas de campo únicas | 74 (a través de 21 EventIDs) | 96 (en la jerarquía JSON) |
 | Complejidad del parser | Alta (XML + namespaces + limpieza) | Baja (acceso directo a dict) |
 
-**Observación sobre el conteo de campos:** A primera vista puede parecer contraintuitivo que NetFlow tenga **más** rutas de campo (87) que Sysmon (74), dado que los datos de red son conceptualmente "más simples" que los eventos de sistema operativo. Esto se explica porque:
+**Observación sobre el conteo de campos:** A primera vista puede parecer contraintuitivo que NetFlow tenga **más** rutas de campo (96) que Sysmon (74), dado que los datos de red son conceptualmente "más simples" que los eventos de sistema operativo. Esto se explica porque:
 
 1. NetFlow tiene **información duplicada en diferentes niveles**: `source.process` y `destination.process` contienen campos similares, además del `process` de primer nivel.
 2. El campo `host` incluye una sub-jerarquía detallada del sistema operativo (`host.os.name`, `host.os.kernel`, `host.os.build`, etc.) con 7 rutas adicionales.
@@ -426,8 +426,8 @@ NetFlow:  navegar_dict() → aplanar jerarquía → CSV
 **Puntos clave:**
 
 - NetFlow almacena los datos como **JSON anidado puro**, eliminando la necesidad del parsing XML y la sanitización que requiere Sysmon.
-- De los 12 campos de primer nivel, **11 están siempre presentes** y el campo `process` aparece en el **62.8%** de los registros en `run-01-apt-1` (este porcentaje puede variar en otros runs).
-- La jerarquía JSON contiene **87 rutas de campo únicas**, organizadas en una estructura de árbol con hasta 4 niveles de profundidad.
+- De los 12 campos de primer nivel, **11 están siempre presentes** y el campo `process` aparece en el **49.0%** de los registros en `run-01-apt-1` (este porcentaje puede variar en otros runs).
+- La jerarquía JSON contiene **96 rutas de campo únicas**, organizadas en una estructura de árbol con hasta 4 niveles de profundidad.
 - La calidad de los datos es excepcional: **cero valores nulos o vacíos** en los campos obligatorios, y completitud del 100% para el campo `process` cuando está presente.
 
 ## Actividad Práctica
@@ -438,7 +438,7 @@ Responde a las siguientes preguntas basándote en lo que has aprendido en esta s
 
 2. **¿Qué implicaciones tiene el campo `process` opcional (62.8%) para el conversor CSV?** Considera: ¿qué valor debería aparecer en las columnas de proceso cuando un registro no tiene el campo `process`? ¿Debería el CSV tener columnas separadas para `source.process.name` y `destination.process.name`?
 
-3. **Compara el conteo de campos: Sysmon tiene 74 campos únicos a través de 21 EventIDs, mientras que NetFlow tiene 87 rutas en su jerarquía.** ¿Por qué NetFlow tiene más rutas a pesar de ser conceptualmente más simple? ¿Qué papel juega la duplicación de información (`source.process` vs `destination.process`) en este conteo?
+3. **Compara el conteo de campos: Sysmon tiene 74 campos únicos a través de 21 EventIDs, mientras que NetFlow tiene 96 rutas en su jerarquía.** ¿Por qué NetFlow tiene más rutas a pesar de ser conceptualmente más simple? ¿Qué papel juega la duplicación de información (`source.process` vs `destination.process`) en este conteo?
 
 4. **Diseña la función `get_nested_value` para un caso adicional:** Modifica la función para que acepte rutas con índices de lista, como `event.type[0]`. ¿Cómo manejarías el caso donde la lista está vacía?
 
