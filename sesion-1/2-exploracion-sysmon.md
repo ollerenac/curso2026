@@ -450,8 +450,8 @@ Esto confirma que nuestra estrategia de parsing es aplicable de forma uniforme a
 
 **Tasa de éxito del parsing:**
 
-- Registros parseados correctamente: **199,995 / 200,000** (100.0%)
-- Errores de parsing: **5** registros con XML malformado o ausente
+- Registros parseados correctamente: **199,996 / 200,000** (100.0%)
+- Errores de parsing: **4** registros con XML malformado o ausente
 
 Esto confirma que la función `sanitize_xml` es necesaria (hay registros problemáticos), pero que la gran mayoría de los datos son estructuralmente correctos.
 
@@ -459,34 +459,34 @@ Esto confirma que la función `sanitize_xml` es necesaria (hay registros problem
 
 | EventID | Descripción | Conteo | Porcentaje |
 |---------|------------|--------|------------|
-| 10 | Process Access | 62,906 | 31.45% |
-| 12 | Registry Event (Object create/delete) | 60,319 | 30.16% |
-| 7 | Image/Library Loaded | 31,440 | 15.72% |
-| 13 | Registry Event (Value Set) | 25,365 | 12.68% |
-| 3 | Network Connection | 7,918 | 3.96% |
-| 23 | File Delete | 5,536 | 2.77% |
-| 11 | File Create | 3,679 | 1.84% |
-| 18 | Pipe Event (Pipe Connected) | 702 | 0.35% |
-| 9 | Raw Access Read | 626 | 0.31% |
-| 1 | Process Creation | 565 | 0.28% |
-| 5 | Process Terminated | 470 | 0.24% |
-| ... | (7 EventIDs más) | ... | < 0.6% |
+| 10 | Process Access | 62,993 | 31.50% |
+| 12 | Registry Event (Object create/delete) | 60,354 | 30.18% |
+| 7 | Image/Library Loaded | 31,310 | 15.66% |
+| 13 | Registry Event (Value Set) | 25,220 | 12.61% |
+| 3 | Network Connection | 8,052 | 4.03% |
+| 23 | File Delete | 5,615 | 2.81% |
+| 11 | File Create | 3,672 | 1.84% |
+| 18 | Pipe Event (Pipe Connected) | 693 | 0.35% |
+| 9 | Raw Access Read | 643 | 0.32% |
+| 1 | Process Creation | 525 | 0.26% |
+| 5 | Process Terminated | 460 | 0.23% |
+| ... | (8 EventIDs más) | ... | < 0.6% |
 
 **Hallazgos:**
 
-- Se encontraron **18 tipos de EventID** distintos en la muestra analizada.
+- Se encontraron **19 tipos de EventID** distintos en la muestra analizada.
 - La distribución está fuertemente concentrada: los **4 EventIDs más frecuentes** (10, 12, 7, 13) representan el **90%** de todos los registros.
 - Los eventos de registro de Windows (EID 12 + 13) y los accesos a procesos (EID 10) dominan — esto es normal en un entorno Windows Server con Exchange.
-- Los eventos de creación de procesos (EID 1), que son los más relevantes para la detección de ataques, representan solo el 0.28%. Esto ilustra por qué un dataset IDS necesita manejar un **fuerte desbalance de clases**.
+- Los eventos de creación de procesos (EID 1), que son los más relevantes para la detección de ataques, representan solo el 0.26%. Esto ilustra por qué un dataset IDS necesita manejar un **fuerte desbalance de clases**.
 
 **Distribución de hosts** — responde a la pregunta: *¿Cuántas máquinas generan eventos?*
 
 | Host | Conteo | Porcentaje |
 |------|--------|-----------|
-| theblock.boombox.local | 82,339 | 41.17% |
-| WATERFALLS.boombox.local | 79,520 | 39.76% |
-| endofroad.boombox.local | 23,196 | 11.60% |
-| diskjockey.boombox.local | 14,940 | 7.47% |
+| theblock.boombox.local | 82,049 | 41.03% |
+| WATERFALLS.boombox.local | 79,914 | 39.96% |
+| endofroad.boombox.local | 22,917 | 11.46% |
+| diskjockey.boombox.local | 15,116 | 7.56% |
 
 Se confirman **4 hosts** en el dominio `boombox.local`, con una distribución desigual: los servidores principales (`theblock`, `WATERFALLS`) generan ~80% de la telemetría.
 
@@ -570,7 +570,7 @@ Esta exploración nos proporciona las bases para diseñar el conversor JSONL →
 
 1. **La fuente de datos será `event.original`** — el XML incrustado, no los campos de primer nivel del JSON.
 2. **Se necesita un esquema de campos por EventID** — cada tipo de evento tiene campos diferentes, como confirmó el análisis de disponibilidad de campos (7c).
-3. **El parsing XML debe ser robusto** — aunque el 99.99% de los registros son correctos, necesitamos manejar los 5 casos de XML malformado encontrados.
+3. **El parsing XML debe ser robusto** — aunque el 99.99% de los registros son correctos, necesitamos manejar los 4 casos de XML malformado encontrados.
 4. **El procesamiento debe ser eficiente** — con cientos de miles de registros por archivo y 48 runs en total, la conversión debe poder ejecutarse en tiempo razonable (procesamiento multi-hilo, lectura en streaming).
 5. **El desbalance de clases es significativo** — los EventIDs relevantes para detección de ataques (EID 1, 3, 8) representan menos del 5% del total. Esto deberá considerarse en la fase de construcción del dataset final.
 
