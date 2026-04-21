@@ -6,12 +6,12 @@
 
 En la sección 4 aprendimos la técnica de **fingerprinting estructural** para validar la consistencia de los datos Sysmon. El resultado fue revelador: 19 patrones estructurales correspondientes a 19 EventIDs, con una correspondencia perfecta 1:1 y una evaluación de **ALTAMENTE CONSISTENTE**.
 
-Ahora aplicamos la **misma técnica** al dominio NetFlow. En la sección anterior descubrimos que los datos NetFlow son JSON anidado puro con 87 rutas de campo y un campo `process` opcional (62.8%). La pregunta es: **¿qué tan uniforme es esa estructura a lo largo de los 200,000 registros analizados?**
+Ahora aplicamos la **misma técnica** al dominio NetFlow. En la sección anterior descubrimos que los datos NetFlow son JSON anidado puro con 96 rutas de campo y un campo `process` opcional (49.0%). La pregunta es: **¿qué tan uniforme es esa estructura a lo largo de los 200,000 registros analizados?**
 
 La respuesta, como veremos, es diferente a la de Sysmon — y las razones de esa diferencia revelan aspectos fundamentales sobre la naturaleza de cada dominio de telemetría.
 
 ```{note}
-El código de esta sección se puede ejecutar paso a paso en el notebook `3b-structure-consistency-analyzer.ipynb`, que contiene el análisis completo de consistencia estructural para NetFlow con celdas interactivas y resultados detallados.
+El código de esta sección se puede ejecutar paso a paso en el notebook `5a-structure-consistency-analyzer.ipynb`, que contiene el análisis completo de consistencia estructural para NetFlow con celdas interactivas y resultados detallados.
 ```
 
 ```{admonition} Antes de continuar — haz una predicción
