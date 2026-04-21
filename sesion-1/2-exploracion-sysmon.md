@@ -22,6 +22,8 @@ El código de esta sección se puede ejecutar paso a paso en el notebook `2a-exp
 
 ```{note}
 **Ejecución local requerida.** Este notebook trabaja con archivos JSONL que superan los 2 GB y no puede ejecutarse en Google Colab. Para seguirlo en tu máquina, consulta el apéndice {doc}`/appendices/setup-entorno` antes de comenzar.
+
+Puedes abrir el notebook con **Jupyter** (`jupyter notebook` en la terminal) o directamente desde un IDE como **VS Code** o **Cursor**. En cualquier caso, al abrir el notebook asegúrate de seleccionar como kernel el entorno virtual `.venv` del repositorio — no el Python del sistema. En VS Code y Cursor esto se hace desde el selector de kernel en la esquina superior derecha del notebook.
 ```
 
 ```{admonition} Antes de continuar — haz una predicción
