@@ -194,7 +194,7 @@ El resultado muestra 12 campos totales, pero con una diferencia importante: **11
 | `event` | 200,000 | 100.0% | dict |
 | `process` | 97,947 | **49.0%** | dict |
 
-**Hallazgo clave:** El campo `process` solo aparece en el **62.8%** de los registros. Esto se debe a que Packetbeat (el agente de captura de red) solo puede asociar un flujo de red con un proceso del sistema operativo cuando tiene suficiente información para hacer esa correlación. Los flujos donde no se identifica el proceso origen/destino simplemente omiten el campo.
+**Hallazgo clave:** El campo `process` solo aparece en el **49.0%** de los registros. Esto se debe a que Packetbeat (el agente de captura de red) solo puede asociar un flujo de red con un proceso del sistema operativo cuando tiene suficiente información para hacer esa correlación. Los flujos donde no se identifica el proceso origen/destino simplemente omiten el campo.
 
 ```{important}
 Este porcentaje (49.0%) corresponde **exclusivamente a la ejecución `run-01-apt-1`**. Nuestro dataset contiene 48 ejecuciones (*runs*) con diferentes campañas APT, y cada una puede presentar una proporción diferente de registros con información de proceso — dependiendo de la naturaleza del ataque, los servicios activos en la red, y las condiciones de captura. En sesiones posteriores analizaremos la consistencia estructural a lo largo de todos los runs para determinar si este patrón se mantiene o varía.
@@ -436,7 +436,7 @@ Responde a las siguientes preguntas basándote en lo que has aprendido en esta s
 
 1. **¿Por qué NetFlow no necesita sanitización XML como Sysmon?** Explica qué diferencia estructural elimina la necesidad de funciones como `sanitize_xml` y el manejo de namespaces XML.
 
-2. **¿Qué implicaciones tiene el campo `process` opcional (62.8%) para el conversor CSV?** Considera: ¿qué valor debería aparecer en las columnas de proceso cuando un registro no tiene el campo `process`? ¿Debería el CSV tener columnas separadas para `source.process.name` y `destination.process.name`?
+2. **¿Qué implicaciones tiene el campo `process` opcional (49.0%) para el conversor CSV?** Considera: ¿qué valor debería aparecer en las columnas de proceso cuando un registro no tiene el campo `process`? ¿Debería el CSV tener columnas separadas para `source.process.name` y `destination.process.name`?
 
 3. **Compara el conteo de campos: Sysmon tiene 74 campos únicos a través de 21 EventIDs, mientras que NetFlow tiene 96 rutas en su jerarquía.** ¿Por qué NetFlow tiene más rutas a pesar de ser conceptualmente más simple? ¿Qué papel juega la duplicación de información (`source.process` vs `destination.process`) en este conteo?
 
