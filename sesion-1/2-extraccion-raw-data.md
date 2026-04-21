@@ -146,6 +146,10 @@ El script `1_elastic_index_downloader.py` implementa un pipeline de extracción 
 
 También está disponible como notebook interactivo — puedes abrirlo directamente en Google Colab sin instalar nada:
 
+```{note}
+**Contexto de esta sección:** Este script fue utilizado durante la generación del dataset para extraer los datos desde el clúster de Elasticsearch del laboratorio. Como estudiante, **no necesitas ejecutarlo** — los archivos JSONL resultantes ya están disponibles en la carpeta `dataset/` del repositorio. El objetivo de este walkthrough es que entiendas *cómo y por qué* los datos tienen la estructura que tienen, y qué decisiones de diseño se tomaron durante la extracción.
+```
+
 [![Abrir en Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ollerenac/curso2026/blob/main/sesion-1/1_elastic-index-downloader.ipynb)
 
 ```{note}
@@ -412,6 +416,26 @@ def main():
     for index in selected_indices:
         export_index_data(es, index, start_time, end_time)
 ```
+
+### Uso desde la línea de comandos
+
+El script expone una interfaz CLI que permite sobrescribir los parámetros de configuración sin modificar el código. Así fue invocado para cada ejecución del dataset:
+
+```bash
+# Extracción interactiva (modo por defecto)
+python 1_elastic_index_downloader.py
+
+# Especificar directorio de salida para una ejecución concreta
+python 1_elastic_index_downloader.py --output-dir ./dataset/run-01-apt-1/
+
+# Sobrescribir host y palabras clave
+python 1_elastic_index_downloader.py \
+    --host https://10.2.0.20:9200 \
+    --keywords sysmon,network_traffic \
+    --output-dir ./dataset/run-01-apt-1/
+```
+
+El argumento `--output-dir` es el más relevante: permite redirigir los archivos JSONL al directorio de la ejecución correspondiente (`run-XX-apt-Y/`), manteniendo los datos de cada ataque organizados de forma independiente.
 
 ## Actividad Práctica
 
