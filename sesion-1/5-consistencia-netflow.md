@@ -225,7 +225,7 @@ La comparación directa entre ambos dominios revela por qué las evaluaciones di
 
 La respuesta está en el **discriminador de tipo**. Sysmon tiene el campo `EventID` que actúa como discriminador natural: cada EventID produce siempre la misma estructura de campos, sin excepciones. Hay 19 patrones porque hay 19 EventIDs distintos, y la correspondencia es perfecta 1:1.
 
-NetFlow **carece de discriminador de tipo**. No existe un equivalente a EventID. La variación proviene de **campos opcionales** (`process`, `source.process`, `destination.process`) cuya presencia depende de factores operativos (si el host está monitorizado, si Packetbeat pudo correlacionar el flujo con un proceso). Los 14 patrones reflejan las combinaciones posibles de estos campos opcionales.
+NetFlow **carece de discriminador de tipo**. No existe un equivalente a EventID. La variación proviene de **campos opcionales** (`process`, `source.process`, `destination.process`) cuya presencia depende de factores operativos (si el host está monitorizado, si Packetbeat pudo correlacionar el flujo con un proceso). Los 15 patrones reflejan las combinaciones posibles de estos campos opcionales.
 
 En resumen: Sysmon tiene variación **determinista** (predecible por EventID), mientras que NetFlow tiene variación **estocástica** (dependiente de condiciones operativas). Esta distinción tiene consecuencias directas para el diseño de los conversores CSV en la sesión 2.
 
@@ -245,7 +245,7 @@ A diferencia del conversor Sysmon — que usa un esquema fijo por EventID — el
 
 El análisis de consistencia estructural de NetFlow revela un panorama cualitativamente distinto al de Sysmon:
 
-1. **Menos patrones, menor consistencia (15 vs 19)**: Puede parecer contraintuitivo que 14 patrones produzcan una evaluación de MODERADAMENTE CONSISTENTE mientras que 19 patrones producen ALTAMENTE CONSISTENTE. La diferencia está en la **naturaleza** de la variación: en Sysmon, cada patrón corresponde a un EventID conocido y predecible; en NetFlow, los 14 patrones reflejan combinaciones impredecibles de campos opcionales.
+1. **Menos patrones, menor consistencia (15 vs 19)**: Puede parecer contraintuitivo que 15 patrones produzcan una evaluación de MODERADAMENTE CONSISTENTE mientras que 19 patrones producen ALTAMENTE CONSISTENTE. La diferencia está en la **naturaleza** de la variación: en Sysmon, cada patrón corresponde a un EventID conocido y predecible; en NetFlow, los 15 patrones reflejan combinaciones impredecibles de campos opcionales.
 
 2. **Un solo eje de variación**: Toda la diversidad estructural se reduce a una pregunta binaria: ¿se pudo atribuir el flujo de red a un proceso? Cuando sí, aparecen `process` y `source.process`; cuando no, ambos se omiten. Esta atribución depende de factores operativos (si Packetbeat monitoriza el host), no del tipo de evento.
 
@@ -261,7 +261,7 @@ El análisis de consistencia estructural de NetFlow revela un panorama cualitati
 
 Responde las siguientes preguntas basándote en el análisis de consistencia:
 
-1. **¿Por qué Sysmon logra una evaluación "ALTAMENTE CONSISTENTE" mientras que NetFlow es solo "MODERADAMENTE CONSISTENTE", a pesar de tener menos patrones (14 vs 19)?** Explica el papel del discriminador de tipo (EventID) en la consistencia estructural.
+1. **¿Por qué Sysmon logra una evaluación "ALTAMENTE CONSISTENTE" mientras que NetFlow es solo "MODERADAMENTE CONSISTENTE", a pesar de tener menos patrones (15 vs 19)?** Explica el papel del discriminador de tipo (EventID) en la consistencia estructural.
 
 2. **¿Qué nos dice la presencia de `process` en el 64% de los registros sobre la infraestructura de monitorización?** Considera: si un flujo va de un host externo a un servidor monitorizado, ¿aparecería `process`, `source.process`, `destination.process`, o ninguno?
 
@@ -274,7 +274,7 @@ Responde las siguientes preguntas basándote en el análisis de consistencia:
 Al finalizar esta sección, deberías comprender:
 
 - Cómo adaptar la técnica de fingerprinting de XML plano (Sysmon) a JSON anidado (NetFlow).
-- Que los 14 patrones de NetFlow reflejan variación **estocástica** (campos opcionales) frente a la variación **determinista** de Sysmon (EventIDs).
+- Que los 15 patrones de NetFlow reflejan variación **estocástica** (campos opcionales) frente a la variación **determinista** de Sysmon (EventIDs).
 - La distribución de campos: 64 siempre presentes, 17 condicionales, 8 raros.
 - Por qué esta consistencia moderada requiere un conversor con esquema unificado y manejo de nulos.
 
