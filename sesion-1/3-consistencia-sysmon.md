@@ -183,7 +183,7 @@ El análisis por EventID revela que **los 19 EventIDs tienen estructura completa
 **Observaciones clave:**
 
 - **Consistencia perfecta (19/19)**: Todos los EventIDs presentan un solo patrón estructural. Esto significa que podemos diseñar un esquema fijo por EventID sin preocuparnos por variaciones.
-- **EventID 10** (Process Access) es el más frecuente con 57,364 registros, seguido de **EventID 12** (Registry Object create/delete) con 62,489.
+- **EventID 12** (Registry Object create/delete) es el más frecuente con 62,489 registros, seguido de **EventID 10** (Process Access) con 57,364.
 - **EventID 8** (Create Remote Thread) aparece con solo 4 registros en 2 hosts — un evento raro pero de alto valor en detección de amenazas, ya que es una técnica común de inyección de código.
 - La complejidad varía significativamente: desde 4 campos (EID 4, estado del servicio Sysmon) hasta 23 campos (EID 1, creación de procesos).
 - Los eventos raros (EID 4, 8, 15, 24, 25) aparecen en menos hosts, lo cual es esperable dado su naturaleza específica.
@@ -261,7 +261,7 @@ Combinaciones únicas de campos:   18
 **Hallazgos clave:**
 
 - **`UtcTime`** y **`RuleName`** son prácticamente universales (presentes en el 100% de los registros). Son candidatos naturales para columnas comunes en el CSV final.
-- **`Image`**, **`ProcessGuid`**, **`User`** y **`ProcessId`** aparecen en el 71.3% de los registros — presentes en todos los EventIDs excepto EID 4 (estado del servicio) y EID 10 (que usa `SourceImage`/`TargetImage` en lugar de `Image`).
+- **`Image`**, **`ProcessGuid`**, **`User`** y **`ProcessId`** aparecen en el 71.3% de los registros — ausentes en EID 4 (estado del servicio, sin contexto de proceso), EID 6 (driver cargado, usa `ImageLoaded`), EID 8 (create remote thread, usa `SourceImage`/`TargetImage`) y EID 10 (process access, usa `SourceImage`/`TargetImage`).
 - Dentro de cada EventID, **todos los campos tienen presencia del 100%** — no hay campos opcionales. Esto confirma que cada EventID tiene un esquema fijo y determinista.
 - Los campos `Source*`/`Target*` (SourceImage, TargetImage, SourceUser, etc.) son exclusivos de EventIDs que modelan interacciones entre procesos (EID 8, 10).
 
@@ -284,7 +284,7 @@ ANÁLISIS DE COBERTURA:
 
 PARSING:
    • Registros analizados:    200,000 (100.0%)
-   • Errores de parsing:      0 (0.0%)
+   • Errores de parsing:      4 (0.0%)
 
 EVALUACIÓN GENERAL: ALTAMENTE CONSISTENTE
 ```
