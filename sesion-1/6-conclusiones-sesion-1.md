@@ -15,8 +15,8 @@ Sesión 1: Recorrido completo
   Elasticsearch   en JSON, namespaces,     = 19 EventIDs (1:1)
   → JSONL         21 EventIDs              ALTAMENTE CONSISTENTE
 
-                NetFlow: JSON anidado    NetFlow: 14 patrones
-                  puro, 87 rutas,          sin discriminador
+                NetFlow: JSON anidado    NetFlow: 15 patrones
+                  puro, 96 rutas,          sin discriminador
                   process opcional         MODERADAMENTE CONSISTENTE
 ```
 
@@ -26,11 +26,11 @@ Sesión 1: Recorrido completo
 |---------------------|--------|---------|---------|
 | Formato de entrada | XML incrustado en JSON | JSON anidado puro | 3, 5 |
 | Discriminador de tipo | EventID (19 tipos) | No existe | 4, 6 |
-| Consistencia | ALTAMENTE CONSISTENTE (1:1) | MODERADAMENTE CONSISTENTE (14 patrones) | 4, 6 |
+| Consistencia | ALTAMENTE CONSISTENTE (1:1) | MODERADAMENTE CONSISTENTE (15 patrones) | 4, 6 |
 | Estrategia del conversor | Esquema fijo por EventID | Esquema unificado con manejo de nulos | 4, 6 |
-| Campos universales | 2 (`UtcTime`, `RuleName`) | 64 de 89 rutas | 4, 6 |
+| Campos universales | 2 (`UtcTime`, `RuleName`) | 62 de 89 rutas | 4, 6 |
 | Columna temporal | `UtcTime` → epoch ms → `timestamp` | `@timestamp` directo | 3 |
-| Campos opcionales | Ninguno dentro de cada EventID | `process` (64%), `source.process` (61.2%), `destination.process` (2.8%) | 5, 6 |
+| Campos opcionales | Ninguno dentro de cada EventID | `process` (49.2%), `source.process` (41.2%), `destination.process` (8.0%) | 5, 6 |
 
 ## Cómo alimenta el resto del curso
 
