@@ -16,7 +16,7 @@ dataset/run-01-apt-1/
 La diferencia fundamental con Sysmon es que los datos NetFlow son **JSON anidado puro** — no hay XML incrustado en ningún campo. Esto significa que la complejidad no está en el parsing de un formato externo, sino en la **navegación de estructuras anidadas** dentro del propio JSON.
 
 ```{note}
-El análisis completo con celdas interactivas y resultados detallados se encuentra en el notebook `3a-exploratory_network-traffic-flow-index.ipynb`. Los números y hallazgos de esta sección provienen directamente de ese notebook.
+El análisis completo con celdas interactivas y resultados detallados se encuentra en el notebook `4a-exploratory_network-traffic-flow-index.ipynb`. Los números y hallazgos de esta sección provienen directamente de ese notebook.
 ```
 
 ```{admonition} Antes de continuar — haz una predicción
@@ -146,7 +146,7 @@ Los datos están **ya estructurados** como diccionarios Python. No hay necesidad
 
 ## Paso 2: Estructura de primer nivel
 
-Para generalizar más allá de un solo registro, analizamos una muestra representativa. El notebook `3a` analizó 200,000 registros aleatorios y encontró la siguiente distribución de campos:
+Para generalizar más allá de un solo registro, analizamos una muestra representativa. El notebook `4a` analizó 200,000 registros aleatorios y encontró la siguiente distribución de campos:
 
 ```python
 from collections import Counter, defaultdict
@@ -352,7 +352,7 @@ Esta función será esencial para el conversor CSV: permite extraer cualquier ca
 
 Con la estructura mapeada, evaluamos la **calidad** de los datos — ¿hay valores nulos, vacíos o inconsistentes?
 
-El notebook `3a` analizó 200,000 registros muestreados aleatoriamente y los resultados son notablemente limpios:
+El notebook `4a` analizó 200,000 registros muestreados aleatoriamente y los resultados son notablemente limpios:
 
 | Campo | Valores vacíos | Completitud | Notas |
 |-------|---------------|-------------|-------|
