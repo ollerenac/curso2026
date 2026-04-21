@@ -144,6 +144,10 @@ Nuestro script exporta en formato JSONL porque combina las ventajas de JSON (pre
 
 El script `1_elastic_index_downloader.py` implementa un pipeline de extracción en 5 pasos. A continuación, analizamos cada componente.
 
+También está disponible como notebook interactivo — puedes abrirlo directamente en Google Colab sin instalar nada:
+
+[![Abrir en Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ollerenac/curso2026/blob/main/sesion-1/1_elastic-index-downloader.ipynb)
+
 ```{note}
 **¿Encontraste una función o sintaxis de Python que no conoces?** A lo largo de este curso aparecerán funciones y patrones que pueden ser nuevos. Estas son las herramientas para investigar por tu cuenta:
 

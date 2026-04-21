@@ -1,0 +1,4 @@
+# Exclude actual data files — only placeholder .md files belong in git
+*.jsonl
+*.jsonl.gz
+*.csv
