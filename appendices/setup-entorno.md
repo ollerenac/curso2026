@@ -16,6 +16,31 @@ Los notebooks de este curso trabajan con archivos JSONL que pueden superar los 2
 
 ## 1. Clonar el repositorio
 
+Primero abre una terminal y navega a la carpeta donde quieres guardar el curso.
+
+**Linux:**
+Abre una terminal (`Ctrl+Alt+T` o busca "Terminal" en el lanzador). Luego navega a tu carpeta de preferencia:
+
+```bash
+cd ~/Documents        # o la carpeta que prefieras
+```
+
+**macOS:**
+Abre la aplicación **Terminal** (en `Aplicaciones → Utilidades → Terminal` o búscala con `Cmd+Space`). Luego navega a tu carpeta:
+
+```bash
+cd ~/Documents        # o la carpeta que prefieras
+```
+
+**Windows:**
+Abre **PowerShell** (busca "PowerShell" en el menú Inicio) o **Git Bash** (si instalaste Git para Windows). Luego navega a tu carpeta:
+
+```powershell
+cd C:\Users\TuUsuario\Documents    # ajusta la ruta según tu carpeta preferida
+```
+
+Una vez en la carpeta deseada, clona el repositorio:
+
 ```bash
 git clone https://github.com/ollerenac/curso2026.git
 cd curso2026
