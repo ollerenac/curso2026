@@ -154,23 +154,7 @@ El resultado nos dice cuántos **patrones estructurales únicos** existen en tod
 
 ## Paso 4: Resultados del análisis de consistencia
 
-### 4a. Métricas generales
-
-El fingerprinting de los 200,000 registros muestreados produce resultados reveladores:
-
-```
-Patrones estructurales únicos:   19
-Registros analizados:            200,000
-Parsing exitoso:                 200,000 (100.0%)
-Errores de parsing:              0 (0.0%)
-Patrón más frecuente:            62,489 registros
-```
-
-**Interpretación**: Exactamente 19 patrones estructurales para 19 EventIDs significa que **cada EventID tiene una estructura única y consistente** — una correspondencia perfecta 1:1. No hay variaciones internas dentro de ningún EventID.
-
-La tasa de parsing del 100% confirma que el parser XML construido en la sección anterior funciona correctamente para todos los registros del dataset.
-
-### 4b. Consistencia por EventID
+### 4a. Consistencia por EventID
 
 El análisis por EventID revela que **los 19 EventIDs tienen estructura completamente consistente** — cada uno con un solo patrón estructural:
 
@@ -206,7 +190,7 @@ El análisis por EventID revela que **los 19 EventIDs tienen estructura completa
 
 Para consultar la descripción completa de cada EventID, sus campos y sus definiciones, ver el [Apéndice: Event Data Collection](../appendices/event-data-collection.md).
 
-### 4c. Análisis detallado de patrones
+### 4b. Análisis detallado de patrones
 
 Los 5 patrones más frecuentes concentran el **93.91%** de todos los registros:
 
@@ -240,15 +224,15 @@ Fields:
 **Clasificación de patrones por frecuencia:**
 
 ```
-Patrones COMUNES (≥5%):     4 patrones
+Patrones COMUNES (≥5%):        4 patrones
 Patrones INFRECUENTES (1-5%):  3 patrones
-Patrones RAROS (<1%):      12 patrones
-Total:                     19 patrones
+Patrones RAROS (<1%):         12 patrones
+Total:                        19 patrones
 ```
 
 Los 4 patrones comunes (EID 12, 10, 7, 13) representan la actividad de fondo típica de un servidor Windows: operaciones de registro, acceso entre procesos, carga de librerías y modificación de valores de registro. Los 12 patrones raros incluyen eventos de alto valor para detección como **EID 8** (Create Remote Thread, 4 registros) y **EID 4** (Sysmon Service State Changed, 1 registro).
 
-### 4d. Co-ocurrencia de campos
+### 4c. Co-ocurrencia de campos
 
 El análisis de co-ocurrencia examina qué campos aparecen juntos y cuáles son compartidos entre EventIDs:
 
@@ -281,7 +265,7 @@ Combinaciones únicas de campos:   18
 - Dentro de cada EventID, **todos los campos tienen presencia del 100%** — no hay campos opcionales. Esto confirma que cada EventID tiene un esquema fijo y determinista.
 - Los campos `Source*`/`Target*` (SourceImage, TargetImage, SourceUser, etc.) son exclusivos de EventIDs que modelan interacciones entre procesos (EID 8, 10).
 
-### 4e. Reporte de consistencia
+### 4d. Métricas generales y reporte de consistencia
 
 El análisis culmina con un reporte que consolida todas las métricas:
 
@@ -298,11 +282,16 @@ ANÁLISIS DE COBERTURA:
    • Top 5 patrones cubren:   93.9% de los datos
    • Top 10 patrones cubren:  99.5% de los datos
 
+PARSING:
+   • Registros analizados:    200,000 (100.0%)
+   • Errores de parsing:      0 (0.0%)
+
 EVALUACIÓN GENERAL: ALTAMENTE CONSISTENTE
 ```
 
 **Puntos clave:**
-- La correspondencia perfecta 1:1 entre patrones y EventIDs confirma que **no existen variaciones internas** — cada EventID siempre produce exactamente los mismos campos. Esto simplifica enormemente el diseño del conversor CSV.
+- Exactamente 19 patrones estructurales para 19 EventIDs significa que **cada EventID tiene una estructura única y consistente** — una correspondencia perfecta 1:1. No hay variaciones internas dentro de ningún EventID.
+- La tasa de parsing del 100% confirma que el parser XML construido en la sección anterior funciona correctamente para todos los registros del dataset.
 - EID 17 y EID 18 comparten la misma estructura de campos pero son diferenciados por el fingerprint gracias a la inclusión del EventID en el hash. Sin esta precaución, aparecerían como un solo patrón.
 - Los 2 campos universales (`UtcTime`, `RuleName`) serán las columnas presentes en **todas las filas** del CSV final — el ancla temporal y la regla de detección.
 - La concentración del 93.9% en 5 patrones sugiere que la optimización del conversor debe priorizar estos EventIDs.
