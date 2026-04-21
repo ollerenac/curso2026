@@ -159,6 +159,7 @@ También está disponible como notebook interactivo — puedes abrirlo directame
 - **`type(variable)`** — muestra el tipo de un objeto (`str`, `dict`, `list`, etc.), útil para entender qué estás manipulando.
 - **`dir(objeto)`** — lista todos los métodos y atributos disponibles de un objeto.
 - **Documentación oficial** — [docs.python.org](https://docs.python.org/3/) es la referencia definitiva para la librería estándar de Python.
+- **¿Ves líneas como `es = Elasticsearch(...)` o `es.ping()`?** Eso es Programación Orientada a Objetos. Consulta el apéndice {doc}`/appendices/oop-python` para una introducción rápida con ejemplos de este mismo script.
 
 Estas herramientas son parte del flujo de trabajo habitual de cualquier programador, no solo de principiantes.
 ```
