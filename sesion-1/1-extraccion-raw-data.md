@@ -144,13 +144,11 @@ Nuestro script exporta en formato JSONL porque combina las ventajas de JSON (pre
 
 El script `1_elastic_index_downloader.py` implementa un pipeline de extracción en 5 pasos. A continuación, analizamos cada componente.
 
-También está disponible como notebook interactivo — puedes abrirlo directamente en Google Colab sin instalar nada:
-
 ```{note}
 **Contexto de esta sección:** Este script fue utilizado durante la generación del dataset para extraer los datos desde el clúster de Elasticsearch del laboratorio. Como estudiante, **no necesitas ejecutarlo** — los archivos JSONL resultantes ya están disponibles en la carpeta `dataset/` del repositorio. El objetivo de este walkthrough es que entiendas *cómo y por qué* los datos tienen la estructura que tienen, y qué decisiones de diseño se tomaron durante la extracción.
-```
 
-[![Abrir en Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ollerenac/curso2026/blob/main/sesion-1/1_elastic-index-downloader.ipynb)
+Si quieres explorar el notebook interactivo (`1_elastic-index-downloader.ipynb`) en tu máquina local, asegúrate de tener el entorno Python configurado — consulta el apéndice {doc}`/appendices/setup-entorno`.
+```
 
 ```{note}
 **¿Encontraste una función o sintaxis de Python que no conoces?** A lo largo de este curso aparecerán funciones y patrones que pueden ser nuevos. Estas son las herramientas para investigar por tu cuenta:

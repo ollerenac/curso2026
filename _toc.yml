@@ -58,4 +58,5 @@ parts:
   - caption: "Apéndices"
     chapters:
       - file: appendices/event-data-collection
+      - file: appendices/setup-entorno
       - file: appendices/oop-python

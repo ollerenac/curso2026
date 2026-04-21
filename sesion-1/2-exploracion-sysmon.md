@@ -20,7 +20,9 @@ Este paso de exploración no es opcional. Sin entender la estructura interna de 
 El código de esta sección se puede ejecutar paso a paso en el notebook `2a-exploratory_sysmon-index.ipynb`, que contiene el análisis completo con celdas interactivas y resultados detallados.
 ```
 
-[![Abrir en Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ollerenac/curso2026/blob/main/sesion-1/2a-exploratory_sysmon-index.ipynb)
+```{note}
+**Ejecución local requerida.** Este notebook trabaja con archivos JSONL que superan los 2 GB y no puede ejecutarse en Google Colab. Para seguirlo en tu máquina, consulta el apéndice {doc}`/appendices/setup-entorno` antes de comenzar.
+```
 
 ```{admonition} Antes de continuar — haz una predicción
 :class: note
