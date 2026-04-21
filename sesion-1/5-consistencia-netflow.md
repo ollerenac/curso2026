@@ -89,65 +89,72 @@ Contraste de fingerprinting:
   NetFlow:  {campo1: {subcampo: "str"}, campo2: "int"}    →  MD5
 ```
 
-## Paso 2: Resultados — 14 patrones estructurales
+## Paso 2: Resultados — 15 patrones estructurales
 
 El fingerprinting de 200,000 registros muestreados produce los siguientes resultados:
 
 ```
-Patrones estructurales únicos:   14
+Patrones estructurales únicos:   15
 Registros analizados:            200,000
 Ratio de diversidad estructural: 0.007%
-Patrón más frecuente:            67,260 registros (33.63%)
+Patrón más frecuente:            79,773 registros (39.89%)
 ```
 
-A diferencia de Sysmon, donde cada patrón correspondía a un EventID, aquí no existe ese discriminador natural. Los 14 patrones se clasifican por frecuencia:
+A diferencia de Sysmon, donde cada patrón correspondía a un EventID, aquí no existe ese discriminador natural. Los 15 patrones se clasifican por frecuencia:
 
 | # | Clasificación | Registros | % | Campos 1er nivel | Características |
 |---|--------------|-----------|---|-------------------|-----------------|
-| 1 | SECONDARY_SCHEMA | 67,260 | 33.63% | 12 | `process` + `source.process` |
-| 2 | SECONDARY_SCHEMA | 67,235 | 33.62% | 11 | Sin `process` |
-| 3 | SECONDARY_SCHEMA | 54,406 | 27.20% | 12 | `process` + `source.process` (variante) |
-| 4 | RARE_VARIANT | 5,253 | 2.63% | 12 | `process` sin `source.process` |
-| 5 | RARE_VARIANT | 3,037 | 1.52% | 11 | Sin `process` (variante) |
-| 6 | OUTLIER | 708 | 0.35% | 11 | Variante menor |
-| 7 | OUTLIER | 583 | 0.29% | 12 | Variante con `process` |
-| 8 | OUTLIER | 549 | 0.27% | 11 | Variante menor |
-| 9 | OUTLIER | 323 | 0.16% | 11 | Variante menor |
-| 10 | OUTLIER | 294 | 0.15% | 12 | Variante con `process` |
-| 11-14 | OUTLIER | <300 | <0.15% | variable | Variantes residuales |
+| 1 | SECONDARY_SCHEMA | 79,773 | 39.89% | 11 | Sin `process` |
+| 2 | SECONDARY_SCHEMA | 64,313 | 32.16% | 12 | `process` + `source.process` |
+| 3 | VARIANT | 15,593 | 7.80% | 12 | `process` + `source.process` (variante) |
+| 4 | VARIANT | 15,397 | 7.70% | 11 | Sin `process` (variante) |
+| 5 | VARIANT | 14,727 | 7.36% | 12 | `process` sin `source.process` |
+| 6 | RARE_VARIANT | 4,560 | 2.28% | 11 | Variante menor sin `process` |
+| 7 | RARE_VARIANT | 2,196 | 1.10% | 12 | `process` + `source.process` (variante) |
+| 8 | OUTLIER | 943 | 0.47% | 12 | Variante con `process` |
+| 9 | OUTLIER | 781 | 0.39% | 11 | Variante menor |
+| 10 | OUTLIER | 701 | 0.35% | 11 | Variante menor |
+| 11-15 | OUTLIER | <500 | <0.25% | variable | Variantes residuales |
 
 **Clasificación por tipo:**
 
 ```
-SECONDARY_SCHEMA:   3 patrones  (94.45% de los registros)
-RARE_VARIANT:       2 patrones  ( 4.15% de los registros)
-OUTLIER:            9 patrones  ( 1.40% de los registros)
+SECONDARY_SCHEMA:   2 patrones  (72.05% de los registros)
+VARIANT:            3 patrones  (22.86% de los registros)
+RARE_VARIANT:       2 patrones  ( 3.38% de los registros)
+OUTLIER:            8 patrones  ( 1.71% de los registros)
 PRIMARY_SCHEMA:     0 patrones  (ningún patrón supera el 50%)
 ```
 
-**Observación importante:** Ningún patrón alcanza el 50% de frecuencia necesario para clasificarse como PRIMARY_SCHEMA. Los tres patrones principales (SECONDARY_SCHEMA) se reparten los registros de forma relativamente equilibrada (~34%, ~34%, ~27%), lo que significa que no hay una estructura "dominante" sino tres variantes mayoritarias.
+**Observación importante:** Ningún patrón alcanza el 50% de frecuencia necesario para clasificarse como PRIMARY_SCHEMA. Los dos patrones SECONDARY_SCHEMA (~40% y ~32%) concentran el 72% de los registros, mientras que tres patrones VARIANT adicionales (~8%, ~8%, ~7%) suman el 23%. La distribución es más dispersa que en Sysmon, donde los patrones más frecuentes superaban el 30% individualmente.
 
 ## Paso 3: El campo `process` como eje de variación
 
 El análisis detallado de los patrones revela que el **eje principal de variación** es la presencia o ausencia de campos relacionados con proceso:
 
-**Patrón #1** (33.63%): Incluye `process` y `source.process`. Estos registros corresponden a flujos de red donde Packetbeat pudo identificar tanto el proceso del sistema local como el proceso en el extremo origen del flujo.
+**Patrón #1** (39.89%): No incluye `process`. Son flujos donde no fue posible correlacionar la actividad de red con un proceso del sistema operativo — típicamente tráfico externo, de dispositivos no monitorizados, o flujos TCP ya establecidos cuando inició Packetbeat.
 
-**Patrón #2** (33.62%): No incluye `process`. Estos son flujos donde no fue posible correlacionar la actividad de red con un proceso del sistema operativo — típicamente tráfico externo o de dispositivos no monitorizados.
+**Patrón #2** (32.16%): Incluye `process` y `source.process`. Registros donde Packetbeat identificó el proceso en el host local y lo asoció al extremo origen del flujo.
 
-**Patrón #3** (27.20%): Incluye `process` y `source.process`, pero con una variante estructural menor respecto al patrón #1 (un elemento adicional en la estructura del JSON).
+**Patrón #3** (7.80%): Incluye `process` y `source.process`, pero con una variante estructural en el campo `args` (lista vacía en lugar de lista con elementos), que produce un fingerprint diferente al patrón #2.
+
+**Patrón #4** (7.70%): Sin `process`, variante estructural menor respecto al patrón #1.
+
+**Patrón #5** (7.36%): Incluye `process` pero **sin** `source.process`. Son flujos donde se identificó el proceso a nivel de registro, pero Packetbeat no pudo asociarlo al subobjeto `source` — típicamente cuando el proceso está vinculado al destino y no al origen.
 
 ```
 Eje de variación principal:
 
-  Patrón #1 (33.63%) ─── process: ✓   source.process: ✓
-  Patrón #2 (33.62%) ─── process: ✗   source.process: ✗
-  Patrón #3 (27.20%) ─── process: ✓   source.process: ✓ (variante)
-                         ─────────────────────────────────
-                                   Total: 94.45%
+  Patrón #1 (39.89%) ─── process: ✗   source.process: ✗
+  Patrón #2 (32.16%) ─── process: ✓   source.process: ✓
+  Patrón #3 ( 7.80%) ─── process: ✓   source.process: ✓  (variante args vacío)
+  Patrón #4 ( 7.70%) ─── process: ✗   source.process: ✗  (variante)
+  Patrón #5 ( 7.36%) ─── process: ✓   source.process: ✗
+                         ────────────────────────────────────
+                    SECONDARY + VARIANT:  94.91%
 ```
 
-La distinción fundamental es binaria: **¿se pudo atribuir el flujo a un proceso?** Cuando sí, aparecen tanto `process` como `source.process`; cuando no, ambos se omiten. La atribución de proceso solo es posible para flujos que se originan o terminan en **hosts monitorizados** con Packetbeat instalado — aproximadamente el 64% de todos los flujos en la muestra.
+La distinción principal sigue siendo **¿se pudo atribuir el flujo a un proceso?** Cuando sí, aparece `process`; cuando no, se omite. Sin embargo, a diferencia de lo que podría esperarse, la presencia de `process` no garantiza la presencia de `source.process` — el patrón #5 demuestra que ~7% de los flujos tienen proceso a nivel de registro pero sin atribución al subobjeto origen. La atribución de proceso solo es posible para flujos que se originan o terminan en **hosts monitorizados** con Packetbeat instalado — aproximadamente el 49% de todos los flujos en la muestra.
 
 ## Paso 4: Co-ocurrencia de campos
 
@@ -162,24 +169,26 @@ Los campos se distribuyen en tres categorías claras:
 
 | Categoría | Cantidad | Presencia | Ejemplos |
 |-----------|----------|-----------|----------|
-| Siempre presentes | 64 | 100.0% | `agent.*`, `destination.mac`, `network.*`, `source.bytes` |
-| Condicionales | 17 | 61-64% | `process.*` (64.0%), `source.process.*` (61.2%) |
-| Raros | 8 | 2.8% | `destination.process.*` |
+| Siempre presentes | 62 | 100.0% | `agent.*`, `destination.mac`, `network.*`, `source.bytes` |
+| Condicionales | 27 | 8-90% | `process.*` (49.2%), `source.process.*` (41.2%), `destination.process.*` (8.0%), `destination.bytes` (90.1%) |
+| Raros | 0 | — | — |
 
 **Detalle de los campos condicionales:**
 
 ```
-process.*                (9 rutas)    → 128,035 registros (64.0%)
-source.process.*         (8 rutas)    → 122,460 registros (61.2%)
+process.*                (9 rutas)    →  98,340 registros (49.2%)
+source.process.*         (8 rutas)    →  82,359 registros (41.2%)
+destination.process.*    (8 rutas)    →  15,981 registros ( 8.0%)
 
-destination.process.*    (8 rutas)    →   5,575 registros ( 2.8%)
+destination.bytes        (1 ruta)     → 180,198 registros (90.1%)
+destination.packets      (1 ruta)     → 180,198 registros (90.1%)
 ```
 
-La diferencia entre `process` (64.0%) y `source.process` (61.2%) indica que hay un 2.8% de registros donde el proceso se identifica a nivel de registro pero no en el subobjeto `source`. Estos son precisamente los registros del **patrón #4** (RARE_VARIANT, 2.63%), donde el proceso está asociado al destino y no al origen del flujo.
+La diferencia entre `process` (49.2%) y `source.process` (41.2%) indica que hay un ~8% de registros donde el proceso se identifica a nivel de registro pero no en el subobjeto `source`. Estos son precisamente los registros del **patrón #5** (VARIANT, 7.36%), donde el proceso está asociado al host local pero sin atribución al extremo origen del flujo.
 
-El campo `destination.process` aparece en solo el 2.8% de los registros — estos son flujos donde Packetbeat también pudo identificar el proceso receptor en el host destino. Cada grupo de campos `destination.process.*` incluye 8 subrutas (`args`, `start`, `name`, `working_directory`, `pid`, `executable`, `ppid`) que siempre aparecen o desaparecen en bloque — nunca de forma parcial.
+El campo `destination.process` aparece en el 8.0% de los registros — flujos donde Packetbeat también pudo identificar el proceso receptor en el host destino. En el run original este porcentaje era solo 2.8%; el incremento en `run-01` refleja diferencias en la naturaleza del tráfico APT capturado. Cada grupo de campos `destination.process.*` incluye 8 subrutas (`args`, `start`, `name`, `working_directory`, `pid`, `executable`, `ppid`) que siempre aparecen o desaparecen en bloque — nunca de forma parcial.
 
-**Hallazgo clave:** Los 64 campos siempre presentes incluyen toda la infraestructura de metadatos (`agent.*`, `elastic_agent.*`, `ecs.*`, `data_stream.*`), las métricas de red (`source.bytes`, `source.packets`, `destination.mac`, `network.*`), y la información del host (`host.hostname`, `host.os.*`). Esto significa que el **núcleo de la información de red está siempre completo** — solo la atribución a proceso es variable.
+**Hallazgo clave:** Los 62 campos siempre presentes incluyen toda la infraestructura de metadatos (`agent.*`, `elastic_agent.*`, `ecs.*`, `data_stream.*`) y la información del host (`host.hostname`, `host.os.*`). Notablemente, `destination.bytes` y `destination.packets` solo aparecen en el 90.1% de los registros — los flujos donde no se midió el tráfico bidireccional completo quedan sin estos valores. El **núcleo de la información de red está presente en la gran mayoría de los registros**, pero no es absolutamente universal como en el dominio Sysmon.
 
 ## Paso 5: Evaluación de consistencia
 
@@ -187,14 +196,14 @@ El reporte de consistencia del notebook 3b concluye con la evaluación:
 
 ```
 MÉTRICAS DE CONSISTENCIA:
-   Patrones estructurales únicos:       14
-   Patrones Primary/Secondary:           3
+   Patrones estructurales únicos:       15
+   Patrones Primary/Secondary:           2
    Ratio de diversidad estructural:      0.007%
 
 ANÁLISIS DE COBERTURA:
-   Top 3 patrones cubren:   94.5% de los datos
-   Top 5 patrones cubren:   98.6% de los datos
-   Top 10 patrones cubren:  99.8% de los datos
+   Top 3 patrones cubren:   79.8% de los datos
+   Top 5 patrones cubren:   94.9% de los datos
+   Top 10 patrones cubren:  99.5% de los datos
 
 EVALUACIÓN GENERAL: MODERADAMENTE CONSISTENTE
 ```
@@ -205,14 +214,14 @@ La comparación directa entre ambos dominios revela por qué las evaluaciones di
 
 | Métrica | Sysmon | NetFlow |
 |---------|--------|---------|
-| Patrones únicos | 19 | 14 |
+| Patrones únicos | 19 | 15 |
 | Consistencia intra-tipo | 100% (cada EventID = 1 patrón) | N/A (sin tipos) |
-| Cobertura top-3 | ~77.8% | ~94.5% |
-| Cobertura top-5 | ~93.9% | ~98.6% |
-| Campos siempre presentes | 2 (de 74) | 64 (de 89) |
+| Cobertura top-3 | ~77.8% | ~79.8% |
+| Cobertura top-5 | ~93.9% | ~94.9% |
+| Campos siempre presentes | 2 (de 74) | 62 (de 89) |
 | Evaluación | ALTAMENTE CONSISTENTE | MODERADAMENTE CONSISTENTE |
 
-**¿Por qué Sysmon es "altamente consistente" con más patrones (19 vs 14)?**
+**¿Por qué Sysmon es "altamente consistente" con más patrones (19 vs 15)?**
 
 La respuesta está en el **discriminador de tipo**. Sysmon tiene el campo `EventID` que actúa como discriminador natural: cada EventID produce siempre la misma estructura de campos, sin excepciones. Hay 19 patrones porque hay 19 EventIDs distintos, y la correspondencia es perfecta 1:1.
 
@@ -226,9 +235,9 @@ La estrategia de conversión JSONL a CSV para NetFlow debe contemplar las tres c
 
 | Categoría | Cantidad | Estrategia de extracción |
 |-----------|----------|--------------------------|
-| Siempre presentes | 64 campos | Extracción estándar directa |
-| Condicionales | 17 campos | Valores por defecto (`None`/vacío) cuando ausentes |
-| Raros | 8 campos | Incluidos en el CSV pero frecuentemente vacíos |
+| Siempre presentes | 62 campos | Extracción estándar directa |
+| Condicionales | 27 campos | Valores por defecto (`None`/vacío) cuando ausentes |
+| Raros | 0 campos | — |
 
 A diferencia del conversor Sysmon — que usa un esquema fijo por EventID — el conversor NetFlow debe emplear un **esquema unificado** con manejo de nulos para los campos opcionales. Esto se implementa con la función `get_nested_value()` de la sección anterior, que devuelve un valor por defecto cuando la ruta no existe en el registro.
 
@@ -236,11 +245,11 @@ A diferencia del conversor Sysmon — que usa un esquema fijo por EventID — el
 
 El análisis de consistencia estructural de NetFlow revela un panorama cualitativamente distinto al de Sysmon:
 
-1. **Menos patrones, menor consistencia (14 vs 19)**: Puede parecer contraintuitivo que 14 patrones produzcan una evaluación de MODERADAMENTE CONSISTENTE mientras que 19 patrones producen ALTAMENTE CONSISTENTE. La diferencia está en la **naturaleza** de la variación: en Sysmon, cada patrón corresponde a un EventID conocido y predecible; en NetFlow, los 14 patrones reflejan combinaciones impredecibles de campos opcionales.
+1. **Menos patrones, menor consistencia (15 vs 19)**: Puede parecer contraintuitivo que 14 patrones produzcan una evaluación de MODERADAMENTE CONSISTENTE mientras que 19 patrones producen ALTAMENTE CONSISTENTE. La diferencia está en la **naturaleza** de la variación: en Sysmon, cada patrón corresponde a un EventID conocido y predecible; en NetFlow, los 14 patrones reflejan combinaciones impredecibles de campos opcionales.
 
 2. **Un solo eje de variación**: Toda la diversidad estructural se reduce a una pregunta binaria: ¿se pudo atribuir el flujo de red a un proceso? Cuando sí, aparecen `process` y `source.process`; cuando no, ambos se omiten. Esta atribución depende de factores operativos (si Packetbeat monitoriza el host), no del tipo de evento.
 
-3. **Núcleo estable de 64 campos**: De las 89 rutas de campo, 64 están presentes en el 100% de los registros. Toda la infraestructura de red (`source.*`, `destination.*`, `network.*`) está siempre completa — solo la atribución a proceso es variable. Esto contrasta con Sysmon, donde solo 2 campos (`UtcTime`, `RuleName`) son universales.
+3. **Núcleo estable de 62 campos**: De las 89 rutas de campo, 62 están presentes en el 100% de los registros. La mayor parte de la infraestructura de red está siempre completa, aunque `destination.bytes` y `destination.packets` solo aparecen en el 90.1% de los flujos — solo la atribución a proceso y la medición completa del destino son variables. Esto contrasta con Sysmon, donde solo 2 campos (`UtcTime`, `RuleName`) son universales.
 
 4. **Variación determinista vs estocástica**: En Sysmon, conocer el EventID permite predecir exactamente qué campos contendrá el registro. En NetFlow, no existe esa predicción — la presencia de `process` depende de si el host estaba monitorizado en el momento del flujo. Esta distinción tiene consecuencias directas para el diseño de los conversores CSV.
 
