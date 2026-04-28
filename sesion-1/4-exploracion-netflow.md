@@ -196,7 +196,7 @@ El resultado muestra 12 campos totales, pero con una diferencia importante: **11
 Este porcentaje (49.0%) corresponde **exclusivamente a la ejecución `run-01-apt-1`**. Nuestro dataset contiene 48 ejecuciones (*runs*) con diferentes campañas APT, y cada una puede presentar una proporción diferente de registros con información de proceso — dependiendo de la naturaleza del ataque, los servicios activos en la red, y las condiciones de captura. En sesiones posteriores analizaremos la consistencia estructural a lo largo de todos los runs para determinar si este patrón se mantiene o varía.
 ```
 
-A diferencia de Sysmon, donde la variación proviene de 21 esquemas de EventID diferentes, en NetFlow la variación proviene de una **única distinción binaria**: presencia o ausencia de `process`.
+A diferencia de Sysmon, donde la variación proviene de 19 esquemas de EventID diferentes, en NetFlow la variación proviene de una **única distinción binaria**: presencia o ausencia de `process`.
 
 ## Paso 3: Estructura anidada — navegación con dot-notation
 
@@ -410,7 +410,7 @@ Habiendo explorado ambos dominios de telemetría, podemos establecer una compara
 | Campos de primer nivel | 16 (todos constantes) | 12 (11 fijos + 1 opcional) |
 | Fuente de variación | 19 esquemas de EventID | Presencia/ausencia de `process` |
 | Campos nulos | 0% en `EventID`, `Computer` | 0% en 11 campos obligatorios |
-| Rutas de campo únicas | 74 (a través de 21 EventIDs) | 96 (en la jerarquía JSON) |
+| Rutas de campo únicas | 74 (a través de 19 EventIDs) | 96 (en la jerarquía JSON) |
 | Complejidad del parser | Alta (XML + namespaces + limpieza) | Baja (acceso directo a dict) |
 
 **Observación sobre el conteo de campos:** A primera vista puede parecer contraintuitivo que NetFlow tenga **más** rutas de campo (96) que Sysmon (74), dado que los datos de red son conceptualmente "más simples" que los eventos de sistema operativo. Esto se explica porque:
@@ -441,7 +441,7 @@ Responde a las siguientes preguntas basándote en lo que has aprendido en esta s
 
 2. **¿Qué implicaciones tiene el campo `process` opcional (49.0%) para el conversor CSV?** Considera: ¿qué valor debería aparecer en las columnas de proceso cuando un registro no tiene el campo `process`? ¿Debería el CSV tener columnas separadas para `source.process.name` y `destination.process.name`?
 
-3. **Compara el conteo de campos: Sysmon tiene 74 campos únicos a través de 21 EventIDs, mientras que NetFlow tiene 96 rutas en su jerarquía.** ¿Por qué NetFlow tiene más rutas a pesar de ser conceptualmente más simple? ¿Qué papel juega la duplicación de información (`source.process` vs `destination.process`) en este conteo?
+3. **Compara el conteo de campos: Sysmon tiene 74 campos únicos a través de 19 EventIDs, mientras que NetFlow tiene 96 rutas en su jerarquía.** ¿Por qué NetFlow tiene más rutas a pesar de ser conceptualmente más simple? ¿Qué papel juega la duplicación de información (`source.process` vs `destination.process`) en este conteo?
 
 ## Resultado Esperado
 
