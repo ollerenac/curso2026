@@ -28,7 +28,7 @@ Anota tus predicciones y compáralas con los resultados.
 
 ## Paso 1: Aplicación del fingerprinting a NetFlow
 
-En la sección 4 construimos una función `generate_structure_fingerprint()` que tomaba el EventID y los nombres de campo del XML para generar un hash MD5. Para NetFlow, la técnica es la misma pero la implementación cambia: en lugar de parsear XML para extraer nombres de campo, **hasheamos la estructura del JSON directamente**.
+En la sección 3 construimos una función `generate_structure_fingerprint()` que tomaba el EventID y los nombres de campo del XML para generar un hash MD5. Para NetFlow, la técnica es la misma pero la implementación cambia: en lugar de parsear XML para extraer nombres de campo, **hasheamos la estructura del JSON directamente**.
 
 La función adaptada para NetFlow recorre recursivamente el diccionario JSON, extrayendo la estructura completa (nombres de campo, tipos y anidamiento):
 
