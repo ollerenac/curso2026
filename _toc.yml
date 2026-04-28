@@ -12,16 +12,16 @@ parts:
           - file: sesion-1/3-consistencia-sysmon
           - file: sesion-1/4-exploracion-netflow
           - file: sesion-1/5-consistencia-netflow
-          - file: sesion-1/6-conclusiones-sesion-1
+          - file: sesion-1/conclusiones-sesion-1
 
   - caption: "Sesión 2: Preprocesamiento y Calidad"
     chapters:
       - file: sesion-2/index
         sections:
-          - file: sesion-2/1-preprocesamiento-sysmon
-          - file: sesion-2/2-analisis-calidad-csv
-          - file: sesion-2/3-limpieza-sysmon
-          - file: sesion-2/4-preprocesamiento-netflow
+          - file: sesion-2/7-preprocesamiento-sysmon
+          - file: sesion-2/8-analisis-calidad-csv
+          - file: sesion-2/9-limpieza-sysmon
+          - file: sesion-2/10-preprocesamiento-netflow
 
   - caption: "Sesión 3: Calidad de Datos y Marco Teórico"
     chapters:

@@ -11,10 +11,10 @@
 
 ## Contenido
 
-1. [Preprocesamiento Sysmon: De JSONL a CSV](1-preprocesamiento-sysmon.md) (60 min) — Script 2 del pipeline
-2. [Análisis de Calidad del CSV](2-analisis-calidad-csv.md) (60 min) — Notebook 2c
-3. [Limpieza de Datos Sysmon](3-limpieza-sysmon.md) (30 min) — Script 4 del pipeline
-4. [Preprocesamiento NetFlow: De JSONL a CSV](4-preprocesamiento-netflow.md) (30 min) — Script 3 del pipeline
+7. [Preprocesamiento Sysmon: De JSONL a CSV](7-preprocesamiento-sysmon.md) (60 min) — Script 2 del pipeline
+8. [Análisis de Calidad del CSV](8-analisis-calidad-csv.md) (60 min) — Notebook 2c
+9. [Limpieza de Datos Sysmon](9-limpieza-sysmon.md) (30 min) — Script 4 del pipeline
+10. [Preprocesamiento NetFlow: De JSONL a CSV](10-preprocesamiento-netflow.md) (30 min) — Script 3 del pipeline
 
 ## Scripts del Pipeline
 
