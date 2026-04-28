@@ -338,7 +338,42 @@ registro NetFlow
 
 Con la estructura mapeada, evaluamos la **calidad** de los datos — ¿hay valores nulos, vacíos o inconsistentes?
 
-El notebook `4a` analizó 200,000 registros muestreados aleatoriamente y los resultados son notablemente limpios:
+El notebook `4a` analizó 200,000 registros muestreados aleatoriamente con el siguiente código:
+
+```python
+quality_stats = {
+    'empty_values': defaultdict(int),   # valores nulos/vacíos por campo
+    'field_lengths': defaultdict(list), # longitudes de strings y arrays
+    'unique_values': defaultdict(set),  # valores únicos para detección categórica
+}
+
+for sample in random_samples:
+    for field_name, field_value in sample.items():
+        # 1. Detectar valores vacíos
+        if field_value is None or field_value == "" or field_value == []:
+            quality_stats['empty_values'][field_name] += 1
+
+        # 2. Medir longitud de strings y arrays
+        if isinstance(field_value, (str, list)):
+            quality_stats['field_lengths'][field_name].append(len(field_value))
+
+        # 3. Colectar valores únicos (máx. 50) para detectar campos categóricos
+        if isinstance(field_value, (str, int, float)) :
+            if len(quality_stats['unique_values'][field_name]) < 50:
+                quality_stats['unique_values'][field_name].add(str(field_value))
+```
+
+:::{admonition} ¿Qué mide cada métrica?
+:class: dropdown note
+
+El código rastrea tres cosas simultáneamente por cada campo:
+
+- **`empty_values`**: cuenta registros donde el campo es `None`, `""` o `[]`. Si este contador es 0, el campo tiene completitud del 100%.
+- **`field_lengths`**: para strings y listas, guarda la longitud de cada valor. Permite calcular el promedio al final — útil para campos como `@timestamp` (siempre 24 caracteres).
+- **`unique_values`**: acumula los valores distintos que toma cada campo, con un tope de 50. Si un campo tiene ≤50 valores únicos, probablemente es categórico (p.ej. un campo `status` con valores `"ok"`, `"error"`, `"warning"`). El tope evita que campos de alta cardinalidad (como IPs) consuman demasiada memoria.
+:::
+
+Los resultados son notablemente limpios:
 
 | Campo | Valores vacíos | Completitud | Notas |
 |-------|---------------|-------------|-------|
