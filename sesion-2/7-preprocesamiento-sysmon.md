@@ -17,7 +17,7 @@ Tienes un archivo JSONL de 2.1 GB con 363,657 eventos Sysmon. Necesitas converti
 
 1. ¿Podrías simplemente hacer `pd.read_json("sysmon.jsonl", lines=True)` y obtener un CSV usable? ¿Qué obstáculo principal lo impide?
 2. Con 400,000+ eventos, ¿procesarías el archivo entero de una vez o lo dividirías? Si lo divides, ¿cómo combinarías los resultados?
-3. Sysmon tiene 22 tipos de eventos con campos diferentes. ¿El CSV resultante tendría columnas diferentes por tipo, o **todas** las columnas posibles con muchos valores vacíos?
+3. Sysmon tiene 21 tipos de eventos con campos diferentes. ¿El CSV resultante tendría columnas diferentes por tipo, o **todas** las columnas posibles con muchos valores vacíos?
 
 Anota tus respuestas y compáralas con las decisiones del script a lo largo de esta sección.
 ```
@@ -38,22 +38,22 @@ El objetivo de esta sección es producir:
 
 ```
 dataset/run-XX-apt-Y/
-├── sysmon-run-XX.csv                 ← CSV tabular con todos los eventos Sysmon
-├── netflow-run-XX.csv                ← CSV tabular con todos los flujos de red
-├── log-sysmon-JSONL-to-csv-run-XX.json   ← Log de procesamiento Sysmon
-└── log-netflow-JSONL-to-csv-run-XX.json  ← Log de procesamiento NetFlow
+├── 02_sysmon-run-XX.csv                    ← CSV tabular con todos los eventos Sysmon
+├── 03_netflow-run-XX.csv                   ← CSV tabular con todos los flujos de red
+├── 02_log-sysmon-jsonl-to-csv-run-XX.json ← Log de procesamiento Sysmon
+└── 03_log-netflow-jsonl-to-csv-run-XX.json ← Log de procesamiento NetFlow
 ```
 
 ### Decisión de diseño: ¿un CSV por EventID o uno unificado?
 
-Sysmon tiene 22 tipos de eventos, cada uno con entre 3 y 16 campos diferentes. Podríamos generar un CSV por EventID (20 archivos densos, sin columnas vacías) o un CSV unificado (un solo archivo con la unión de todos los campos, donde ~85% de las celdas serán `NaN`). ¿Cuál es mejor?
+Sysmon tiene 21 tipos de eventos, cada uno con entre 3 y 16 campos diferentes. Podríamos generar un CSV por EventID (21 archivos densos, sin columnas vacías) o un CSV unificado (un solo archivo con la unión de todos los campos, donde ~80% de las celdas serán `NaN`). ¿Cuál es mejor?
 
-| Aspecto | CSV por EventID (20 archivos) | CSV unificado (45 columnas) |
+| Aspecto | CSV por EventID (21 archivos) | CSV unificado (50 columnas) |
 |---------|-------------------------------|---------------------------|
-| **Columnas por archivo** | 5–18 (según EventID) | 45 (fijas) |
-| **NaN estructurales** | ~0% | ~85% de las celdas |
+| **Columnas por archivo** | 5–18 (según EventID) | 50 (fijas) |
+| **NaN estructurales** | ~0% | ~80% de las celdas |
 | **Análisis cruzado** | Requiere joins por ProcessGuid | Directo (un solo DataFrame) |
-| **Lifecycle tracing** | Multi-join entre 20 archivos | `df[df.ProcessGuid == guid]` |
+| **Lifecycle tracing** | Multi-join entre 21 archivos | `df[df.ProcessGuid == guid]` |
 
 La respuesta depende del **uso posterior** de los datos:
 
@@ -502,7 +502,7 @@ def _build_event_record(self, event_id: int, computer: str,
 ```
 
 **Puntos clave:**
-- **Esquema unión**: El CSV final contiene la **unión** de todos los campos de los 21 EventIDs (45 columnas totales). Un evento de tipo 1 (Process Creation) tendrá valores `NaN` en los campos específicos de tipo 3 (Network Connection) y viceversa.
+- **Esquema unión**: El CSV final contiene la **unión** de todos los campos de los 21 EventIDs (50 columnas totales). Un evento de tipo 1 (Process Creation) tendrá valores `NaN` en los campos específicos de tipo 3 (Network Connection) y viceversa.
 - **Mapeo de case EID 8**: En el esquema, EventID 8 define `SourceProcessGuid` y `TargetProcessGuid` (minúscula), pero EventID 10 usa `SourceProcessGUID` y `TargetProcessGUID` (mayúscula). El script mapea ambos a la misma columna `SourceProcessGUID`/`TargetProcessGUID` para unificación.
 - **Tracking de campos faltantes**: El script registra estadísticas de campos que no se encuentran en el XML, útil para diagnosticar problemas de calidad.
 
@@ -542,7 +542,7 @@ def process_events(self, jsonl_path: str) -> pd.DataFrame:
     return pd.DataFrame(all_records)
 ```
 
-El script además genera un **log de procesamiento** en formato JSON (`log-sysmon-JSONL-to-csv-run-XX.json`) que incluye: tiempos de ejecución, distribución de EventIDs, campos faltantes, tasa de errores, y velocidad de procesamiento.
+El script además genera un **log de procesamiento** en formato JSON (`02_log-sysmon-jsonl-to-csv-run-XX.json`) que incluye: tiempos de ejecución, distribución de EventIDs, campos faltantes, tasa de errores, y velocidad de procesamiento.
 
 **Puntos clave:**
 - Se utiliza `ThreadPoolExecutor` en lugar de `ProcessPoolExecutor` porque la tarea principal es I/O-bound (lectura de archivo) con algo de CPU (parsing XML). Los hilos son suficientes para este caso de uso.
@@ -599,7 +599,7 @@ def clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
 
 **Puntos clave:**
 - **Limpieza de strings vacíos**: Después del trim de whitespace, los strings vacíos se reemplazan por `None`. Esto evita que campos como `RuleName: ""` se traten como valores presentes.
-- **Epoch milliseconds**: Se reemplaza el campo `UtcTime` (string datetime) por `timestamp` (entero de milisegundos desde epoch), y se **elimina** la columna `UtcTime` original. Esto significa que el CSV resultante no contiene `UtcTime` — en su lugar, la columna 45 es `timestamp`. Este formato entero es más eficiente para operaciones de correlación temporal entre Sysmon y NetFlow en etapas posteriores del pipeline.
+- **Epoch milliseconds**: Se reemplaza el campo `UtcTime` (string datetime) por `timestamp` (entero de milisegundos desde epoch), y se **elimina** la columna `UtcTime` original. Esto significa que el CSV resultante no contiene `UtcTime` — en su lugar, la columna 50 es `timestamp`. Este formato entero es más eficiente para operaciones de correlación temporal entre Sysmon y NetFlow en etapas posteriores del pipeline.
 - **Timestamps inválidos**: `errors='coerce'` convierte timestamps que no se pueden parsear en `NaT` (Not a Time), que se manejan como nulos. En nuestro dataset, solo 2 de 363,657 registros tienen este problema.
 - **Tipos nullable (`Int64`)**: Pandas usa `Int64` (con mayúscula) en lugar de `int64` para soportar valores `NaN` en columnas enteras — necesario porque no todos los eventos tienen todos los campos.
 - **Categorías con cardinalidad**: Solo se convierten a `category` las columnas cuyo número de valores únicos es menor al 50% de las filas. Esto evita convertir columnas de alta cardinalidad donde el overhead del diccionario de categorías sería mayor que el ahorro.
@@ -672,7 +672,7 @@ En esta sección hemos recorrido el Script 2, que transforma los datos crudos de
 
 | Entrada | Salida | Decisión clave |
 |---------|--------|----------------|
-| JSONL con XML embebido (2.1 GB) | CSV tabular (45 columnas, 363K filas) | Esquema unión de 22 EventIDs |
+| JSONL con XML embebido (2.1 GB) | CSV tabular (50 columnas, 363K filas) | Esquema unión de 21 EventIDs |
 
 ### Decisiones de diseño y sus consecuencias
 
@@ -680,7 +680,7 @@ Las decisiones tomadas en este script no son arbitrarias — cada una tiene cons
 
 1. **Epoch milliseconds en lugar de datetime strings**: Permite la correlación temporal con NetFlow en el Script 5 (Sesión 3). Ambos dominios comparten la misma escala numérica, haciendo que las operaciones de ventana temporal sean simples restas de enteros.
 
-2. **Esquema unión (45 columnas con NaN)**: Mantiene todos los eventos en un solo DataFrame. La alternativa — un CSV por EventID — haría imposible el análisis cruzado entre tipos de eventos que el Script 8 (trazado de ciclo de vida) necesita.
+2. **Esquema unión (50 columnas con NaN)**: Mantiene todos los eventos en un solo DataFrame. La alternativa — un CSV por EventID — haría imposible el análisis cruzado entre tipos de eventos que el Script 8 (trazado de ciclo de vida) necesita.
 
 3. **Normalización de Computer a minúsculas**: Evita que `ITM2-DC.intmaniac.local` y `ITM2-DC.INTMANIAC.LOCAL` se traten como hosts diferentes en el análisis de movimiento lateral.
 
@@ -688,6 +688,6 @@ Las decisiones tomadas en este script no son arbitrarias — cada una tiene cons
 
 ### Conexión con lo que sigue
 
-Tenemos un CSV de Sysmon con 45 columnas y ~363K filas. Pero antes de continuar con el pipeline, necesitamos verificar la calidad de este CSV: ¿la distribución de EventIDs es coherente? ¿Hay relaciones rotas entre procesos? ¿El dataset está listo para ML?
+Tenemos un CSV de Sysmon con 50 columnas y ~363K filas. Pero antes de continuar con el pipeline, necesitamos verificar la calidad de este CSV: ¿la distribución de EventIDs es coherente? ¿Hay relaciones rotas entre procesos? ¿El dataset está listo para ML?
 
 En la **siguiente sección** analizamos la calidad del CSV resultante — distribución de eventos, patrones temporales, relaciones entre procesos, y readiness para algoritmos de machine learning. Ese análisis nos revelará problemas concretos (como violaciones de ProcessGuid) que motivarán la sección de limpieza que viene después.
