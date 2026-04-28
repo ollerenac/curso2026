@@ -246,20 +246,66 @@ La distinción principal sigue siendo **¿se pudo atribuir el flujo a un proceso
 
 ## Paso 4: Co-ocurrencia de campos
 
-El análisis de co-ocurrencia de campos revela la anatomía completa de las 89 rutas de campo únicas:
+El Step 4 del notebook usa `analyze_field_presence_patterns` para recorrer los 200,000 registros y contar cuántas veces aparece cada ruta de campo a cualquier nivel de anidamiento:
+
+```python
+field_combinations, field_counts = analyze_field_presence_patterns(sample_records)
+
+# Campos condicionales: presentes en menos del 95% de los registros
+conditional_fields = [
+    (field, count, (count / total_samples) * 100)
+    for field, count in field_counts.items()
+    if (count / total_samples) * 100 < 95
+]
+conditional_fields.sort(key=lambda x: x[2])  # ordenar por rareza
+```
+
+:::{admonition} ¿Qué diferencia este análisis del de la sección 4?
+:class: dropdown note
+
+El notebook 4a analizó solo los **12 campos de primer nivel** (estructura superficial). Este Step 4 recorre recursivamente **todas las rutas anidadas** — `destination.process.args`, `host.os.kernel`, etc. — sobre los 200,000 registros completos. Por eso encuentra 89 rutas únicas en lugar de las 96 del 4a (diferencia de método de sampling: estratificado vs reservoir) y detecta que `destination.bytes` y `destination.packets` son opcionales al 90.1%, algo invisible en el análisis de primer nivel.
+:::
+
+El output del Step 4:
+
+```
+Field presence analysis:
+   • Total unique field paths:   89
+   • Unique field combinations:  11
+
+Conditional/Optional fields (present in <95% of records):
+   destination.process.*        15,981 (  8.0%)
+   source.process.*             82,359 ( 41.2%)
+   process.*                    98,340 ( 49.2%)
+   destination.bytes           180,198 ( 90.1%)
+   destination.packets         180,198 ( 90.1%)
+
+Most common field combinations (top 10):
+   Combination with 81 fields:  79,906 records ( 40.0%)
+   Combination with 64 fields:  79,773 records ( 39.9%)
+   Combination with 81 fields:  15,670 records (  7.8%)
+   Combination with 62 fields:  15,397 records (  7.7%)
+   Combination with 57 fields:   4,560 records (  2.3%)
+   Combination with 79 fields:   2,453 records (  1.2%)
+   Combination with 55 fields:     781 records (  0.4%)
+   Combination with 60 fields:     701 records (  0.4%)
+   Combination with 79 fields:     311 records (  0.2%)
+   Combination with 62 fields:     289 records (  0.1%)
+```
+
+Los campos se distribuyen en dos categorías:
 
 ```
 Total de rutas de campo únicas:      89
 Combinaciones únicas de campos:      11
 ```
 
-Los campos se distribuyen en tres categorías claras:
+Los campos se distribuyen en dos categorías:
 
 | Categoría | Cantidad | Presencia | Ejemplos |
 |-----------|----------|-----------|----------|
 | Siempre presentes | 62 | 100.0% | `agent.*`, `destination.mac`, `network.*`, `source.bytes` |
-| Condicionales | 27 | 8-90% | `process.*` (49.2%), `source.process.*` (41.2%), `destination.process.*` (8.0%), `destination.bytes` (90.1%) |
-| Raros | 0 | — | — |
+| Condicionales | 27 | 8–90% | `process.*` (49.2%), `source.process.*` (41.2%), `destination.process.*` (8.0%), `destination.bytes` (90.1%) |
 
 **Detalle de los campos condicionales:**
 
@@ -274,7 +320,7 @@ destination.packets      (1 ruta)     → 180,198 registros (90.1%)
 
 La diferencia entre `process` (49.2%) y `source.process` (41.2%) indica que hay un ~8% de registros donde el proceso se identifica a nivel de registro pero no en el subobjeto `source`. Estos son precisamente los registros del **patrón #5** (VARIANT, 7.36%), donde el proceso está asociado al host local pero sin atribución al extremo origen del flujo.
 
-El campo `destination.process` aparece en el 8.0% de los registros — flujos donde Packetbeat también pudo identificar el proceso receptor en el host destino. En el run original este porcentaje era solo 2.8%; el incremento en `run-01` refleja diferencias en la naturaleza del tráfico APT capturado. Cada grupo de campos `destination.process.*` incluye 8 subrutas (`args`, `start`, `name`, `working_directory`, `pid`, `executable`, `ppid`) que siempre aparecen o desaparecen en bloque — nunca de forma parcial.
+El campo `destination.process` aparece en el 8.0% de los registros — flujos donde Packetbeat también pudo identificar el proceso receptor en el host destino. Cada grupo de campos `destination.process.*` incluye 8 subrutas (`args`, `start`, `name`, `working_directory`, `pid`, `executable`, `ppid`) que siempre aparecen o desaparecen en bloque — nunca de forma parcial.
 
 **Hallazgo clave:** Los 62 campos siempre presentes incluyen toda la infraestructura de metadatos (`agent.*`, `elastic_agent.*`, `ecs.*`, `data_stream.*`) y la información del host (`host.hostname`, `host.os.*`). Notablemente, `destination.bytes` y `destination.packets` solo aparecen en el 90.1% de los registros — los flujos donde no se midió el tráfico bidireccional completo quedan sin estos valores. El **núcleo de la información de red está presente en la gran mayoría de los registros**, pero no es absolutamente universal como en el dominio Sysmon.
 
