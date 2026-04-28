@@ -139,7 +139,56 @@ PATTERN CLASSIFICATION:
 - Los 8 patrones clasificados como `OUTLIER` representan menos del 1% cada uno — probablemente variantes menores por diferencias de tipo o campos opcionales adicionales.
 - A diferencia de Sysmon, donde cada patrón correspondía a un EventID concreto, aquí **no existe ese discriminador natural**. El siguiente paso es inspeccionar cada patrón en detalle para entender qué los diferencia.
 
-Los 15 patrones en detalle:
+## Paso 3: Análisis detallado de patrones estructurales
+
+Para entender qué diferencia a cada patrón estructural, el notebook itera sobre los 10 más frecuentes e inspecciona sus características:
+
+```python
+sorted_patterns = structure_counts.most_common()
+
+for i, (structure_hash, count) in enumerate(sorted_patterns[:10], 1):
+    classification_info = classifications[structure_hash]
+
+    # Frecuencia y clasificación
+    print(f"PATTERN #{i} - {classification_info['classification']}")
+    print(f"Frequency: {count:,} records ({classification_info['percentage']:.2f}%)")
+
+    # Campos de primer nivel del registro ejemplo
+    example_record = structure_examples[structure_hash]
+    top_level_fields = list(example_record.keys())
+    print(f"Top-level fields ({len(top_level_fields)}): {', '.join(sorted(top_level_fields))}")
+
+    # Detectar características notables (process, source.process)
+    optional_indicators = []
+    for field in top_level_fields:
+        if field == 'process':
+            optional_indicators.append(f"process: {type(example_record[field]).__name__}")
+        elif field == 'source' and 'process' in example_record[field]:
+            optional_indicators.append("source.process: present")
+
+    # Comparar diferencias estructurales con el patrón #1
+    if i > 1:
+        primary_fields = set(str(structure_fingerprints[sorted_patterns[0][0]]).split())
+        current_fields = set(str(structure_fingerprints[structure_hash]).split())
+        missing = primary_fields - current_fields
+        extra = current_fields - primary_fields
+        if missing or extra:
+            print(f"Differences from Pattern #1: -{len(missing)} / +{len(extra)} structural elements")
+```
+
+:::{admonition} ¿Qué hace este código?
+:class: dropdown note
+
+Para cada uno de los 10 patrones más frecuentes (ordenados de mayor a menor por `structure_counts.most_common()`), el código extrae tres cosas:
+
+1. **Clasificación y frecuencia** — cuántos registros tienen ese patrón estructural y qué categoría le asignó `classify_structure_variations`.
+2. **Campos de primer nivel** — cuántos campos tiene el registro ejemplo y cuáles son. Esto permite identificar de inmediato si el patrón incluye o no el campo `process`.
+3. **Diferencias vs patrón #1** — compara el string serializado del fingerprint actual contra el del patrón más frecuente. Si hay elementos estructurales presentes en uno pero no en el otro, lo reporta como "missing" o "extra". Es una comparación de strings aproximada, no campo a campo.
+
+`structure_examples` es un diccionario `{hash: primer_registro_con_ese_hash}` construido durante el Step 2 — guarda un registro representativo de cada patrón para poder inspeccionarlo.
+:::
+
+Los 15 patrones estructurales en detalle:
 
 | # | Clasificación | Registros | % | Campos 1er nivel | Características |
 |---|--------------|-----------|---|-------------------|-----------------|
