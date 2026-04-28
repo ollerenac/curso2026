@@ -6,7 +6,9 @@
 :class: note
 
 **Script principal**: `7_sysmon_csv_creator.py` (copia local de `2_sysmon_csv_creator.py`)
+
 **Script de limpieza**: `4_sysmon_data_cleaner.py` (pipeline fullapt2025 — cubierto en sección 9)
+
 **Sub-scripts de calidad**: `fullapt2025/scripts/pipeline/quality/`
 ```
 
@@ -606,19 +608,38 @@ def clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
 
 ### Uso del script
 
+```{admonition} Ejecución local — entorno y dependencias
+:class: dropdown note
+
+Antes de ejecutar el script, asegúrate de tener el entorno configurado correctamente. Desde la raíz de `curso2026/`:
+
+**1. Activar el entorno virtual:**
 ```bash
-# Modo auto-detección: detecta archivos automáticamente a partir del directorio del run
-python 2_sysmon_csv_creator.py --apt-dir apt-1/apt-1-05-04-run-05
+source .venv/bin/activate
+```
 
-# Modo explícito: especificar archivos de entrada y salida manualmente
-python 2_sysmon_csv_creator.py \
-    --input dataset/run-05-apt-1/ds-logs-windows-sysmon-run05.jsonl \
-    --output dataset/run-05-apt-1/sysmon-run-05.csv
+**2. Instalar dependencias** (solo la primera vez, o si faltan paquetes):
+```bash
+pip install -r requirements.txt
+```
 
-# Opciones adicionales
-python 2_sysmon_csv_creator.py --apt-dir apt-1/apt-1-05-04-run-05 \
-    --config mi-config.yaml \    # Configuración personalizada
-    --no-validate                # Omitir validación contra archivo existente
+El `requirements.txt` incluye todas las dependencias necesarias: `pandas`, `beautifulsoup4`, `lxml`, `pyyaml`, entre otras. El script requiere específicamente `lxml` para el parser XML de BeautifulSoup — si ves el error `Couldn't find a tree builder with the features you requested: xml`, es porque `lxml` no está instalado en el entorno activo.
+
+**3. Ejecutar desde `sesion-2/`:**
+```bash
+cd sesion-2
+
+# Modo explícito — especificar entrada y salida manualmente
+python3 7_sysmon_csv_creator.py \
+    --input ../dataset/run-01-apt-1/ds-logs-windows-sysmon_operational-default-run-01.jsonl \
+    --output ../dataset/run-01-apt-1/02_sysmon-run-01.csv
+
+# Omitir validación (más rápido, sin backup del CSV existente)
+python3 7_sysmon_csv_creator.py \
+    --input ../dataset/run-01-apt-1/ds-logs-windows-sysmon_operational-default-run-01.jsonl \
+    --output ../dataset/run-01-apt-1/02_sysmon-run-01.csv \
+    --no-validate
+```
 ```
 
 **Salida del script:**
