@@ -408,7 +408,7 @@ Habiendo explorado ambos dominios de telemetría, podemos establecer una compara
 | Parsing necesario | XML namespace-aware + sanitización | Navegación de diccionarios |
 | Registros (run-01) | 363,657 | 569,443 |
 | Campos de primer nivel | 16 (todos constantes) | 12 (11 fijos + 1 opcional) |
-| Fuente de variación | 21 esquemas de EventID | Presencia/ausencia de `process` |
+| Fuente de variación | 19 esquemas de EventID | Presencia/ausencia de `process` |
 | Campos nulos | 0% en `EventID`, `Computer` | 0% en 11 campos obligatorios |
 | Rutas de campo únicas | 74 (a través de 21 EventIDs) | 96 (en la jerarquía JSON) |
 | Complejidad del parser | Alta (XML + namespaces + limpieza) | Baja (acceso directo a dict) |
@@ -442,8 +442,6 @@ Responde a las siguientes preguntas basándote en lo que has aprendido en esta s
 2. **¿Qué implicaciones tiene el campo `process` opcional (49.0%) para el conversor CSV?** Considera: ¿qué valor debería aparecer en las columnas de proceso cuando un registro no tiene el campo `process`? ¿Debería el CSV tener columnas separadas para `source.process.name` y `destination.process.name`?
 
 3. **Compara el conteo de campos: Sysmon tiene 74 campos únicos a través de 21 EventIDs, mientras que NetFlow tiene 96 rutas en su jerarquía.** ¿Por qué NetFlow tiene más rutas a pesar de ser conceptualmente más simple? ¿Qué papel juega la duplicación de información (`source.process` vs `destination.process`) en este conteo?
-
-4. **Diseña la función `get_nested_value` para un caso adicional:** Modifica la función para que acepte rutas con índices de lista, como `event.type[0]`. ¿Cómo manejarías el caso donde la lista está vacía?
 
 ## Resultado Esperado
 
