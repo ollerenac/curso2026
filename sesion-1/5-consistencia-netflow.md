@@ -67,20 +67,49 @@ def generate_schema_fingerprint(record, max_depth=10):
     return structure_hash, structure_detail
 ```
 
-**¿Cómo funciona?**
+:::{admonition} ¿Cómo funcionan las tres funciones del Step 1?
+:class: dropdown note
 
-1. Recorre recursivamente el diccionario JSON, descendiendo por cada clave.
-2. Para cada campo, registra su **tipo** (`str`, `int`, `bool`, `dict`, `list`).
-3. Las listas se representan por la estructura de su primer elemento.
-4. Serializa la estructura completa como JSON ordenado y genera un hash MD5.
+**`generate_schema_fingerprint(record)`**
 
-El resultado es un identificador único para cada *forma* del JSON. Dos registros con exactamente los mismos campos, tipos y niveles de anidamiento producirán el mismo fingerprint, independientemente de los valores concretos.
+Recorre recursivamente el JSON y construye un diccionario que representa solo la *forma* del registro (nombres de campo + tipos, sin valores). Luego serializa ese diccionario con `json.dumps(sort_keys=True)` — el ordenamiento garantiza que dos registros con los mismos campos en distinto orden produzcan el mismo string — y genera un hash MD5.
 
-**Diferencias clave con la versión Sysmon:**
+Tres reglas para casos especiales:
+- `dict` → desciende recursivamente, ordenando las claves
+- `list` vacía → `"empty_list"`
+- `list` no vacía → `{"list_of": estructura_del_primer_elemento}`
+- primitivo (`str`, `int`, `bool`) → devuelve solo el nombre del tipo
 
-1. **Sin EventID en el hash**: NetFlow no tiene un discriminador de tipo equivalente a EventID. El hash se genera exclusivamente a partir de la estructura JSON.
-2. **Recursión multinivel**: En Sysmon, los campos del XML eran planos (un solo nivel). Aquí la función desciende recursivamente a través de diccionarios anidados (`source.process.args`, `host.os.kernel`, etc.).
-3. **Tipado de valores**: Además de registrar la presencia/ausencia de campos, esta versión captura el **tipo** de cada valor (`str`, `int`, `bool`, `dict`, `list`), lo que detecta variaciones más sutiles.
+El resultado es una tupla `(hash, structure_detail)`. Dos registros con exactamente los mismos campos, tipos y niveles de anidamiento producirán el mismo hash aunque sus valores sean completamente distintos.
+
+Contraste con la versión Sysmon:
+```
+Sysmon:   EventID + [campo1:present, campo2:null, ...]  →  MD5
+NetFlow:  {campo1: {subcampo: "str"}, campo2: "int"}    →  MD5
+```
+
+---
+
+**`classify_structure_variations(structure_counts, total_samples)`**
+
+Recibe un `Counter` de `{hash: frecuencia}` y clasifica cada patrón según su porcentaje de aparición:
+
+| Umbral | Clasificación |
+|--------|--------------|
+| ≥ 50% | `PRIMARY_SCHEMA` |
+| ≥ 20% | `SECONDARY_SCHEMA` |
+| ≥ 5% | `VARIANT` |
+| ≥ 1% | `RARE_VARIANT` |
+| < 1% | `OUTLIER` |
+
+Retorna un diccionario `{hash: {classification, count, percentage}}`. Esta clasificación permite distinguir rápidamente los patrones dominantes de los casos excepcionales sin inspeccionar el conteo raw.
+
+---
+
+**`analyze_field_presence_patterns(records)`**
+
+Recorre todos los registros y extrae recursivamente cada ruta de campo (dot-notation). Cuenta cuántas veces aparece cada ruta en el total de registros. El resultado muestra qué campos son universales (100%) vs opcionales (<100%), con más granularidad que el análisis de primer nivel del notebook 4a — aquí se detectan variaciones a cualquier nivel de anidamiento.
+:::
 
 ```
 Contraste de fingerprinting:
