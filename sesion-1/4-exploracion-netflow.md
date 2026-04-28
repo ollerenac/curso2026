@@ -149,33 +149,29 @@ Los datos están **ya estructurados** como diccionarios Python. No hay necesidad
 Para generalizar más allá de un solo registro, analizamos una muestra representativa. El notebook `4a` analizó 200,000 registros aleatorios y encontró la siguiente distribución de campos:
 
 ```python
-from collections import Counter, defaultdict
-import random
-
-# Contar total de registros
-total_records = 0
-with open(TARGET_FILEPATH, 'r') as f:
-    for line in f:
-        total_records += 1
-print(f"Total records: {total_records:,}")
-# Total records: 569,443
-
-# Muestrear 200,000 registros
-SAMPLE_SIZE = 200_000
-sample_indices = set(random.sample(range(total_records), SAMPLE_SIZE))
-
-# Analizar campos de primer nivel
+# random_samples ya fue recolectado con get_random_samples() (200,000 registros)
 field_counter = Counter()
 field_types = defaultdict(Counter)
 
-with open(TARGET_FILEPATH, 'r') as f:
-    for idx, line in enumerate(f):
-        if idx in sample_indices:
-            record = json.loads(line)
-            for key, value in record.items():
-                field_counter[key] += 1
-                field_types[key][type(value).__name__] += 1
+for sample in random_samples:
+    for field_name, field_value in sample.items():
+        field_counter[field_name] += 1
+        field_types[field_name][type(field_value).__name__] += 1
+
+total_samples = len(random_samples)  # 200,000
 ```
+
+:::{admonition} ¿Qué hace este código?
+:class: dropdown note
+
+Recorre los 200,000 registros ya muestreados y para cada uno cuenta cuántas veces aparece cada campo y qué tipo de dato tiene.
+
+- **`field_counter`**: acumula cuántos registros contienen cada campo. Si `process` aparece en 98,006 de los 200,000, `field_counter["process"] == 98006`.
+- **`field_types`**: para cada campo, registra qué tipo de dato tiene (`dict`, `str`, etc.). Útil para detectar inconsistencias de tipo.
+- Al final, si `field_counter[campo] == total_samples` → el campo está **siempre presente**. Si es menor → es **opcional**.
+
+`Counter` y `defaultdict(Counter)` son estructuras de Python que cuentan automáticamente sin necesidad de inicializar cada clave a cero.
+:::
 
 El resultado muestra 12 campos totales, pero con una diferencia importante: **11 están siempre presentes y 1 es opcional**.
 
