@@ -608,7 +608,7 @@ def clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
 
 ### Uso del script
 
-```{admonition} Ejecución local — entorno y dependencias
+:::{admonition} Ejecución local — entorno y dependencias
 :class: dropdown note
 
 Antes de ejecutar el script, asegúrate de tener el entorno configurado correctamente. Desde la raíz de `curso2026/`:
@@ -640,7 +640,7 @@ python3 7_sysmon_csv_creator.py \
     --output ../dataset/run-01-apt-1/02_sysmon-run-01.csv \
     --no-validate
 ```
-```
+:::
 
 **Salida del script:**
 ```
