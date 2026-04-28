@@ -1,6 +1,9 @@
 # Jupyter Book build output
 _build/
 
+# Notebook generated outputs
+sesion-1/outputs/
+
 # Python
 __pycache__/
 *.pyc
