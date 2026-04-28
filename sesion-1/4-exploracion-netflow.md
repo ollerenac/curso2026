@@ -334,36 +334,6 @@ registro NetFlow
         └── final        true
 ```
 
-Para navegar esta jerarquía programáticamente, podemos usar una función auxiliar:
-
-```python
-def get_nested_value(record, dot_path, default=None):
-    """Navega un diccionario anidado usando notación de puntos.
-
-    Ejemplo: get_nested_value(record, 'destination.process.name')
-    """
-    keys = dot_path.split('.')
-    current = record
-    for key in keys:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return default
-    return current
-
-# Uso
->>> get_nested_value(record, 'source.ip')
-'10.1.0.6'
-
->>> get_nested_value(record, 'destination.process.name')
-'svchost.exe'
-
->>> get_nested_value(record, 'source.process.name', default='N/A')
-'N/A'  # Este registro no tiene process en source
-```
-
-Esta función será esencial para el conversor CSV: permite extraer cualquier campo anidado de forma segura, devolviendo un valor por defecto cuando la ruta no existe.
-
 ## Paso 4: Análisis de calidad de datos
 
 Con la estructura mapeada, evaluamos la **calidad** de los datos — ¿hay valores nulos, vacíos o inconsistentes?
