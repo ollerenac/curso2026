@@ -220,31 +220,36 @@ Los datos de red están distribuidos en diccionarios anidados. Para acceder a un
 Para explorar sistemáticamente **todos** los caminos posibles en la jerarquía, usamos una función recursiva que genera las rutas con dot-notation:
 
 ```python
-def get_all_field_paths(obj, prefix="", max_depth=4, current_depth=0):
-    """Recorre recursivamente un diccionario y genera todas las rutas de campo."""
-    paths = {}
+def analyze_nested_structure(obj, path="", max_depth=3, current_depth=0):
+    paths = set()
     if current_depth >= max_depth:
         return paths
 
     if isinstance(obj, dict):
         for key, value in obj.items():
-            new_path = f"{prefix}.{key}" if prefix else key
-            paths[new_path] = type(value).__name__
-            # Recursión para diccionarios anidados
-            paths.update(get_all_field_paths(value, new_path, max_depth, current_depth + 1))
+            new_path = f"{path}.{key}" if path else key
+            paths.add(f"{new_path} ({type(value).__name__})")
+            paths.update(analyze_nested_structure(value, new_path, max_depth, current_depth + 1))
+
     elif isinstance(obj, list) and obj:
-        # Para listas, explorar el primer elemento
-        array_path = f"{prefix}[0]"
-        paths[array_path] = type(obj[0]).__name__
-        paths.update(get_all_field_paths(obj[0], array_path, max_depth, current_depth + 1))
+        first_item = obj[0]
+        array_path = f"{path}[0]"
+        paths.add(f"{array_path} ({type(first_item).__name__})")
+        paths.update(analyze_nested_structure(first_item, array_path, max_depth, current_depth + 1))
 
     return paths
+
+# Aplicar sobre 10 registros de muestra y acumular rutas únicas
+all_paths = set()
+for sample in random_samples[:10]:
+    sample_paths = analyze_nested_structure(sample, max_depth=4)
+    all_paths.update(sample_paths)
 ```
 
-:::{admonition} ¿Cómo funciona get_all_field_paths?
+:::{admonition} ¿Cómo funciona analyze_nested_structure?
 :class: dropdown note
 
-La función recorre un diccionario anidado y produce un mapa de **todas las rutas posibles** con su tipo de dato. La idea central es la **recursión**: la función se llama a sí misma cada vez que encuentra un diccionario dentro de otro.
+La función recorre un diccionario anidado y produce un **conjunto (`set`) de todas las rutas posibles**, con el tipo de dato embebido en el string: `"event.action (str)"`. La idea central es la **recursión**: se llama a sí misma cada vez que encuentra un diccionario dentro de otro.
 
 Por ejemplo, dado este registro:
 
@@ -255,28 +260,24 @@ record = {
 }
 ```
 
-La función produce:
+La función produce el conjunto:
 
 ```
-event              -> dict
-event.action       -> str
-event.duration     -> int
-source             -> dict
-source.ip          -> str
-source.process     -> dict
-source.process.name -> str
+{"event (dict)", "event.action (str)", "event.duration (int)",
+ "source (dict)", "source.ip (str)", "source.process (dict)",
+ "source.process.name (str)"}
 ```
 
-**Paso a paso:** entra al diccionario raíz con `prefix=""`. Encuentra `"event"` → guarda la ruta `"event"` con tipo `dict`. Como es un dict, se llama a sí misma con `prefix="event"` y encuentra `"action"` → guarda `"event.action"` con tipo `str`. Repite esto bajando nivel por nivel.
+**¿Por qué `set` y no `dict`?** Porque el objetivo es descubrir rutas únicas. Al llamar `all_paths.update(sample_paths)` sobre 10 registros, el `set` elimina duplicados automáticamente — si todos los registros tienen `event.action`, aparece una sola vez en `all_paths`.
 
 **Casos especiales:**
 - Si el valor es un `dict` → entra y baja un nivel (recursión normal)
-- Si el valor es una `list` → solo examina el primer elemento `[0]`, asumiendo que todos los elementos tienen la misma estructura
+- Si el valor es una `list` → solo examina el primer elemento `[0]`, asumiendo estructura homogénea
 
-**`max_depth=4`** actúa como freno de seguridad: sin él, una estructura muy profunda podría causar recursión infinita. El resultado es un diccionario plano que convierte la jerarquía compleja en una lista navegable de rutas.
+**`max_depth=4`** actúa como freno de seguridad contra recursión infinita.
 :::
 
-Aplicando esta función a múltiples registros de la muestra, el análisis identificó **96 rutas de campo únicas** distribuidas en 12 grupos de primer nivel:
+Aplicando esta función a 10 registros de la muestra, el análisis identificó **96 rutas de campo únicas** distribuidas en 12 grupos de primer nivel:
 
 ```
 @timestamp               1 ruta    ─── valor directo (str)
