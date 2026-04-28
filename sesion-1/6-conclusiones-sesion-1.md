@@ -13,7 +13,7 @@ Sesión 1: Recorrido completo
   ──────────    ─────────────────────    ──────────────────────
   Script 1      Sysmon: XML incrustado   Sysmon: 19 patrones
   Elasticsearch   en JSON, namespaces,     = 19 EventIDs (1:1)
-  → JSONL         21 EventIDs              ALTAMENTE CONSISTENTE
+  → JSONL         19 EventIDs              ALTAMENTE CONSISTENTE
 
                 NetFlow: JSON anidado    NetFlow: 15 patrones
                   puro, 96 rutas,          sin discriminador
@@ -25,10 +25,10 @@ Sesión 1: Recorrido completo
 | Decisión de diseño | Sysmon | NetFlow | Sección |
 |---------------------|--------|---------|---------|
 | Formato de entrada | XML incrustado en JSON | JSON anidado puro | 3, 5 |
-| Discriminador de tipo | EventID (19 tipos) | No existe | 4, 6 |
-| Consistencia | ALTAMENTE CONSISTENTE (1:1) | MODERADAMENTE CONSISTENTE (15 patrones) | 4, 6 |
-| Estrategia del conversor | Esquema fijo por EventID | Esquema unificado con manejo de nulos | 4, 6 |
-| Campos universales | 2 (`UtcTime`, `RuleName`) | 62 de 89 rutas | 4, 6 |
+| Discriminador de tipo | EventID (19 tipos) | No existe | 2, 4 |
+| Consistencia | ALTAMENTE CONSISTENTE (1:1) | MODERADAMENTE CONSISTENTE (15 patrones) | 3, 5 |
+| Estrategia del conversor | Esquema fijo por EventID | Esquema unificado con manejo de nulos | 3, 5 |
+| Campos universales | 2 (`UtcTime`, `RuleName`) | 62 de 89 rutas | 3, 5 |
 | Columna temporal | `UtcTime` → epoch ms → `timestamp` | `@timestamp` directo | 3 |
 | Campos opcionales | Ninguno dentro de cada EventID | `process` (49.2%), `source.process` (41.2%), `destination.process` (8.0%) | 5, 6 |
 
@@ -40,7 +40,7 @@ Cada sesión siguiente se apoya en lo que descubrimos aquí:
 
 **Sesión 3 — Correlación cruzada**: Los Scripts 5-6 correlacionan temporalmente Sysmon y NetFlow. Esta correlación es posible porque ahora entendemos las columnas temporales de ambos dominios (`UtcTime` → `timestamp` en Sysmon, `@timestamp` en NetFlow) y sabemos que el campo `process` de NetFlow permite vincular flujos de red con procesos del sistema operativo.
 
-**Sesión 4 — Etiquetado**: El Script 7 extrae eventos semilla de EventIDs específicos (1, 11, 23) — tres de los 19 tipos que catalogamos en la sección 4. El Script 8 traza cadenas de ataque usando `ProcessGuid` como enlace entre eventos, aprovechando la consistencia perfecta de este campo dentro de cada EventID.
+**Sesión 4 — Etiquetado**: El Script 7 extrae eventos semilla de EventIDs específicos (1, 11, 23) — tres de los 19 tipos que catalogamos en la sección 2. El Script 8 traza cadenas de ataque usando `ProcessGuid` como enlace entre eventos, aprovechando la consistencia perfecta de este campo dentro de cada EventID.
 
 **Sesión 5 — Datasets finales**: Los Scripts 9-10 generan los datasets etiquetados finales. La estructura de estos datasets refleja directamente las decisiones de diseño que emergen de esta sesión: columnas fijas por EventID en Sysmon, esquema unificado con nulos en NetFlow.
 
