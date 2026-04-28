@@ -216,8 +216,6 @@ PRIMARY_SCHEMA:     0 patrones  (ningún patrón supera el 50%)
 
 **Observación importante:** Ningún patrón alcanza el 50% de frecuencia necesario para clasificarse como PRIMARY_SCHEMA. Los dos patrones SECONDARY_SCHEMA (~40% y ~32%) concentran el 72% de los registros, mientras que tres patrones VARIANT adicionales (~8%, ~8%, ~7%) suman el 23%. La distribución es más dispersa que en Sysmon, donde los patrones más frecuentes superaban el 30% individualmente.
 
-## Paso 3: El campo `process` como eje de variación
-
 El análisis detallado de los patrones revela que el **eje principal de variación** es la presencia o ausencia de campos relacionados con proceso:
 
 **Patrón #1** (39.89%): No incluye `process`. Son flujos donde no fue posible correlacionar la actividad de red con un proceso del sistema operativo — típicamente tráfico externo, de dispositivos no monitorizados, o flujos TCP ya establecidos cuando inició Packetbeat.
