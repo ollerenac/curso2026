@@ -1,0 +1,166 @@
+{
+  "analysis_metadata": {
+    "timestamp": "20260428_030305",
+    "analysis_type": "4a-network-flows",
+    "samples": [
+      {
+        "section": "Basic Data Structure Analysis",
+        "description": "Complete First Sample Structure",
+        "timestamp": "2026-04-28T03:09:13.873822",
+        "data": {
+          "process": {
+            "args": [
+              "C:\\Windows\\system32\\svchost.exe",
+              "-k",
+              "LocalService"
+            ],
+            "parent": {
+              "pid": 592
+            },
+            "start": "2025-03-19T14:04:16.907Z",
+            "name": "svchost.exe",
+            "working_directory": "",
+            "pid": 380,
+            "executable": "C:\\Windows\\System32\\svchost.exe"
+          },
+          "agent": {
+            "name": "diskjockey",
+            "id": "98c1577f-4ccd-4f57-92fd-d61d4957e6c3",
+            "type": "packetbeat",
+            "ephemeral_id": "ed317a15-41a9-45c4-b607-a579c632cb34",
+            "version": "8.17.0"
+          },
+          "destination": {
+            "process": {
+              "args": [
+                "C:\\Windows\\system32\\svchost.exe",
+                "-k",
+                "LocalService"
+              ],
+              "start": "2025-03-19T14:04:16.907Z",
+              "name": "svchost.exe",
+              "working_directory": "",
+              "pid": 380,
+              "executable": "C:\\Windows\\System32\\svchost.exe",
+              "ppid": 592
+            },
+            "port": 123,
+            "bytes": 162,
+            "ip": "10.1.0.4",
+            "mac": "08-00-27-B1-0A-06",
+            "packets": 1
+          },
+          "elastic_agent": {
+            "id": "98c1577f-4ccd-4f57-92fd-d61d4957e6c3",
+            "version": "8.17.0",
+            "snapshot": false
+          },
+          "network_traffic": {
+            "flow": {
+              "final": true,
+              "id": "EQIA////DP////8U//8BAAEIACexCgYIACfdmCwKAQAECgEABnsAewA"
+            }
+          },
+          "source": {
+            "port": 123,
+            "bytes": 162,
+            "ip": "10.1.0.6",
+            "mac": "08-00-27-DD-98-2C",
+            "packets": 1
+          },
+          "network": {
+            "community_id": "1:oV4NZBbe8LDnUyQgq+a/zgO7oMc=",
+            "bytes": 324,
+            "transport": "udp",
+            "type": "ipv4",
+            "packets": 2
+          },
+          "@timestamp": "2025-03-19T06:12:20.121Z",
+          "ecs": {
+            "version": "8.11.0"
+          },
+          "data_stream": {
+            "namespace": "default",
+            "type": "logs",
+            "dataset": "network_traffic.flow"
+          },
+          "host": {
+            "hostname": "diskjockey",
+            "os": {
+              "build": "17763.3650",
+              "kernel": "10.0.17763.3650 (WinBuild.160101.0800)",
+              "name": "Windows Server 2019 Datacenter Evaluation",
+              "type": "windows",
+              "family": "windows",
+              "version": "10.0",
+              "platform": "windows"
+            },
+            "ip": [
+              "fe80::e982:6a9c:29e3:b4c9",
+              "10.1.0.4"
+            ],
+            "name": "diskjockey",
+            "id": "2d5a9c51-f2ee-461b-9b57-ca04724e4e2f",
+            "mac": [
+              "08-00-27-B1-0A-06"
+            ],
+            "architecture": "x86_64"
+          },
+          "event": {
+            "duration": 0,
+            "agent_id_status": "verified",
+            "ingested": "2025-03-19T06:12:33Z",
+            "kind": "event",
+            "start": "2025-03-19T06:11:20.929Z",
+            "action": "network_flow",
+            "end": "2025-03-19T06:11:20.929Z",
+            "type": [
+              "connection",
+              "end"
+            ],
+            "category": [
+              "network"
+            ]
+          }
+        }
+      },
+      {
+        "section": "Field Distribution Analysis",
+        "description": "Field Distribution Analysis Results",
+        "timestamp": "2026-04-28T03:23:28.559557",
+        "data": {
+          "field_frequency": {
+            "agent": 200000,
+            "destination": 200000,
+            "elastic_agent": 200000,
+            "network_traffic": 200000,
+            "source": 200000,
+            "network": 200000,
+            "@timestamp": 200000,
+            "ecs": 200000,
+            "data_stream": 200000,
+            "host": 200000,
+            "event": 200000,
+            "process": 98078
+          },
+          "always_present_fields": [
+            "agent",
+            "destination",
+            "elastic_agent",
+            "network_traffic",
+            "source",
+            "network",
+            "@timestamp",
+            "ecs",
+            "data_stream",
+            "host",
+            "event"
+          ],
+          "optional_fields": [
+            "process"
+          ]
+        }
+      }
+    ]
+  }
+}

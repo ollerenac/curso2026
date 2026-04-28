@@ -1,0 +1,733 @@
+{
+  "analysis_metadata": {
+    "timestamp": "20260421_072523",
+    "analysis_type": "4a-network-flows",
+    "samples": [
+      {
+        "section": "Basic Data Structure Analysis",
+        "description": "Complete First Sample Structure",
+        "timestamp": "2026-04-21T07:25:48.011973",
+        "data": {
+          "process": {
+            "args": [
+              "C:\\Windows\\system32\\svchost.exe",
+              "-k",
+              "LocalService"
+            ],
+            "parent": {
+              "pid": 592
+            },
+            "start": "2025-03-19T14:04:16.907Z",
+            "name": "svchost.exe",
+            "working_directory": "",
+            "pid": 380,
+            "executable": "C:\\Windows\\System32\\svchost.exe"
+          },
+          "agent": {
+            "name": "diskjockey",
+            "id": "98c1577f-4ccd-4f57-92fd-d61d4957e6c3",
+            "type": "packetbeat",
+            "ephemeral_id": "ed317a15-41a9-45c4-b607-a579c632cb34",
+            "version": "8.17.0"
+          },
+          "destination": {
+            "process": {
+              "args": [
+                "C:\\Windows\\system32\\svchost.exe",
+                "-k",
+                "LocalService"
+              ],
+              "start": "2025-03-19T14:04:16.907Z",
+              "name": "svchost.exe",
+              "working_directory": "",
+              "pid": 380,
+              "executable": "C:\\Windows\\System32\\svchost.exe",
+              "ppid": 592
+            },
+            "port": 123,
+            "bytes": 162,
+            "ip": "10.1.0.4",
+            "mac": "08-00-27-B1-0A-06",
+            "packets": 1
+          },
+          "elastic_agent": {
+            "id": "98c1577f-4ccd-4f57-92fd-d61d4957e6c3",
+            "version": "8.17.0",
+            "snapshot": false
+          },
+          "network_traffic": {
+            "flow": {
+              "final": true,
+              "id": "EQIA////DP////8U//8BAAEIACexCgYIACfdmCwKAQAECgEABnsAewA"
+            }
+          },
+          "source": {
+            "port": 123,
+            "bytes": 162,
+            "ip": "10.1.0.6",
+            "mac": "08-00-27-DD-98-2C",
+            "packets": 1
+          },
+          "network": {
+            "community_id": "1:oV4NZBbe8LDnUyQgq+a/zgO7oMc=",
+            "bytes": 324,
+            "transport": "udp",
+            "type": "ipv4",
+            "packets": 2
+          },
+          "@timestamp": "2025-03-19T06:12:20.121Z",
+          "ecs": {
+            "version": "8.11.0"
+          },
+          "data_stream": {
+            "namespace": "default",
+            "type": "logs",
+            "dataset": "network_traffic.flow"
+          },
+          "host": {
+            "hostname": "diskjockey",
+            "os": {
+              "build": "17763.3650",
+              "kernel": "10.0.17763.3650 (WinBuild.160101.0800)",
+              "name": "Windows Server 2019 Datacenter Evaluation",
+              "type": "windows",
+              "family": "windows",
+              "version": "10.0",
+              "platform": "windows"
+            },
+            "ip": [
+              "fe80::e982:6a9c:29e3:b4c9",
+              "10.1.0.4"
+            ],
+            "name": "diskjockey",
+            "id": "2d5a9c51-f2ee-461b-9b57-ca04724e4e2f",
+            "mac": [
+              "08-00-27-B1-0A-06"
+            ],
+            "architecture": "x86_64"
+          },
+          "event": {
+            "duration": 0,
+            "agent_id_status": "verified",
+            "ingested": "2025-03-19T06:12:33Z",
+            "kind": "event",
+            "start": "2025-03-19T06:11:20.929Z",
+            "action": "network_flow",
+            "end": "2025-03-19T06:11:20.929Z",
+            "type": [
+              "connection",
+              "end"
+            ],
+            "category": [
+              "network"
+            ]
+          }
+        }
+      },
+      {
+        "section": "Field Distribution Analysis",
+        "description": "Field Distribution Analysis Results",
+        "timestamp": "2026-04-21T07:25:49.266012",
+        "data": {
+          "field_frequency": {
+            "agent": 200000,
+            "destination": 200000,
+            "elastic_agent": 200000,
+            "network_traffic": 200000,
+            "source": 200000,
+            "network": 200000,
+            "@timestamp": 200000,
+            "ecs": 200000,
+            "data_stream": 200000,
+            "host": 200000,
+            "event": 200000,
+            "process": 98006
+          },
+          "always_present_fields": [
+            "agent",
+            "destination",
+            "elastic_agent",
+            "network_traffic",
+            "source",
+            "network",
+            "@timestamp",
+            "ecs",
+            "data_stream",
+            "host",
+            "event"
+          ],
+          "optional_fields": [
+            "process"
+          ]
+        }
+      },
+      {
+        "section": "Nested Structure Deep Dive",
+        "description": "Complete Field Hierarchy Analysis",
+        "timestamp": "2026-04-21T07:25:49.593753",
+        "data": {
+          "total_unique_paths": 96,
+          "grouped_field_hierarchy": {
+            "@timestamp": [
+              "@timestamp (str)"
+            ],
+            "agent": [
+              "agent (dict)",
+              "agent.ephemeral_id (str)",
+              "agent.id (str)",
+              "agent.name (str)",
+              "agent.type (str)",
+              "agent.version (str)"
+            ],
+            "data_stream": [
+              "data_stream (dict)",
+              "data_stream.dataset (str)",
+              "data_stream.namespace (str)",
+              "data_stream.type (str)"
+            ],
+            "destination": [
+              "destination (dict)",
+              "destination.bytes (int)",
+              "destination.ip (str)",
+              "destination.mac (str)",
+              "destination.packets (int)",
+              "destination.port (int)",
+              "destination.process (dict)",
+              "destination.process.args (list)",
+              "destination.process.args[0] (str)",
+              "destination.process.executable (str)",
+              "destination.process.name (str)",
+              "destination.process.pid (int)",
+              "destination.process.ppid (int)",
+              "destination.process.start (str)",
+              "destination.process.working_directory (str)"
+            ],
+            "ecs": [
+              "ecs (dict)",
+              "ecs.version (str)"
+            ],
+            "elastic_agent": [
+              "elastic_agent (dict)",
+              "elastic_agent.id (str)",
+              "elastic_agent.snapshot (bool)",
+              "elastic_agent.version (str)"
+            ],
+            "event": [
+              "event (dict)",
+              "event.action (str)",
+              "event.agent_id_status (str)",
+              "event.category (list)",
+              "event.category[0] (str)",
+              "event.duration (int)",
+              "event.end (str)",
+              "event.ingested (str)",
+              "event.kind (str)",
+              "event.start (str)",
+              "event.type (list)",
+              "event.type[0] (str)"
+            ],
+            "host": [
+              "host (dict)",
+              "host.architecture (str)",
+              "host.hostname (str)",
+              "host.id (str)",
+              "host.ip (list)",
+              "host.ip[0] (str)",
+              "host.mac (list)",
+              "host.mac[0] (str)",
+              "host.name (str)",
+              "host.os (dict)",
+              "host.os.build (str)",
+              "host.os.family (str)",
+              "host.os.kernel (str)",
+              "host.os.name (str)",
+              "host.os.platform (str)",
+              "host.os.type (str)",
+              "host.os.version (str)"
+            ],
+            "network": [
+              "network (dict)",
+              "network.bytes (int)",
+              "network.community_id (str)",
+              "network.packets (int)",
+              "network.transport (str)",
+              "network.type (str)"
+            ],
+            "network_traffic": [
+              "network_traffic (dict)",
+              "network_traffic.flow (dict)",
+              "network_traffic.flow.final (bool)",
+              "network_traffic.flow.id (str)"
+            ],
+            "process": [
+              "process (dict)",
+              "process.args (list)",
+              "process.args[0] (str)",
+              "process.executable (str)",
+              "process.name (str)",
+              "process.parent (dict)",
+              "process.parent.pid (int)",
+              "process.pid (int)",
+              "process.start (str)",
+              "process.working_directory (str)"
+            ],
+            "source": [
+              "source (dict)",
+              "source.bytes (int)",
+              "source.ip (str)",
+              "source.mac (str)",
+              "source.packets (int)",
+              "source.port (int)",
+              "source.process (dict)",
+              "source.process.args (list)",
+              "source.process.args[0] (str)",
+              "source.process.executable (str)",
+              "source.process.name (str)",
+              "source.process.pid (int)",
+              "source.process.ppid (int)",
+              "source.process.start (str)",
+              "source.process.working_directory (str)"
+            ]
+          },
+          "all_paths": [
+            "@timestamp (str)",
+            "agent (dict)",
+            "agent.ephemeral_id (str)",
+            "agent.id (str)",
+            "agent.name (str)",
+            "agent.type (str)",
+            "agent.version (str)",
+            "data_stream (dict)",
+            "data_stream.dataset (str)",
+            "data_stream.namespace (str)",
+            "data_stream.type (str)",
+            "destination (dict)",
+            "destination.bytes (int)",
+            "destination.ip (str)",
+            "destination.mac (str)",
+            "destination.packets (int)",
+            "destination.port (int)",
+            "destination.process (dict)",
+            "destination.process.args (list)",
+            "destination.process.args[0] (str)",
+            "destination.process.executable (str)",
+            "destination.process.name (str)",
+            "destination.process.pid (int)",
+            "destination.process.ppid (int)",
+            "destination.process.start (str)",
+            "destination.process.working_directory (str)",
+            "ecs (dict)",
+            "ecs.version (str)",
+            "elastic_agent (dict)",
+            "elastic_agent.id (str)",
+            "elastic_agent.snapshot (bool)",
+            "elastic_agent.version (str)",
+            "event (dict)",
+            "event.action (str)",
+            "event.agent_id_status (str)",
+            "event.category (list)",
+            "event.category[0] (str)",
+            "event.duration (int)",
+            "event.end (str)",
+            "event.ingested (str)",
+            "event.kind (str)",
+            "event.start (str)",
+            "event.type (list)",
+            "event.type[0] (str)",
+            "host (dict)",
+            "host.architecture (str)",
+            "host.hostname (str)",
+            "host.id (str)",
+            "host.ip (list)",
+            "host.ip[0] (str)",
+            "host.mac (list)",
+            "host.mac[0] (str)",
+            "host.name (str)",
+            "host.os (dict)",
+            "host.os.build (str)",
+            "host.os.family (str)",
+            "host.os.kernel (str)",
+            "host.os.name (str)",
+            "host.os.platform (str)",
+            "host.os.type (str)",
+            "host.os.version (str)",
+            "network (dict)",
+            "network.bytes (int)",
+            "network.community_id (str)",
+            "network.packets (int)",
+            "network.transport (str)",
+            "network.type (str)",
+            "network_traffic (dict)",
+            "network_traffic.flow (dict)",
+            "network_traffic.flow.final (bool)",
+            "network_traffic.flow.id (str)",
+            "process (dict)",
+            "process.args (list)",
+            "process.args[0] (str)",
+            "process.executable (str)",
+            "process.name (str)",
+            "process.parent (dict)",
+            "process.parent.pid (int)",
+            "process.pid (int)",
+            "process.start (str)",
+            "process.working_directory (str)",
+            "source (dict)",
+            "source.bytes (int)",
+            "source.ip (str)",
+            "source.mac (str)",
+            "source.packets (int)",
+            "source.port (int)",
+            "source.process (dict)",
+            "source.process.args (list)",
+            "source.process.args[0] (str)",
+            "source.process.executable (str)",
+            "source.process.name (str)",
+            "source.process.pid (int)",
+            "source.process.ppid (int)",
+            "source.process.start (str)",
+            "source.process.working_directory (str)"
+          ]
+        }
+      },
+      {
+        "section": "Sample Record Display",
+        "description": "Sample Record #1",
+        "timestamp": "2026-04-21T07:25:50.841994",
+        "data": {
+          "process": {
+            "args": [
+              "C:\\Windows\\system32\\svchost.exe",
+              "-k",
+              "LocalService"
+            ],
+            "parent": {
+              "pid": 592
+            },
+            "start": "2025-03-19T14:04:16.907Z",
+            "name": "svchost.exe",
+            "working_directory": "",
+            "pid": 380,
+            "executable": "C:\\Windows\\System32\\svchost.exe"
+          },
+          "agent": {
+            "name": "diskjockey",
+            "id": "98c1577f-4ccd-4f57-92fd-d61d4957e6c3",
+            "type": "packetbeat",
+            "ephemeral_id": "ed317a15-41a9-45c4-b607-a579c632cb34",
+            "version": "8.17.0"
+          },
+          "destination": {
+            "process": {
+              "args": [
+                "C:\\Windows\\system32\\svchost.exe",
+                "-k",
+                "LocalService"
+              ],
+              "start": "2025-03-19T14:04:16.907Z",
+              "name": "svchost.exe",
+              "working_directory": "",
+              "pid": 380,
+              "executable": "C:\\Windows\\System32\\svchost.exe",
+              "ppid": 592
+            },
+            "port": 123,
+            "bytes": 162,
+            "ip": "10.1.0.4",
+            "mac": "08-00-27-B1-0A-06",
+            "packets": 1
+          },
+          "elastic_agent": {
+            "id": "98c1577f-4ccd-4f57-92fd-d61d4957e6c3",
+            "version": "8.17.0",
+            "snapshot": false
+          },
+          "network_traffic": {
+            "flow": {
+              "final": true,
+              "id": "EQIA////DP////8U//8BAAEIACexCgYIACfdmCwKAQAECgEABnsAewA"
+            }
+          },
+          "source": {
+            "port": 123,
+            "bytes": 162,
+            "ip": "10.1.0.6",
+            "mac": "08-00-27-DD-98-2C",
+            "packets": 1
+          },
+          "network": {
+            "community_id": "1:oV4NZBbe8LDnUyQgq+a/zgO7oMc=",
+            "bytes": 324,
+            "transport": "udp",
+            "type": "ipv4",
+            "packets": 2
+          },
+          "@timestamp": "2025-03-19T06:12:20.121Z",
+          "ecs": {
+            "version": "8.11.0"
+          },
+          "data_stream": {
+            "namespace": "default",
+            "type": "logs",
+            "dataset": "network_traffic.flow"
+          },
+          "host": {
+            "hostname": "diskjockey",
+            "os": {
+              "build": "17763.3650",
+              "kernel": "10.0.17763.3650 (WinBuild.160101.0800)",
+              "name": "Windows Server 2019 Datacenter Evaluation",
+              "type": "windows",
+              "family": "windows",
+              "version": "10.0",
+              "platform": "windows"
+            },
+            "ip": [
+              "fe80::e982:6a9c:29e3:b4c9",
+              "10.1.0.4"
+            ],
+            "name": "diskjockey",
+            "id": "2d5a9c51-f2ee-461b-9b57-ca04724e4e2f",
+            "mac": [
+              "08-00-27-B1-0A-06"
+            ],
+            "architecture": "x86_64"
+          },
+          "event": {
+            "duration": 0,
+            "agent_id_status": "verified",
+            "ingested": "2025-03-19T06:12:33Z",
+            "kind": "event",
+            "start": "2025-03-19T06:11:20.929Z",
+            "action": "network_flow",
+            "end": "2025-03-19T06:11:20.929Z",
+            "type": [
+              "connection",
+              "end"
+            ],
+            "category": [
+              "network"
+            ]
+          }
+        }
+      },
+      {
+        "section": "Sample Record Display",
+        "description": "Sample Record #2",
+        "timestamp": "2026-04-21T07:25:50.876612",
+        "data": {
+          "agent": {
+            "name": "theblock",
+            "id": "6aa57678-de93-4ea9-80ac-5283f3afdadb",
+            "type": "packetbeat",
+            "ephemeral_id": "49e93512-76fd-4b03-9f40-37bb48c78cc1",
+            "version": "8.17.1"
+          },
+          "destination": {
+            "port": 9200,
+            "bytes": 4640,
+            "ip": "192.168.1.104",
+            "mac": "08-00-27-26-33-A5",
+            "packets": 12
+          },
+          "elastic_agent": {
+            "id": "6aa57678-de93-4ea9-80ac-5283f3afdadb",
+            "version": "8.17.1",
+            "snapshot": false
+          },
+          "network_traffic": {
+            "flow": {
+              "final": true,
+              "id": "EQQA////DP//////FP8BAAEIACcmM6UIACf34ADAqAFoCgEABfAj2sU"
+            }
+          },
+          "source": {
+            "port": 50650,
+            "bytes": 3011,
+            "ip": "10.1.0.5",
+            "mac": "08-00-27-F7-E0-00",
+            "packets": 14
+          },
+          "network": {
+            "community_id": "1:os64emDMXDN9UpSQNlai+S9sTN4=",
+            "bytes": 7651,
+            "transport": "tcp",
+            "type": "ipv4",
+            "packets": 26
+          },
+          "@timestamp": "2025-03-19T05:44:08.027Z",
+          "ecs": {
+            "version": "8.11.0"
+          },
+          "data_stream": {
+            "namespace": "default",
+            "type": "logs",
+            "dataset": "network_traffic.flow"
+          },
+          "host": {
+            "hostname": "theblock",
+            "os": {
+              "build": "19045.5608",
+              "kernel": "10.0.19041.5607 (WinBuild.160101.0800)",
+              "name": "Windows 10 Pro",
+              "family": "windows",
+              "type": "windows",
+              "version": "10.0",
+              "platform": "windows"
+            },
+            "ip": [
+              "fe80::f92b:28da:7976:fd5a",
+              "10.1.0.5"
+            ],
+            "name": "theblock",
+            "id": "4a85d404-1ca6-4bc8-be11-366e23f2265d",
+            "mac": [
+              "08-00-27-F7-E0-00"
+            ],
+            "architecture": "x86_64"
+          },
+          "event": {
+            "duration": 3790290800,
+            "agent_id_status": "verified",
+            "ingested": "2025-03-19T05:44:19Z",
+            "kind": "event",
+            "start": "2025-03-19T05:43:05.510Z",
+            "action": "network_flow",
+            "end": "2025-03-19T05:43:09.300Z",
+            "category": [
+              "network"
+            ],
+            "type": [
+              "connection",
+              "end"
+            ]
+          }
+        }
+      },
+      {
+        "section": "Sample Record Display",
+        "description": "Sample Record #3",
+        "timestamp": "2026-04-21T07:25:50.907863",
+        "data": {
+          "agent": {
+            "name": "endofroad",
+            "id": "2ce2f415-51dd-443b-a25d-f2c89c3c277c",
+            "type": "packetbeat",
+            "ephemeral_id": "935d21f1-5efd-463b-aae8-adc1847f801f",
+            "version": "8.17.0"
+          },
+          "destination": {
+            "port": 9200,
+            "bytes": 10525,
+            "ip": "192.168.1.104",
+            "mac": "08-00-27-26-33-A5",
+            "packets": 55
+          },
+          "elastic_agent": {
+            "id": "2ce2f415-51dd-443b-a25d-f2c89c3c277c",
+            "version": "8.17.0",
+            "snapshot": false
+          },
+          "network_traffic": {
+            "flow": {
+              "final": false,
+              "id": "EQQA////DP//////FP8BAAEIACcmM6UIACdpM7DAqAFoCgEAB/Aj88I"
+            }
+          },
+          "source": {
+            "port": 49907,
+            "bytes": 146702,
+            "ip": "10.1.0.7",
+            "packets": 73,
+            "mac": "08-00-27-69-33-B0"
+          },
+          "network": {
+            "community_id": "1:x5uvqIb1lUMsxWEJpmu5cNlhvOo=",
+            "bytes": 157227,
+            "transport": "tcp",
+            "type": "ipv4",
+            "packets": 128
+          },
+          "@timestamp": "2025-03-19T05:01:47.451Z",
+          "ecs": {
+            "version": "8.11.0"
+          },
+          "data_stream": {
+            "namespace": "default",
+            "type": "logs",
+            "dataset": "network_traffic.flow"
+          },
+          "host": {
+            "hostname": "endofroad",
+            "os": {
+              "build": "17763.3650",
+              "kernel": "10.0.17763.3650 (WinBuild.160101.0800)",
+              "name": "Windows Server 2019 Datacenter Evaluation",
+              "type": "windows",
+              "family": "windows",
+              "version": "10.0",
+              "platform": "windows"
+            },
+            "ip": [
+              "fe80::2d19:1a31:4df7:129c",
+              "10.1.0.7"
+            ],
+            "name": "endofroad",
+            "id": "44d66c27-3678-4fe6-b19c-35065c1ca0d1",
+            "mac": [
+              "08-00-27-69-33-B0"
+            ],
+            "architecture": "x86_64"
+          },
+          "event": {
+            "duration": 4546768000,
+            "agent_id_status": "verified",
+            "ingested": "2025-03-19T05:01:58Z",
+            "kind": "event",
+            "start": "2025-03-19T05:01:19.105Z",
+            "action": "network_flow",
+            "end": "2025-03-19T05:01:23.652Z",
+            "category": [
+              "network"
+            ],
+            "type": [
+              "connection"
+            ]
+          }
+        }
+      },
+      {
+        "section": "Analysis Summary and Recommendations",
+        "description": "Complete Analysis Summary",
+        "timestamp": "2026-04-21T07:25:50.977528",
+        "data": {
+          "dataset_characteristics": {
+            "total_records": 569443,
+            "samples_analyzed": 200000,
+            "total_unique_fields": 12,
+            "always_present_fields": [
+              "agent",
+              "destination",
+              "elastic_agent",
+              "network_traffic",
+              "source",
+              "network",
+              "@timestamp",
+              "ecs",
+              "data_stream",
+              "host",
+              "event"
+            ],
+            "optional_fields": [
+              "process"
+            ]
+          },
+          "processing_recommendations": {
+            "memory_management_needed": true,
+            "complex_fields_count": 11,
+            "high_empty_fields": []
+          }
+        }
+      }
+    ]
+  }
+}

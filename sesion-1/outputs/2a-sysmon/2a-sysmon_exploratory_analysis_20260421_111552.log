@@ -1,0 +1,692 @@
+SYSMON EVENTS EXPLORATORY ANALYSIS
+Analysis Type: 2A-SYSMON
+Generated: 2026-04-21 11:15:52
+Target File: ../dataset/run-01-apt-1/ds-logs-windows-sysmon_operational-default-run-01.jsonl
+================================================================================
+
+
+================================================================================
+SECTION 6: DATA LOADING AND SAMPLING
+================================================================================
+
+🔄 Counting total records in: ../dataset/run-01-apt-1/ds-logs-windows-sysmon_operational-default-run-01.jsonl
+📈 Total records in dataset: 363,657
+🎯 Sampling strategy: Will analyze 200,000 random samples
+📊 Selected 200,000 random indices for analysis
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 7: BASIC EVENT STRUCTURE ANALYSIS
+================================================================================
+
+📋 BASIC EVENT STRUCTURE ANALYSIS
+==================================================
+🔍 Data type: <class 'dict'>
+📏 Number of top-level fields: 16
+🗝️  Top-level fields:
+    1. agent                          (dict)
+    2. process                        (dict)
+    3. winlog                         (dict)
+    4. log                            (dict)
+    5. elastic_agent                  (dict)
+    6. message                        (str)
+    7. tags                           (list)
+    8. input                          (dict)
+    9. @timestamp                     (str)
+   10. file                           (dict)
+   11. ecs                            (dict)
+   12. related                        (dict)
+   13. data_stream                    (dict)
+   14. host                           (dict)
+   15. event                          (dict)
+   16. user                           (dict)
+
+📄 XML content sample (first 500 chars):
+--------------------------------------------------
+<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Microsoft-Windows-Sysmon' Guid='{5770385f-c22a-43e0-bf4c-06f5698ffbd9}'/><EventID>7</EventID><Version>3</Version><Level>4</Level><Task>7</Task><Opcode>0</Opcode><Keywords>0x8000000000000000</Keywords><TimeCreated SystemTime='2025-03-19T06:09:05.866552600Z'/><EventRecordID>11346849</EventRecordID><Correlation/><Execution ProcessID='3556' ThreadID='5560'/><Channel>Microsoft-Windows-Sysmon/Operational</Chan...
+
+🎯 XML parsing results:
+   • EventID: 7
+   • Computer: WATERFALLS.boombox.local
+   • Field count: 16
+   • Available fields: ['RuleName', 'UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'ImageLoaded', 'FileVersion', 'Description', 'Product', 'Company']...
+
+📊 Complete first sample structure:
+--------------------------------------------------
+{'agent': {'name': 'WATERFALLS', 'id': '97ceac6e-c74e-4eea-9d56-e6565c1e61b7', 'ephemeral_id': 'd7ecf4bd-fe76-4ed4-9723-bc400d389690', 'type': 'filebeat', 'version': '8.17.3'}, 'process': {'name': 'Microsoft.Exchange.ServiceHost.exe', 'pid': 5864, 'entity_id': '{3fc4fefd-5f81-67da-7700-000000004900}', 'executable': 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\Bin\\Microsoft.Exchange.ServiceHost.exe'}, 'winlog': {'computer_name': 'WATERFALLS.boombox.local', 'process': {'pid': 3556, 'thread': {'id': 5560}}, 'channel': 'Microsoft-Windows-Sysmon/Operational', 'event_data': {'SignatureStatus': 'Valid', 'Company': 'Microsoft Corporation', 'Description': 'Windows NT CRT DLL', 'Signed': 'true', 'Product': 'Microsoft® Windows® Operating System', 'Signature': 'Microsoft Windows', 'FileVersion': '7.0.17763.475 (WinBuild.160101.0800)'}, 'opcode': 'Info', 'version': 3, 'record_id': '11346849', 'task': 'Image loaded (rule: ImageLoad)', 'event_id': '7', 'provider_guid': '{5770385f-c22a-43e0-b...
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 8: EVENTID DISTRIBUTION ANALYSIS
+================================================================================
+
+📊 EVENTID DISTRIBUTION ANALYSIS
+==================================================
+🔄 Processing 200,000 samples for EventID analysis...
+   Processed 10,000 samples...
+   Processed 20,000 samples...
+   Processed 30,000 samples...
+   Processed 40,000 samples...
+   Processed 50,000 samples...
+   Processed 60,000 samples...
+   Processed 70,000 samples...
+   Processed 80,000 samples...
+   Processed 90,000 samples...
+   Processed 100,000 samples...
+   Processed 110,000 samples...
+   Processed 120,000 samples...
+   Processed 130,000 samples...
+   Processed 140,000 samples...
+   Processed 150,000 samples...
+   Processed 160,000 samples...
+   Processed 170,000 samples...
+   Processed 180,000 samples...
+   Processed 190,000 samples...
+   Processed 200,000 samples...
+
+✅ Analysis complete!
+📈 Samples processed: 200,000
+📊 Parsing success: 199,997 (100.0%)
+⚠️  Parsing errors: 3 (0.0%)
+
+🎯 EVENTID FREQUENCY DISTRIBUTION:
+Event ID | Count    | Percentage | Description
+------------------------------------------------------------
+      10 |   63,106 |     31.55% | Process Access
+      12 |   60,081 |     30.04% | Registry Event (Object create/delete)
+       7 |   31,305 |     15.65% | Image/Library Loaded
+      13 |   25,313 |     12.66% | Registry Event (Value Set)
+       3 |    7,960 |      3.98% | Network Connection
+      23 |    5,576 |      2.79% | File Delete (File Delete archived)
+      11 |    3,746 |      1.87% | File Create
+      18 |      727 |      0.36% | Pipe Event (Pipe Connected)
+       9 |      640 |      0.32% | Raw Access Read
+       1 |      593 |      0.30% | Process Creation
+       5 |      509 |      0.25% | Process Terminated
+      17 |      235 |      0.12% | Pipe Event (Pipe Created)
+       2 |      118 |      0.06% | File Creation Time Changed
+       6 |       38 |      0.02% | Driver Loaded
+      24 |       35 |      0.02% | Clipboard Change (New content in clipboard)
+      15 |        7 |      0.00% | File Create Stream Hash
+       8 |        4 |      0.00% | Create Remote Thread
+      25 |        3 |      0.00% | Process Tampering (Process image change)
+       4 |        1 |      0.00% | Sysmon Service State Changed
+
+🖥️ COMPUTER/HOST DISTRIBUTION:
+📊 Unique computers: 4
+Computer Name        | Count    | Percentage
+--------------------------------------------------
+theblock.boombox.local |   82,168 |     41.08%
+WATERFALLS.boombox.local |   79,789 |     39.90%
+endofroad.boombox.local |   23,103 |     11.55%
+diskjockey.boombox.local |   14,937 |      7.47%
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 9: FIELD AVAILABILITY ANALYSIS BY EVENTID
+================================================================================
+
+📊 FIELD AVAILABILITY ANALYSIS BY EVENTID
+==================================================
+🔄 Analyzing field availability across 200,000 samples...
+
+📋 FIELD AVAILABILITY REPORT:
+============================================================
+
+🎯 EventID 1 (Process Creation)
+   📊 Analyzed samples: 593
+   📋 Expected fields: 12
+   Field Availability:
+   ✅ UtcTime                  :    593/593 (100.0%)
+   ✅ ProcessGuid              :    593/593 (100.0%)
+   ✅ ProcessId                :    593/593 (100.0%)
+   ✅ Image                    :    593/593 (100.0%)
+   ✅ CommandLine              :    593/593 (100.0%)
+   ✅ CurrentDirectory         :    593/593 (100.0%)
+   ✅ User                     :    593/593 (100.0%)
+   ✅ Hashes                   :    593/593 (100.0%)
+   ✅ ParentProcessGuid        :    593/593 (100.0%)
+   ✅ ParentProcessId          :    593/593 (100.0%)
+   ✅ ParentImage              :    593/593 (100.0%)
+   ✅ ParentCommandLine        :    593/593 (100.0%)
+
+🎯 EventID 2 (File Creation Time Changed)
+   📊 Analyzed samples: 118
+   📋 Expected fields: 8
+   Field Availability:
+   ✅ UtcTime                  :    118/118 (100.0%)
+   ✅ ProcessGuid              :    118/118 (100.0%)
+   ✅ ProcessId                :    118/118 (100.0%)
+   ✅ Image                    :    118/118 (100.0%)
+   ✅ TargetFilename           :    118/118 (100.0%)
+   ✅ CreationUtcTime          :    118/118 (100.0%)
+   ✅ PreviousCreationUtcTime  :    118/118 (100.0%)
+   ✅ User                     :    118/118 (100.0%)
+
+🎯 EventID 3 (Network Connection)
+   📊 Analyzed samples: 7,960
+   📋 Expected fields: 16
+   Field Availability:
+   ✅ UtcTime                  :  7,960/7,960 (100.0%)
+   ✅ ProcessGuid              :  7,960/7,960 (100.0%)
+   ✅ ProcessId                :  7,960/7,960 (100.0%)
+   ✅ Image                    :  7,960/7,960 (100.0%)
+   ✅ User                     :  7,960/7,960 (100.0%)
+   ✅ Protocol                 :  7,960/7,960 (100.0%)
+   ✅ SourceIsIpv6             :  7,960/7,960 (100.0%)
+   ✅ SourceIp                 :  7,960/7,960 (100.0%)
+   ✅ SourceHostname           :  7,960/7,960 (100.0%)
+   ✅ SourcePort               :  7,960/7,960 (100.0%)
+   ✅ SourcePortName           :  7,960/7,960 (100.0%)
+   ✅ DestinationIsIpv6        :  7,960/7,960 (100.0%)
+   ✅ DestinationIp            :  7,960/7,960 (100.0%)
+   ✅ DestinationHostname      :  7,960/7,960 (100.0%)
+   ✅ DestinationPort          :  7,960/7,960 (100.0%)
+   ✅ DestinationPortName      :  7,960/7,960 (100.0%)
+
+🎯 EventID 5 (Process Terminated)
+   📊 Analyzed samples: 509
+   📋 Expected fields: 5
+   Field Availability:
+   ✅ UtcTime                  :    509/509 (100.0%)
+   ✅ ProcessGuid              :    509/509 (100.0%)
+   ✅ ProcessId                :    509/509 (100.0%)
+   ✅ Image                    :    509/509 (100.0%)
+   ✅ User                     :    509/509 (100.0%)
+
+🎯 EventID 6 (Driver Loaded)
+   📊 Analyzed samples: 38
+   📋 Expected fields: 4
+   Field Availability:
+   ✅ UtcTime                  :     38/38 (100.0%)
+   ✅ ImageLoaded              :     38/38 (100.0%)
+   ✅ Hashes                   :     38/38 (100.0%)
+   ❌ User                     :      0/38 (  0.0%)
+
+🎯 EventID 7 (Image/Library Loaded)
+   📊 Analyzed samples: 31,305
+   📋 Expected fields: 8
+   Field Availability:
+   ✅ UtcTime                  : 31,305/31,305 (100.0%)
+   ✅ ProcessGuid              : 31,305/31,305 (100.0%)
+   ✅ ProcessId                : 31,305/31,305 (100.0%)
+   ✅ Image                    : 31,305/31,305 (100.0%)
+   ✅ ImageLoaded              : 31,305/31,305 (100.0%)
+   ✅ OriginalFileName         : 31,305/31,305 (100.0%)
+   ✅ Hashes                   : 31,305/31,305 (100.0%)
+   ✅ User                     : 31,305/31,305 (100.0%)
+
+🎯 EventID 8 (Create Remote Thread)
+   📊 Analyzed samples: 4
+   📋 Expected fields: 10
+   Field Availability:
+   ✅ UtcTime                  :      4/4 (100.0%)
+   ✅ SourceProcessGuid        :      4/4 (100.0%)
+   ✅ SourceProcessId          :      4/4 (100.0%)
+   ✅ SourceImage              :      4/4 (100.0%)
+   ✅ TargetProcessGuid        :      4/4 (100.0%)
+   ✅ TargetProcessId          :      4/4 (100.0%)
+   ✅ TargetImage              :      4/4 (100.0%)
+   ✅ NewThreadId              :      4/4 (100.0%)
+   ✅ SourceUser               :      4/4 (100.0%)
+   ✅ TargetUser               :      4/4 (100.0%)
+
+🎯 EventID 9 (Raw Access Read)
+   📊 Analyzed samples: 640
+   📋 Expected fields: 6
+   Field Availability:
+   ✅ UtcTime                  :    640/640 (100.0%)
+   ✅ ProcessGuid              :    640/640 (100.0%)
+   ✅ ProcessId                :    640/640 (100.0%)
+   ✅ Image                    :    640/640 (100.0%)
+   ✅ Device                   :    640/640 (100.0%)
+   ✅ User                     :    640/640 (100.0%)
+
+🎯 EventID 10 (Process Access)
+   📊 Analyzed samples: 63,106
+   📋 Expected fields: 10
+   Field Availability:
+   ✅ UtcTime                  : 63,106/63,106 (100.0%)
+   ✅ SourceProcessGUID        : 63,106/63,106 (100.0%)
+   ✅ SourceProcessId          : 63,106/63,106 (100.0%)
+   ✅ SourceImage              : 63,106/63,106 (100.0%)
+   ✅ TargetProcessGUID        : 63,106/63,106 (100.0%)
+   ✅ TargetProcessId          : 63,106/63,106 (100.0%)
+   ✅ TargetImage              : 63,106/63,106 (100.0%)
+   ✅ SourceThreadId           : 63,106/63,106 (100.0%)
+   ✅ SourceUser               : 63,106/63,106 (100.0%)
+   ✅ TargetUser               : 63,106/63,106 (100.0%)
+
+🎯 EventID 11 (File Create)
+   📊 Analyzed samples: 3,746
+   📋 Expected fields: 7
+   Field Availability:
+   ✅ UtcTime                  :  3,746/3,746 (100.0%)
+   ✅ ProcessGuid              :  3,746/3,746 (100.0%)
+   ✅ ProcessId                :  3,746/3,746 (100.0%)
+   ✅ Image                    :  3,746/3,746 (100.0%)
+   ✅ TargetFilename           :  3,746/3,746 (100.0%)
+   ✅ CreationUtcTime          :  3,746/3,746 (100.0%)
+   ✅ User                     :  3,746/3,746 (100.0%)
+
+🎯 EventID 12 (Registry Event (Object create/delete))
+   📊 Analyzed samples: 60,081
+   📋 Expected fields: 7
+   Field Availability:
+   ✅ EventType                : 60,081/60,081 (100.0%)
+   ✅ UtcTime                  : 60,081/60,081 (100.0%)
+   ✅ ProcessGuid              : 60,081/60,081 (100.0%)
+   ✅ ProcessId                : 60,081/60,081 (100.0%)
+   ✅ Image                    : 60,081/60,081 (100.0%)
+   ✅ TargetObject             : 60,081/60,081 (100.0%)
+   ✅ User                     : 60,081/60,081 (100.0%)
+
+🎯 EventID 13 (Registry Event (Value Set))
+   📊 Analyzed samples: 25,313
+   📋 Expected fields: 7
+   Field Availability:
+   ✅ EventType                : 25,313/25,313 (100.0%)
+   ✅ UtcTime                  : 25,313/25,313 (100.0%)
+   ✅ ProcessGuid              : 25,313/25,313 (100.0%)
+   ✅ ProcessId                : 25,313/25,313 (100.0%)
+   ✅ Image                    : 25,313/25,313 (100.0%)
+   ✅ TargetObject             : 25,313/25,313 (100.0%)
+   ✅ User                     : 25,313/25,313 (100.0%)
+
+🎯 EventID 15 (File Create Stream Hash)
+   📊 Analyzed samples: 7
+   📋 Expected fields: 8
+   Field Availability:
+   ✅ UtcTime                  :      7/7 (100.0%)
+   ✅ ProcessGuid              :      7/7 (100.0%)
+   ✅ ProcessId                :      7/7 (100.0%)
+   ✅ Image                    :      7/7 (100.0%)
+   ✅ TargetFilename           :      7/7 (100.0%)
+   ✅ CreationUtcTime          :      7/7 (100.0%)
+   ✅ Hash                     :      7/7 (100.0%)
+   ✅ User                     :      7/7 (100.0%)
+
+🎯 EventID 17 (Pipe Event (Pipe Created))
+   📊 Analyzed samples: 235
+   📋 Expected fields: 7
+   Field Availability:
+   ✅ EventType                :    235/235 (100.0%)
+   ✅ UtcTime                  :    235/235 (100.0%)
+   ✅ ProcessGuid              :    235/235 (100.0%)
+   ✅ ProcessId                :    235/235 (100.0%)
+   ✅ PipeName                 :    235/235 (100.0%)
+   ✅ Image                    :    235/235 (100.0%)
+   ✅ User                     :    235/235 (100.0%)
+
+🎯 EventID 18 (Pipe Event (Pipe Connected))
+   📊 Analyzed samples: 727
+   📋 Expected fields: 7
+   Field Availability:
+   ✅ EventType                :    727/727 (100.0%)
+   ✅ UtcTime                  :    727/727 (100.0%)
+   ✅ ProcessGuid              :    727/727 (100.0%)
+   ✅ ProcessId                :    727/727 (100.0%)
+   ✅ PipeName                 :    727/727 (100.0%)
+   ✅ Image                    :    727/727 (100.0%)
+   ✅ User                     :    727/727 (100.0%)
+
+🎯 EventID 23 (File Delete (File Delete archived))
+   📊 Analyzed samples: 5,576
+   📋 Expected fields: 7
+   Field Availability:
+   ✅ UtcTime                  :  5,576/5,576 (100.0%)
+   ✅ ProcessGuid              :  5,576/5,576 (100.0%)
+   ✅ ProcessId                :  5,576/5,576 (100.0%)
+   ✅ User                     :  5,576/5,576 (100.0%)
+   ✅ Image                    :  5,576/5,576 (100.0%)
+   ✅ TargetFilename           :  5,576/5,576 (100.0%)
+   ✅ Hashes                   :  5,576/5,576 (100.0%)
+
+🎯 EventID 24 (Clipboard Change (New content in clipboard))
+   📊 Analyzed samples: 35
+   📋 Expected fields: 6
+   Field Availability:
+   ✅ UtcTime                  :     35/35 (100.0%)
+   ✅ ProcessGuid              :     35/35 (100.0%)
+   ✅ ProcessId                :     35/35 (100.0%)
+   ✅ User                     :     35/35 (100.0%)
+   ✅ Image                    :     35/35 (100.0%)
+   ✅ Hashes                   :     35/35 (100.0%)
+
+🎯 EventID 25 (Process Tampering (Process image change))
+   📊 Analyzed samples: 3
+   📋 Expected fields: 5
+   Field Availability:
+   ✅ UtcTime                  :      3/3 (100.0%)
+   ✅ ProcessGuid              :      3/3 (100.0%)
+   ✅ ProcessId                :      3/3 (100.0%)
+   ✅ User                     :      3/3 (100.0%)
+   ✅ Image                    :      3/3 (100.0%)
+
+📊 FIELD AVAILABILITY SUMMARY:
+========================================
+• Total EventIDs analyzed: 18
+• Total fields analyzed: 140
+• Field availability varies significantly by EventID
+• Some fields may be conditionally present based on event context
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 10: TEMPORAL PATTERN ANALYSIS
+================================================================================
+
+⏰ TEMPORAL PATTERN ANALYSIS
+==================================================
+🔄 Extracting temporal data from 200,000 samples...
+   Processed 50,000 samples...
+   Processed 100,000 samples...
+   Processed 150,000 samples...
+   Processed 200,000 samples...
+
+📅 TIMESTAMP ANALYSIS:
+• @timestamp fields found: 200,000
+• UtcTime fields found: 199,997
+
+📊 @TIMESTAMP RANGE:
+• Earliest: 2025-03-19T05:00:00.346Z
+• Latest: 2025-03-19T06:12:02.299Z
+
+📄 SAMPLE @TIMESTAMPS:
+    1. 2025-03-19T05:00:00.346Z
+    2. 2025-03-19T05:05:14.222Z
+    3. 2025-03-19T05:08:28.590Z
+    4. 2025-03-19T05:12:15.483Z
+    5. 2025-03-19T05:21:10.405Z
+    6. 2025-03-19T05:34:33.271Z
+    7. 2025-03-19T05:39:04.646Z
+    8. 2025-03-19T05:42:50.519Z
+    9. 2025-03-19T05:58:26.851Z
+   10. 2025-03-19T06:01:45.042Z
+
+📊 UTCTIME RANGE:
+• Earliest: 2025-03-19 05:00:00.346
+• Latest: 2025-03-19 06:12:02.299
+
+📄 SAMPLE UTCTIMES:
+    1. 2025-03-19 05:00:00.346
+    2. 2025-03-19 05:05:14.222
+    3. 2025-03-19 05:08:28.590
+    4. 2025-03-19 05:12:15.483
+    5. 2025-03-19 05:21:10.404
+    6. 2025-03-19 05:34:33.271
+    7. 2025-03-19 05:39:04.625
+    8. 2025-03-19 05:42:50.519
+    9. 2025-03-19 05:58:26.851
+   10. 2025-03-19 06:01:45.042
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 11: SAMPLE EVENT DISPLAY
+================================================================================
+
+📄 SAMPLE EVENT DISPLAY
+==================================================
+🔍 Collecting sample events for EventIDs: [1, 3, 7, 12, 13]
+
+🎯 SAMPLE EVENT - EventID 1 (Process Creation)
+------------------------------------------------------------
+Computer: WATERFALLS.boombox.local
+Field Count: 23
+@timestamp: 2025-03-19T06:07:05.801Z
+
+Parsed Fields:
+   • RuleName            : -
+   • UtcTime             : 2025-03-19 06:07:05.801
+   • ProcessGuid         : {3fc4fefd-5f09-67da-2002-000000004800}
+   • ProcessId           : 15288
+   • Image               : C:\Windows\System32\mmc.exe
+   • FileVersion         : 10.0.17763.1697 (WinBuild.160101.0800)
+   • Description         : Microsoft Management Console
+   • Product             : Microsoft® Windows® Operating System
+   • Company             : Microsoft Corporation
+   • OriginalFileName    : mmc.exe
+   • CommandLine         : "C:\Windows\system32\mmc.exe" "C:\Windows\system32\eventvwr.msc" /s
+   • CurrentDirectory    : C:\Windows\system32\
+   • User                : BOOMBOX\Administrator
+   • LogonGuid           : {3fc4fefd-50ae-67da-a93e-190000000000}
+   • LogonId             : 0x193ea9
+   • TerminalSessionId   : 1
+   • IntegrityLevel      : High
+   • Hashes              : SHA256=03048F7A610EE24CA36007019C6D5D200A9E94172D7F7A46CF71D7E792163E8D
+   • ParentProcessGuid   : {3fc4fefd-50b1-67da-ba00-000000004800}
+   • ParentProcessId     : 10656
+   • ParentImage         : C:\Windows\explorer.exe
+   • ParentCommandLine   : C:\Windows\Explorer.EXE /NOUACCHECK
+   • ParentUser          : BOOMBOX\Administrator
+
+JSON Structure (top-level keys):
+   • agent               : dict
+   • process             : dict
+   • winlog              : dict
+   • log                 : dict
+   • elastic_agent       : dict
+   • message             : str
+   • tags                : list
+   • input               : dict
+   • @timestamp          : str
+   • ecs                 : dict
+   • related             : dict
+   • data_stream         : dict
+   • host                : dict
+   • event               : dict
+   • user                : dict
+
+🎯 SAMPLE EVENT - EventID 3 (Network Connection)
+------------------------------------------------------------
+Computer: WATERFALLS.boombox.local
+Field Count: 18
+@timestamp: 2025-03-19T06:09:13.567Z
+
+Parsed Fields:
+   • RuleName            : -
+   • UtcTime             : 2025-03-19 06:09:13.567
+   • ProcessGuid         : {3fc4fefd-5f7b-67da-2d00-000000004900}
+   • ProcessId           : 1980
+   • Image               : C:\Windows\System32\svchost.exe
+   • User                : NT AUTHORITY\NETWORK SERVICE
+   • Protocol            : udp
+   • Initiated           : true
+   • SourceIsIpv6        : false
+   • SourceIp            : 10.1.0.6
+   • SourceHostname      : WATERFALLS.boombox.local
+   • SourcePort          : 63707
+   • SourcePortName      : -
+   • DestinationIsIpv6   : false
+   • DestinationIp       : 10.1.0.4
+   • DestinationHostname : diskjockey.boombox.local
+   • DestinationPort     : 53
+   • DestinationPortName : domain
+
+JSON Structure (top-level keys):
+   • agent               : dict
+   • process             : dict
+   • winlog              : dict
+   • log                 : dict
+   • elastic_agent       : dict
+   • destination         : dict
+   • source              : dict
+   • message             : str
+   • tags                : list
+   • network             : dict
+   • input               : dict
+   • @timestamp          : str
+   • ecs                 : dict
+   • related             : dict
+   • data_stream         : dict
+   • host                : dict
+   • event               : dict
+   • user                : dict
+
+🎯 SAMPLE EVENT - EventID 7 (Image/Library Loaded)
+------------------------------------------------------------
+Computer: WATERFALLS.boombox.local
+Field Count: 16
+@timestamp: 2025-03-19T06:09:05.109Z
+
+Parsed Fields:
+   • RuleName            : -
+   • UtcTime             : 2025-03-19 06:09:05.109
+   • ProcessGuid         : {3fc4fefd-5f81-67da-7700-000000004900}
+   • ProcessId           : 5864
+   • Image               : C:\Program Files\Microsoft\Exchange Server\V15\Bin\Microsoft.Exchange.ServiceHost.exe
+   • ImageLoaded         : C:\Windows\System32\msvcrt.dll
+   • FileVersion         : 7.0.17763.475 (WinBuild.160101.0800)
+   • Description         : Windows NT CRT DLL
+   • Product             : Microsoft® Windows® Operating System
+   • Company             : Microsoft Corporation
+   • OriginalFileName    : msvcrt.dll
+   • Hashes              : SHA256=39095FE07AC2E244E2180C58BEC2898A0986DDA2BD2ABBC4F739D11E67720F2E
+   • Signed              : true
+   • Signature           : Microsoft Windows
+   • SignatureStatus     : Valid
+   • User                : NT AUTHORITY\SYSTEM
+
+JSON Structure (top-level keys):
+   • agent               : dict
+   • process             : dict
+   • winlog              : dict
+   • log                 : dict
+   • elastic_agent       : dict
+   • message             : str
+   • tags                : list
+   • input               : dict
+   • @timestamp          : str
+   • file                : dict
+   • ecs                 : dict
+   • related             : dict
+   • data_stream         : dict
+   • host                : dict
+   • event               : dict
+   • user                : dict
+
+🎯 SAMPLE EVENT - EventID 12 (Registry Event (Object create/delete))
+------------------------------------------------------------
+Computer: WATERFALLS.boombox.local
+Field Count: 8
+@timestamp: 2025-03-19T06:09:14.693Z
+
+Parsed Fields:
+   • RuleName            : -
+   • EventType           : CreateKey
+   • UtcTime             : 2025-03-19 06:09:14.693
+   • ProcessGuid         : {3fc4fefd-5f81-67da-6700-000000004900}
+   • ProcessId           : 5736
+   • Image               : C:\Program Files\Microsoft\Exchange Server\V15\Bin\MSExchangeSubmission.exe
+   • TargetObject        : HKLM\System\CurrentControlSet\Services\Tcpip\Parameters
+   • User                : NT AUTHORITY\SYSTEM
+
+JSON Structure (top-level keys):
+   • registry            : dict
+   • agent               : dict
+   • process             : dict
+   • winlog              : dict
+   • log                 : dict
+   • elastic_agent       : dict
+   • message             : str
+   • tags                : list
+   • input               : dict
+   • @timestamp          : str
+   • ecs                 : dict
+   • related             : dict
+   • data_stream         : dict
+   • host                : dict
+   • event               : dict
+   • user                : dict
+
+🎯 SAMPLE EVENT - EventID 13 (Registry Event (Value Set))
+------------------------------------------------------------
+Computer: WATERFALLS.boombox.local
+Field Count: 9
+@timestamp: 2025-03-19T06:09:14.956Z
+
+Parsed Fields:
+   • RuleName            : -
+   • EventType           : SetValue
+   • UtcTime             : 2025-03-19 06:09:14.956
+   • ProcessGuid         : {3fc4fefd-5f81-67da-7700-000000004900}
+   • ProcessId           : 5864
+   • Image               : C:\Program Files\Microsoft\Exchange Server\V15\bin\Microsoft.Exchange.ServiceHost.exe
+   • TargetObject        : HKLM\SOFTWARE\Microsoft\Rpc\RpcProxy\WebSite
+   • Details             : Exchange Back End
+   • User                : NT AUTHORITY\SYSTEM
+
+JSON Structure (top-level keys):
+   • registry            : dict
+   • agent               : dict
+   • process             : dict
+   • winlog              : dict
+   • log                 : dict
+   • elastic_agent       : dict
+   • message             : str
+   • tags                : list
+   • input               : dict
+   • @timestamp          : str
+   • ecs                 : dict
+   • related             : dict
+   • data_stream         : dict
+   • host                : dict
+   • event               : dict
+   • user                : dict
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 12: ANALYSIS SUMMARY AND RECOMMENDATIONS
+================================================================================
+
+📊 ANALYSIS SUMMARY AND RECOMMENDATIONS
+============================================================
+🔍 DATASET CHARACTERISTICS:
+   • Total records in file: ~363,657
+   • Samples analyzed: 200,000
+   • XML parsing success rate: 100.0%
+   • Unique EventIDs found: 19
+   • Most common EventID: 10 (63,106 occurrences)
+   • Unique computers: 4
+
+💡 PROCESSING RECOMMENDATIONS:
+   🧠 Memory Management:
+      - Use batch processing for large dataset (363,657 records)
+      - Consider chunked reading for memory efficiency
+      - Implement progress tracking for long operations
+   🛠️  XML Processing:
+      - XML sanitization is crucial for 3 problematic records
+      - BeautifulSoup XML parser handles malformed XML well
+      - Namespace handling required for proper field extraction
+   📊 EventID-Specific Handling:
+      - Different EventIDs have different field schemas
+      - Field availability varies significantly by EventID
+      - Consider separate processing pipelines per EventID
+   📄 CSV Conversion Strategy:
+      - Use EventID-specific field mappings from schema analysis
+      - Handle missing fields with appropriate default values
+      - Implement robust error logging for malformed XML
+      - Consider unified vs EventID-specific CSV outputs
+
+✅ NEXT STEPS:
+   1. Review findings above
+   2. Update notebook #2 with optimized processing logic
+   3. Implement EventID-specific field validation
+   4. Add comprehensive error handling and logging
+   5. Test with full dataset after validation
+
+🎯 Ready to proceed to notebook #2 optimization!
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+

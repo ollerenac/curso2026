@@ -1,0 +1,139 @@
+{
+  "analysis_metadata": {
+    "analysis_type": "5a-network-flows",
+    "timestamp": "20260421_074122",
+    "total_file_records": 569443,
+    "target_file": "../dataset/run-01-apt-1/ds-logs-network_traffic-flow-default-run-01.jsonl"
+  },
+  "consistency_metrics": {
+    "total_patterns": 15,
+    "total_samples": 200000,
+    "consistency_level": "MODERATELY CONSISTENT",
+    "diversity_ratio": 0.0075
+  },
+  "coverage_analysis": {
+    "top_3_coverage_pct": 79.8395,
+    "top_5_coverage_pct": 94.9015,
+    "top_10_coverage_pct": 99.492
+  },
+  "top_patterns": [
+    {
+      "pattern_hash": "0e116a9cdc0848e1d2736efef2afed13",
+      "count": 79773,
+      "percentage": 39.886500000000005,
+      "classification": "SECONDARY_SCHEMA"
+    },
+    {
+      "pattern_hash": "936748b80e5c31b93454a7d1bd73a8fa",
+      "count": 64313,
+      "percentage": 32.1565,
+      "classification": "SECONDARY_SCHEMA"
+    },
+    {
+      "pattern_hash": "955584995c34862b74dc69392047a0a6",
+      "count": 15593,
+      "percentage": 7.796500000000001,
+      "classification": "VARIANT"
+    },
+    {
+      "pattern_hash": "01fa29904dfd16b608ff8fbd5445b784",
+      "count": 15397,
+      "percentage": 7.6985,
+      "classification": "VARIANT"
+    },
+    {
+      "pattern_hash": "80a781e5764ccf6941f4b4f8ac28bc0c",
+      "count": 14727,
+      "percentage": 7.3635,
+      "classification": "VARIANT"
+    },
+    {
+      "pattern_hash": "763734186cb99967c77c661faed3a3e1",
+      "count": 4560,
+      "percentage": 2.2800000000000002,
+      "classification": "RARE_VARIANT"
+    },
+    {
+      "pattern_hash": "2cf7d900439025d67fdc94cbde9e2e45",
+      "count": 2196,
+      "percentage": 1.098,
+      "classification": "RARE_VARIANT"
+    },
+    {
+      "pattern_hash": "c11024de9efb3afa5ea5cb19e6244613",
+      "count": 943,
+      "percentage": 0.4715,
+      "classification": "OUTLIER"
+    },
+    {
+      "pattern_hash": "324bdf95229bbb1907f71d62030587fe",
+      "count": 781,
+      "percentage": 0.3905,
+      "classification": "OUTLIER"
+    },
+    {
+      "pattern_hash": "99d7da5a61d96d9ca7d9064c97d3e086",
+      "count": 701,
+      "percentage": 0.3505,
+      "classification": "OUTLIER"
+    }
+  ],
+  "field_statistics": {
+    "agent": 200000,
+    "agent.name": 200000,
+    "agent.id": 200000,
+    "agent.type": 200000,
+    "agent.ephemeral_id": 200000,
+    "agent.version": 200000,
+    "elastic_agent": 200000,
+    "elastic_agent.id": 200000,
+    "elastic_agent.version": 200000,
+    "elastic_agent.snapshot": 200000,
+    "destination": 200000,
+    "destination.mac": 200000,
+    "network_traffic": 200000,
+    "network_traffic.flow": 200000,
+    "network_traffic.flow.final": 200000,
+    "network_traffic.flow.id": 200000,
+    "source": 200000,
+    "source.bytes": 200000,
+    "source.packets": 200000,
+    "source.mac": 200000,
+    "network": 200000,
+    "network.bytes": 200000,
+    "network.packets": 200000,
+    "@timestamp": 200000,
+    "ecs": 200000,
+    "ecs.version": 200000,
+    "data_stream": 200000,
+    "data_stream.namespace": 200000,
+    "data_stream.type": 200000,
+    "data_stream.dataset": 200000,
+    "host": 200000,
+    "host.hostname": 200000,
+    "host.os": 200000,
+    "host.os.build": 200000,
+    "host.os.kernel": 200000,
+    "host.os.name": 200000,
+    "host.os.family": 200000,
+    "host.os.type": 200000,
+    "host.os.version": 200000,
+    "host.os.platform": 200000,
+    "host.ip": 200000,
+    "host.name": 200000,
+    "host.id": 200000,
+    "host.mac": 200000,
+    "host.architecture": 200000,
+    "event": 200000,
+    "event.duration": 200000,
+    "event.agent_id_status": 200000,
+    "event.ingested": 200000,
+    "event.kind": 200000
+  },
+  "processing_recommendations": {
+    "pipeline_strategy": "Multi-pattern pipeline",
+    "always_present_field_count": 62,
+    "conditional_field_count": 27,
+    "rare_field_count": 0
+  }
+}

@@ -1,0 +1,539 @@
+NETWORK TRAFFIC FLOW EXPLORATORY ANALYSIS
+Analysis Type: 4A-NETWORK-FLOWS
+Generated: 2026-04-21 06:53:46
+Target File: ds-logs-network_traffic-flow-default-run-01.jsonl
+================================================================================
+
+
+================================================================================
+SECTION 3: INITIAL DATA LOADING AND LINE COUNT
+================================================================================
+
+📈 Total records in dataset: 569,443
+🎯 Sampling strategy: Will analyze 200000 random samples
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 6: BASIC DATA STRUCTURE ANALYSIS
+================================================================================
+
+📋 BASIC DATA STRUCTURE ANALYSIS
+==================================================
+🔍 Data type: <class 'dict'>
+📏 Number of top-level fields: 12
+🗝️  Top-level fields:
+    1. process                        (dict)
+    2. agent                          (dict)
+    3. destination                    (dict)
+    4. elastic_agent                  (dict)
+    5. network_traffic                (dict)
+    6. source                         (dict)
+    7. network                        (dict)
+    8. @timestamp                     (str)
+    9. ecs                            (dict)
+   10. data_stream                    (dict)
+   11. host                           (dict)
+   12. event                          (dict)
+📄 Complete first sample structure:
+------------------------------
+{'@timestamp': '2025-03-19T05:11:57.003Z',
+ 'agent': {'ephemeral_id': '1cdd0a29-86cb-4e25-900b-6cb7e20fe682',
+           'id': '97ceac6e-c74e-4eea-9d56-e6565c1e61b7',
+           'name': 'WATERFALLS',
+           'type': 'packetbeat',
+           'version': '8.17.3'},
+ 'data_stream': {'dataset': 'network_traffic.flow', 'namespace': 'default', 'type': 'logs'},
+ 'destination': {'bytes': 100,
+                 'ip': '35.244.181.201',
+                 'mac': '08-00-27-26-33-A5',
+                 'packets': 1,
+                 'port': 443},
+ 'ecs': {'version': '8.11.0'},
+ 'elastic_agent': {'id': '97ceac6e-c74e-4eea-9d56-e6565c1e61b7',
+                   'snapshot': False,
+                   'version': '8.17.3'},
+ 'event': {'action': 'network_flow',
+           'agent_id_status': 'verified',
+           'category': ['network'],
+           'duration': 0,
+           'end': '2025-03-19T05:11:29.679Z',
+           'ingested': '2025-03-19T05:12:10Z',
+           'kind': 'event',
+           'start': '2025-03-19T05:11:29.679Z',
+           'type': ['connection']},
+ 'host': {'architecture': 'x86_64',
+          'hostname': 'WATERFALLS',
+          'id': '3fc4fefd-6701-48ba-b65d-3ee471779ceb',
+          'ip': ['fe80::fddc:bbf3:656b:f0fd', '10.1.0.6'],
+          'mac': ['08-00-27-DD-98-2C'],
+          'name': 'waterfalls',
+          'os': {'build': '17763.3650',
+                 'family': 'windows',
+                 'kernel': '10.0.17763.3650 (WinBuild.160101.0800)',
+                 'name': 'Windows Server 2019 Datacenter Evaluation',
+                 'platform': 'windows',
+                 'type': 'windows',
+                 'version': '10.0'}},
+ 'network': {'bytes': 254,
+             'community_id': '1:TA1dViZueZ/3EBw3vbFUriYRRQ0=',
+             'packets': 3,
+             'transport': 'tcp',
+             'type': 'ipv4'},
+ 'network_traffic': {'flow': {'final': False,
+                              'id': 'EQwA////DP//////FBgBAAEIACcmM6UIACfdmCwj9LXJCgEABrsB5ht7AgAAAAAAAA'}},
+ 'process': {'args': ['C:\\Program Files\\Mozilla Firefox\\firefox.exe'],
+             'executable': 'C:\\Program Files\\Mozilla Firefox\\firefox.exe',
+             'name': 'firefox.exe',
+             'parent': {'pid': 2824},
+             'pid': 10708,
+             'start': '2025-03-19T05:08:59.457Z',
+             'working_directory': ''},
+ 'source': {'bytes': 154,
+            'ip': '10.1.0.6',
+            'mac': '08-00-27-DD-98-2C',
+            'packets': 2,
+            'port': 7142,
+            'process': {'args': [...],
+                        'executable': 'C:\\Program Files\\Mozilla Firefox\\firefox.exe',
+                        'name': 'firefox.exe',
+                        'pid': 10708,
+                        'ppid': 2824,
+                        'start': '2025-03-19T05:08:59.457Z',
+                        'working_directory': ''}}}
+💾 Saved data structure: Complete First Sample Structure
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 7: FIELD DISTRIBUTION ANALYSIS
+================================================================================
+
+📊 FIELD DISTRIBUTION ANALYSIS
+==================================================
+📈 Field frequency analysis (200000 samples):
+Field Name                     Count    Percentage   Primary Type   
+----------------------------------------------------------------------
+agent                          200000     100.0%     dict           
+destination                    200000     100.0%     dict           
+elastic_agent                  200000     100.0%     dict           
+network_traffic                200000     100.0%     dict           
+source                         200000     100.0%     dict           
+network                        200000     100.0%     dict           
+@timestamp                     200000     100.0%     str            
+ecs                            200000     100.0%     dict           
+data_stream                    200000     100.0%     dict           
+host                           200000     100.0%     dict           
+event                          200000     100.0%     dict           
+process                        98028       49.0%     dict           
+✅ Always present fields (11):
+   - agent
+   - destination
+   - elastic_agent
+   - network_traffic
+   - source
+   - network
+   - @timestamp
+   - ecs
+   - data_stream
+   - host
+   - event
+❓ Optional fields (1):
+   - process                        (present in 49.0% of samples)
+💾 Saved data structure: Field Distribution Analysis Results
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 9: NESTED STRUCTURE DEEP DIVE
+================================================================================
+
+🗂️  NESTED STRUCTURE DEEP DIVE
+==================================================
+✓ Analyzed sample 1/10
+✓ Analyzed sample 2/10
+✓ Analyzed sample 3/10
+✓ Analyzed sample 4/10
+✓ Analyzed sample 5/10
+✓ Analyzed sample 6/10
+✓ Analyzed sample 7/10
+✓ Analyzed sample 8/10
+✓ Analyzed sample 9/10
+✓ Analyzed sample 10/10
+📋 Complete field hierarchy (96 unique paths):
+------------------------------------------------------------
+🌳 @timestamp:
+  ├─ @timestamp (str)
+🌳 agent:
+  ├─ agent (dict)
+    ├─ ephemeral_id (str)
+    ├─ id (str)
+    ├─ name (str)
+    ├─ type (str)
+    ├─ version (str)
+🌳 data_stream:
+  ├─ data_stream (dict)
+    ├─ dataset (str)
+    ├─ namespace (str)
+    ├─ type (str)
+🌳 destination:
+  ├─ destination (dict)
+    ├─ bytes (int)
+    ├─ ip (str)
+    ├─ mac (str)
+    ├─ packets (int)
+    ├─ port (int)
+    ├─ process (dict)
+      ├─ args (list)
+      ├─ args[0] (str)
+      ├─ executable (str)
+      ├─ name (str)
+      ├─ pid (int)
+      ├─ ppid (int)
+      ├─ start (str)
+      ├─ working_directory (str)
+🌳 ecs:
+  ├─ ecs (dict)
+    ├─ version (str)
+🌳 elastic_agent:
+  ├─ elastic_agent (dict)
+    ├─ id (str)
+    ├─ snapshot (bool)
+    ├─ version (str)
+🌳 event:
+  ├─ event (dict)
+    ├─ action (str)
+    ├─ agent_id_status (str)
+    ├─ category (list)
+    ├─ category[0] (str)
+    ├─ duration (int)
+    ├─ end (str)
+    ├─ ingested (str)
+    ├─ kind (str)
+    ├─ start (str)
+    ├─ type (list)
+    ├─ type[0] (str)
+🌳 host:
+  ├─ host (dict)
+    ├─ architecture (str)
+    ├─ hostname (str)
+    ├─ id (str)
+    ├─ ip (list)
+    ├─ ip[0] (str)
+    ├─ mac (list)
+    ├─ mac[0] (str)
+    ├─ name (str)
+    ├─ os (dict)
+      ├─ build (str)
+      ├─ family (str)
+      ├─ kernel (str)
+      ├─ name (str)
+      ├─ platform (str)
+      ├─ type (str)
+      ├─ version (str)
+🌳 network:
+  ├─ network (dict)
+    ├─ bytes (int)
+    ├─ community_id (str)
+    ├─ packets (int)
+    ├─ transport (str)
+    ├─ type (str)
+🌳 network_traffic:
+  ├─ network_traffic (dict)
+    ├─ flow (dict)
+      ├─ final (bool)
+      ├─ id (str)
+🌳 process:
+  ├─ process (dict)
+    ├─ args (list)
+    ├─ args[0] (str)
+    ├─ executable (str)
+    ├─ name (str)
+    ├─ parent (dict)
+      ├─ pid (int)
+    ├─ pid (int)
+    ├─ start (str)
+    ├─ working_directory (str)
+🌳 source:
+  ├─ source (dict)
+    ├─ bytes (int)
+    ├─ ip (str)
+    ├─ mac (str)
+    ├─ packets (int)
+    ├─ port (int)
+    ├─ process (dict)
+      ├─ args (list)
+      ├─ args[0] (str)
+      ├─ executable (str)
+      ├─ name (str)
+      ├─ pid (int)
+      ├─ ppid (int)
+      ├─ start (str)
+      ├─ working_directory (str)
+💾 Saved data structure: Complete Field Hierarchy Analysis
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 11: SAMPLE RECORD DISPLAY
+================================================================================
+
+📄 SAMPLE RECORD DISPLAY
+==================================================
+Sample Record #1:
+----------------------------------------
+💾 Saved data structure: Sample Record #1
+🏗️  process:
+      args: ['C:\\Program Files\\Mozilla Firefox\\firefox.exe']
+      parent: {'pid': 2824}
+      start: 2025-03-19T05:08:59.457Z
+      name: firefox.exe
+      working_directory: 
+      pid: 10708
+      executable: C:\Program Files\Mozilla Firefox\firefox.exe
+🏗️  agent:
+      name: WATERFALLS
+      id: 97ceac6e-c74e-4eea-9d56-e6565c1e61b7
+      type: packetbeat
+      ephemeral_id: 1cdd0a29-86cb-4e25-900b-6cb7e20fe682
+      version: 8.17.3
+🏗️  destination:
+      port: 443
+      bytes: 100
+      ip: 35.244.181.201
+      mac: 08-00-27-26-33-A5
+      packets: 1
+🏗️  elastic_agent:
+      id: 97ceac6e-c74e-4eea-9d56-e6565c1e61b7
+      version: 8.17.3
+      snapshot: False
+🏗️  network_traffic:
+      flow: {'final': False, 'id': 'EQwA////DP//////FBgBAAEIACcmM6UIACfdmCwj9LXJCgEABrsB5ht7AgAAAAAAAA'}
+🏗️  source:
+      process: {'args': ['C:\\Program Files\\Mozilla Firefox\\firefox.exe'], 'name': 'firefox.exe', 'start': '2025-...
+      port: 7142
+      bytes: 154
+      ip: 10.1.0.6
+      packets: 2
+      mac: 08-00-27-DD-98-2C
+🏗️  network:
+      community_id: 1:TA1dViZueZ/3EBw3vbFUriYRRQ0=
+      bytes: 254
+      transport: tcp
+      type: ipv4
+      packets: 3
+📝 @timestamp: 2025-03-19T05:11:57.003Z
+🏗️  ecs:
+      version: 8.11.0
+🏗️  data_stream:
+      namespace: default
+      type: logs
+      dataset: network_traffic.flow
+🏗️  host:
+      hostname: WATERFALLS
+      os: {'build': '17763.3650', 'kernel': '10.0.17763.3650 (WinBuild.160101.0800)', 'name': 'Windows Server ...
+      ip: ['fe80::fddc:bbf3:656b:f0fd', '10.1.0.6']
+      name: waterfalls
+      id: 3fc4fefd-6701-48ba-b65d-3ee471779ceb
+      mac: ['08-00-27-DD-98-2C']
+      architecture: x86_64
+🏗️  event:
+      duration: 0
+      agent_id_status: verified
+      ingested: 2025-03-19T05:12:10Z
+      kind: event
+      start: 2025-03-19T05:11:29.679Z
+      action: network_flow
+      end: 2025-03-19T05:11:29.679Z
+      category: ['network']
+      type: ['connection']
+
+Sample Record #2:
+----------------------------------------
+💾 Saved data structure: Sample Record #2
+🏗️  process:
+      args: ['C:\\Windows\\System32\\svchost.exe', '-k', 'termsvcs', '-s', 'TermService']
+      parent: {'pid': 636}
+      start: 2025-03-19T14:05:01.953Z
+      name: svchost.exe
+      working_directory: 
+      pid: 504
+      executable: C:\Windows\System32\svchost.exe
+🏗️  agent:
+      name: WATERFALLS
+      id: 97ceac6e-c74e-4eea-9d56-e6565c1e61b7
+      ephemeral_id: 1cdd0a29-86cb-4e25-900b-6cb7e20fe682
+      type: packetbeat
+      version: 8.17.3
+🏗️  destination:
+      process: {'args': ['C:\\Windows\\System32\\svchost.exe', '-k', 'termsvcs', '-s', 'TermService'], 'start': '20...
+      port: 3389
+      bytes: 304220
+      ip: 10.1.0.6
+      packets: 933
+      mac: 08-00-27-DD-98-2C
+🏗️  elastic_agent:
+      id: 97ceac6e-c74e-4eea-9d56-e6565c1e61b7
+      version: 8.17.3
+      snapshot: False
+🏗️  network_traffic:
+      flow: {'final': False, 'id': 'EQwA////DP//////FBgBAAEIACfdmCwIACf34AAKAQAGCgEABT0NicWyBwAAAAAAAA'}
+🏗️  source:
+      port: 50569
+      bytes: 107147
+      ip: 10.1.0.5
+      mac: 08-00-27-F7-E0-00
+      packets: 667
+🏗️  network:
+      community_id: 1:X376MaQIuk/ddP2bWjXPRc6/s74=
+      bytes: 411367
+      transport: tcp
+      type: ipv4
+      packets: 1600
+📝 @timestamp: 2025-03-19T05:48:03.046Z
+🏗️  ecs:
+      version: 8.11.0
+🏗️  data_stream:
+      namespace: default
+      type: logs
+      dataset: network_traffic.flow
+🏗️  host:
+      hostname: WATERFALLS
+      os: {'build': '17763.3650', 'kernel': '10.0.17763.3650 (WinBuild.160101.0800)', 'name': 'Windows Server ...
+      ip: ['fe80::fddc:bbf3:656b:f0fd', '10.1.0.6']
+      name: waterfalls
+      id: 3fc4fefd-6701-48ba-b65d-3ee471779ceb
+      mac: ['08-00-27-DD-98-2C']
+      architecture: x86_64
+🏗️  event:
+      duration: 307162652000
+      agent_id_status: verified
+      ingested: 2025-03-19T05:48:16Z
+      kind: event
+      start: 2025-03-19T05:42:55.296Z
+      action: network_flow
+      end: 2025-03-19T05:48:02.502Z
+      category: ['network']
+      type: ['connection']
+
+Sample Record #3:
+----------------------------------------
+💾 Saved data structure: Sample Record #3
+🏗️  process:
+      args: ['c:\\windows\\system32\\inetsrv\\w3wp.exe', '-ap', 'MSExchangeAutodiscoverAppPool', '-v', 'v4.0', '...
+      parent: {'pid': 3220}
+      start: 2025-03-19T05:06:18.300Z
+      name: w3wp.exe
+      working_directory: 
+      pid: 1968
+      executable: C:\Windows\System32\inetsrv\w3wp.exe
+🏗️  agent:
+      name: WATERFALLS
+      id: 97ceac6e-c74e-4eea-9d56-e6565c1e61b7
+      type: packetbeat
+      ephemeral_id: 1cdd0a29-86cb-4e25-900b-6cb7e20fe682
+      version: 8.17.3
+🏗️  elastic_agent:
+      id: 97ceac6e-c74e-4eea-9d56-e6565c1e61b7
+      version: 8.17.3
+      snapshot: False
+🏗️  destination:
+      port: 389
+      bytes: 62964
+      ip: 10.1.0.4
+      packets: 54
+      mac: 08-00-27-B1-0A-06
+🏗️  network_traffic:
+      flow: {'final': False, 'id': 'EQQA////DP//////FP8BAAEIACexCgYIACfdmCwKAQAECgEABoUBFBw'}
+🏗️  source:
+      process: {'args': ['c:\\windows\\system32\\inetsrv\\w3wp.exe', '-ap', 'MSExchangeAutodiscoverAppPool', '-v', ...
+      port: 7188
+      bytes: 28330
+      ip: 10.1.0.6
+      mac: 08-00-27-DD-98-2C
+      packets: 46
+🏗️  network:
+      community_id: 1:ZdRa3VFPObTJL8zTkyzZxfTXjDQ=
+      bytes: 91294
+      transport: tcp
+      type: ipv4
+      packets: 100
+📝 @timestamp: 2025-03-19T05:24:43.005Z
+🏗️  ecs:
+      version: 8.11.0
+🏗️  data_stream:
+      namespace: default
+      type: logs
+      dataset: network_traffic.flow
+🏗️  host:
+      hostname: WATERFALLS
+      os: {'build': '17763.3650', 'kernel': '10.0.17763.3650 (WinBuild.160101.0800)', 'name': 'Windows Server ...
+      ip: ['fe80::fddc:bbf3:656b:f0fd', '10.1.0.6']
+      name: waterfalls
+      id: 3fc4fefd-6701-48ba-b65d-3ee471779ceb
+      mac: ['08-00-27-DD-98-2C']
+      architecture: x86_64
+🏗️  event:
+      duration: 10229911500
+      agent_id_status: verified
+      ingested: 2025-03-19T05:24:52Z
+      kind: event
+      start: 2025-03-19T05:24:28.686Z
+      action: network_flow
+      end: 2025-03-19T05:24:38.915Z
+      type: ['connection']
+      category: ['network']
+
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 12: ANALYSIS SUMMARY AND RECOMMENDATIONS
+================================================================================
+
+📊 ANALYSIS SUMMARY AND RECOMMENDATIONS
+============================================================
+🔍 DATASET CHARACTERISTICS:
+   • Total records in file: ~569,443
+   • Samples analyzed: 200000
+   • Total unique fields: 12
+   • Always present fields: 11
+   • Optional fields: 1
+💡 PROCESSING RECOMMENDATIONS:
+   🧠 Memory Management:
+      - Use batch processing for large dataset (569,443 records)
+      - Consider chunked reading with pandas or custom iterator
+      - Implement progress tracking for long operations
+   🏗️  Complex Field Handling:
+      - process: Flatten nested structure or extract key fields
+      - agent: Flatten nested structure or extract key fields
+      - destination: Flatten nested structure or extract key fields
+      - elastic_agent: Flatten nested structure or extract key fields
+      - network_traffic: Flatten nested structure or extract key fields
+      - source: Flatten nested structure or extract key fields
+      - network: Flatten nested structure or extract key fields
+      - ecs: Flatten nested structure or extract key fields
+      - data_stream: Flatten nested structure or extract key fields
+      - host: Flatten nested structure or extract key fields
+      - event: Flatten nested structure or extract key fields
+   📄 CSV Conversion Strategy:
+      - Include all 11 always-present fields
+      - Handle 1 optional fields with default values
+      - Implement error logging for malformed records
+      - Use appropriate data types for each field
+✅ NEXT STEPS:
+   1. Review findings above
+   2. Update notebook #3 with optimized processing logic
+   3. Implement batch processing for memory efficiency
+   4. Add comprehensive error handling and logging
+   5. Test with full dataset after validation
+🎯 Ready to proceed to notebook #3 optimization!
+💾 Saved data structure: Complete Analysis Summary
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+

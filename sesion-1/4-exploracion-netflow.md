@@ -166,7 +166,7 @@ total_samples = len(random_samples)  # 200,000
 
 Recorre los 200,000 registros ya muestreados y para cada uno cuenta cuántas veces aparece cada campo y qué tipo de dato tiene.
 
-- **`field_counter`**: acumula cuántos registros contienen cada campo. Si `process` aparece en 98,006 de los 200,000, `field_counter["process"] == 98006`.
+- **`field_counter`**: acumula cuántos registros contienen cada campo. Si `process` aparece en 98,078 de los 200,000, `field_counter["process"] == 98078`.
 - **`field_types`**: para cada campo, registra qué tipo de dato tiene (`dict`, `str`, etc.). Útil para detectar inconsistencias de tipo.
 - Al final, si `field_counter[campo] == total_samples` → el campo está **siempre presente**. Si es menor → es **opcional**.
 

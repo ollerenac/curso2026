@@ -1,0 +1,144 @@
+NETWORK TRAFFIC FLOW EXPLORATORY ANALYSIS
+Analysis Type: 4A-NETWORK-FLOWS
+Generated: 2026-04-28 03:03:05
+Target File: ds-logs-network_traffic-flow-default-run-01.jsonl
+================================================================================
+
+
+================================================================================
+SECTION 3: INITIAL DATA LOADING AND LINE COUNT
+================================================================================
+
+📈 Total records in dataset: 569,443
+🎯 Sampling strategy: Will analyze 200000 random samples
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 6: BASIC DATA STRUCTURE ANALYSIS
+================================================================================
+
+📋 BASIC DATA STRUCTURE ANALYSIS
+==================================================
+🔍 Data type: <class 'dict'>
+📏 Number of top-level fields: 12
+🗝️  Top-level fields:
+    1. process                        (dict)
+    2. agent                          (dict)
+    3. destination                    (dict)
+    4. elastic_agent                  (dict)
+    5. network_traffic                (dict)
+    6. source                         (dict)
+    7. network                        (dict)
+    8. @timestamp                     (str)
+    9. ecs                            (dict)
+   10. data_stream                    (dict)
+   11. host                           (dict)
+   12. event                          (dict)
+📄 Complete first sample structure:
+------------------------------
+{'@timestamp': '2025-03-19T06:12:20.121Z',
+ 'agent': {'ephemeral_id': 'ed317a15-41a9-45c4-b607-a579c632cb34',
+           'id': '98c1577f-4ccd-4f57-92fd-d61d4957e6c3',
+           'name': 'diskjockey',
+           'type': 'packetbeat',
+           'version': '8.17.0'},
+ 'data_stream': {'dataset': 'network_traffic.flow', 'namespace': 'default', 'type': 'logs'},
+ 'destination': {'bytes': 162,
+                 'ip': '10.1.0.4',
+                 'mac': '08-00-27-B1-0A-06',
+                 'packets': 1,
+                 'port': 123,
+                 'process': {'args': [...],
+                             'executable': 'C:\\Windows\\System32\\svchost.exe',
+                             'name': 'svchost.exe',
+                             'pid': 380,
+                             'ppid': 592,
+                             'start': '2025-03-19T14:04:16.907Z',
+                             'working_directory': ''}},
+ 'ecs': {'version': '8.11.0'},
+ 'elastic_agent': {'id': '98c1577f-4ccd-4f57-92fd-d61d4957e6c3',
+                   'snapshot': False,
+                   'version': '8.17.0'},
+ 'event': {'action': 'network_flow',
+           'agent_id_status': 'verified',
+           'category': ['network'],
+           'duration': 0,
+           'end': '2025-03-19T06:11:20.929Z',
+           'ingested': '2025-03-19T06:12:33Z',
+           'kind': 'event',
+           'start': '2025-03-19T06:11:20.929Z',
+           'type': ['connection', 'end']},
+ 'host': {'architecture': 'x86_64',
+          'hostname': 'diskjockey',
+          'id': '2d5a9c51-f2ee-461b-9b57-ca04724e4e2f',
+          'ip': ['fe80::e982:6a9c:29e3:b4c9', '10.1.0.4'],
+          'mac': ['08-00-27-B1-0A-06'],
+          'name': 'diskjockey',
+          'os': {'build': '17763.3650',
+                 'family': 'windows',
+                 'kernel': '10.0.17763.3650 (WinBuild.160101.0800)',
+                 'name': 'Windows Server 2019 Datacenter Evaluation',
+                 'platform': 'windows',
+                 'type': 'windows',
+                 'version': '10.0'}},
+ 'network': {'bytes': 324,
+             'community_id': '1:oV4NZBbe8LDnUyQgq+a/zgO7oMc=',
+             'packets': 2,
+             'transport': 'udp',
+             'type': 'ipv4'},
+ 'network_traffic': {'flow': {'final': True,
+                              'id': 'EQIA////DP////8U//8BAAEIACexCgYIACfdmCwKAQAECgEABnsAewA'}},
+ 'process': {'args': ['C:\\Windows\\system32\\svchost.exe', '-k', 'LocalService'],
+             'executable': 'C:\\Windows\\System32\\svchost.exe',
+             'name': 'svchost.exe',
+             'parent': {'pid': 592},
+             'pid': 380,
+             'start': '2025-03-19T14:04:16.907Z',
+             'working_directory': ''},
+ 'source': {'bytes': 162, 'ip': '10.1.0.6', 'mac': '08-00-27-DD-98-2C', 'packets': 1, 'port': 123}}
+💾 Saved data structure: Complete First Sample Structure
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
+
+================================================================================
+SECTION 7: FIELD DISTRIBUTION ANALYSIS
+================================================================================
+
+📊 FIELD DISTRIBUTION ANALYSIS
+==================================================
+📈 Field frequency analysis (200000 samples):
+Field Name                     Count    Percentage   Primary Type   
+----------------------------------------------------------------------
+agent                          200000     100.0%     dict           
+destination                    200000     100.0%     dict           
+elastic_agent                  200000     100.0%     dict           
+network_traffic                200000     100.0%     dict           
+source                         200000     100.0%     dict           
+network                        200000     100.0%     dict           
+@timestamp                     200000     100.0%     str            
+ecs                            200000     100.0%     dict           
+data_stream                    200000     100.0%     dict           
+host                           200000     100.0%     dict           
+event                          200000     100.0%     dict           
+process                        98078       49.0%     dict           
+✅ Always present fields (11):
+   - agent
+   - destination
+   - elastic_agent
+   - network_traffic
+   - source
+   - network
+   - @timestamp
+   - ecs
+   - data_stream
+   - host
+   - event
+❓ Optional fields (1):
+   - process                        (present in 49.0% of samples)
+💾 Saved data structure: Field Distribution Analysis Results
+
+------------------------------------------------------------ END SECTION ------------------------------------------------------------
+
