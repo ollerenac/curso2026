@@ -355,29 +355,11 @@ El notebook `4a` analizó 200,000 registros muestreados aleatoriamente y los res
 | `event` | 0 | 100.0% | Siempre presente |
 | `process` | 0 | 100.0% | **Cuando está presente** (49.0% de registros) |
 
-**Hallazgo:** Los 11 campos obligatorios tienen **cero valores nulos o vacíos** en toda la muestra. Y el campo `process`, cuando está presente, también tiene completitud del 100% -- nunca aparece con un valor vacío o malformado.
+**Hallazgo:** Los 11 campos obligatorios tienen **cero valores nulos o vacíos** en toda la muestra. Y el campo `process`, cuando está presente, también tiene completitud del 100% — nunca aparece con un valor vacío o malformado.
 
-Esto contrasta con lo que sucede en muchos datasets del mundo real, donde los valores nulos son frecuentes. La alta calidad se debe a que Packetbeat genera estos registros de forma automatizada y estandarizada -- no hay intervención humana que introduzca errores.
+El notebook también verificó si algún campo de primer nivel tenía ≤50 valores únicos (candidatos a variables categóricas). Ninguno calificó — todos los campos tienen alta cardinalidad o son estructuras anidadas.
 
-```python
-# Verificar ausencia de nulos en campos obligatorios
-for field_name in ['source', 'destination', 'network', '@timestamp', 'event', 'host']:
-    null_count = sum(
-        1 for sample in random_samples
-        if sample.get(field_name) is None
-        or sample.get(field_name) == ""
-    )
-    print(f"{field_name:20s}: {null_count} nulos de {len(random_samples):,}")
-```
-
-```
-source              : 0 nulos de 200,000
-destination         : 0 nulos de 200,000
-network             : 0 nulos de 200,000
-@timestamp          : 0 nulos de 200,000
-event               : 0 nulos de 200,000
-host                : 0 nulos de 200,000
-```
+Esto contrasta con lo que sucede en muchos datasets del mundo real, donde los valores nulos son frecuentes. La alta calidad se debe a que Packetbeat genera estos registros de forma automatizada y estandarizada — no hay intervención humana que introduzca errores.
 
 Para el conversor CSV, esto simplifica considerablemente el diseño: no necesitamos lógica de imputación de valores faltantes para los campos obligatorios. Solo necesitamos manejar la **ausencia del campo `process`** en el 51.0% de los registros.
 
