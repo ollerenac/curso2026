@@ -326,7 +326,7 @@ El campo `destination.process` aparece en el 8.0% de los registros — flujos do
 
 ## Paso 5: Evaluación de consistencia
 
-El reporte de consistencia del notebook 3b concluye con la evaluación:
+El reporte de consistencia del notebook `5a` concluye con la evaluación:
 
 ```
 MÉTRICAS DE CONSISTENCIA:
@@ -371,9 +371,8 @@ La estrategia de conversión JSONL a CSV para NetFlow debe contemplar las tres c
 |-----------|----------|--------------------------|
 | Siempre presentes | 62 campos | Extracción estándar directa |
 | Condicionales | 27 campos | Valores por defecto (`None`/vacío) cuando ausentes |
-| Raros | 0 campos | — |
 
-A diferencia del conversor Sysmon — que usa un esquema fijo por EventID — el conversor NetFlow debe emplear un **esquema unificado** con manejo de nulos para los campos opcionales. Esto se implementa con la función `get_nested_value()` de la sección anterior, que devuelve un valor por defecto cuando la ruta no existe en el registro.
+A diferencia del conversor Sysmon — que usa un esquema fijo por EventID — el conversor NetFlow debe emplear un **esquema unificado** con manejo de nulos para los campos opcionales.
 
 ## Conclusiones e implicaciones
 
