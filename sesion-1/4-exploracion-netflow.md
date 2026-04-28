@@ -261,6 +261,41 @@ def get_all_field_paths(obj, prefix="", max_depth=4, current_depth=0):
     return paths
 ```
 
+:::{admonition} ¿Cómo funciona get_all_field_paths?
+:class: dropdown note
+
+La función recorre un diccionario anidado y produce un mapa de **todas las rutas posibles** con su tipo de dato. La idea central es la **recursión**: la función se llama a sí misma cada vez que encuentra un diccionario dentro de otro.
+
+Por ejemplo, dado este registro:
+
+```python
+record = {
+    "event": {"action": "network_flow", "duration": 1234},
+    "source": {"ip": "192.168.1.1", "process": {"name": "chrome.exe"}}
+}
+```
+
+La función produce:
+
+```
+event              -> dict
+event.action       -> str
+event.duration     -> int
+source             -> dict
+source.ip          -> str
+source.process     -> dict
+source.process.name -> str
+```
+
+**Paso a paso:** entra al diccionario raíz con `prefix=""`. Encuentra `"event"` → guarda la ruta `"event"` con tipo `dict`. Como es un dict, se llama a sí misma con `prefix="event"` y encuentra `"action"` → guarda `"event.action"` con tipo `str`. Repite esto bajando nivel por nivel.
+
+**Casos especiales:**
+- Si el valor es un `dict` → entra y baja un nivel (recursión normal)
+- Si el valor es una `list` → solo examina el primer elemento `[0]`, asumiendo que todos los elementos tienen la misma estructura
+
+**`max_depth=4`** actúa como freno de seguridad: sin él, una estructura muy profunda podría causar recursión infinita. El resultado es un diccionario plano que convierte la jerarquía compleja en una lista navegable de rutas.
+:::
+
 Aplicando esta función a múltiples registros de la muestra, el análisis identificó **96 rutas de campo únicas** distribuidas en 12 grupos de primer nivel:
 
 ```
