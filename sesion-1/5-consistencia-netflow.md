@@ -121,13 +121,25 @@ Contraste de fingerprinting:
 El fingerprinting de 200,000 registros muestreados produce los siguientes resultados:
 
 ```
-Patrones estructurales únicos:   15
-Registros analizados:            200,000
-Ratio de diversidad estructural: 0.007%
-Patrón más frecuente:            79,773 registros (39.89%)
+Unique structure patterns found: 15
+Records analyzed:                200,000
+Most common pattern frequency:   79,773 records
+
+PATTERN CLASSIFICATION:
+   OUTLIER:          8 patterns
+   VARIANT:          3 patterns
+   SECONDARY_SCHEMA: 2 patterns
+   RARE_VARIANT:     2 patterns
 ```
 
-A diferencia de Sysmon, donde cada patrón correspondía a un EventID, aquí no existe ese discriminador natural. Los 15 patrones se clasifican por frecuencia:
+**¿Qué nos dice este resultado?**
+
+- Existen **15 patrones estructurales únicos** en los 200,000 registros — una variabilidad mucho mayor que los 2 patrones esperados (con y sin `process`).
+- Ningún patrón alcanza el 50% de frecuencia, por lo que no hay `PRIMARY_SCHEMA`. Los dos patrones más frecuentes (`SECONDARY_SCHEMA`) concentran el ~72% de los registros.
+- Los 8 patrones clasificados como `OUTLIER` representan menos del 1% cada uno — probablemente variantes menores por diferencias de tipo o campos opcionales adicionales.
+- A diferencia de Sysmon, donde cada patrón correspondía a un EventID concreto, aquí **no existe ese discriminador natural**. El siguiente paso es inspeccionar cada patrón en detalle para entender qué los diferencia.
+
+Los 15 patrones en detalle:
 
 | # | Clasificación | Registros | % | Campos 1er nivel | Características |
 |---|--------------|-----------|---|-------------------|-----------------|
