@@ -67,14 +67,12 @@ def generate_schema_fingerprint(record, max_depth=10):
     return structure_hash, structure_detail
 ```
 
-:::{admonition} ¿Cómo funcionan las tres funciones del Step 1?
+:::{admonition} ¿Cómo funciona generate_schema_fingerprint?
 :class: dropdown note
-
-**`generate_schema_fingerprint(record)`**
 
 Recorre recursivamente el JSON y construye un diccionario que representa solo la *forma* del registro (nombres de campo + tipos, sin valores). Luego serializa ese diccionario con `json.dumps(sort_keys=True)` — el ordenamiento garantiza que dos registros con los mismos campos en distinto orden produzcan el mismo string — y genera un hash MD5.
 
-Tres reglas para casos especiales:
+Reglas para cada tipo de valor:
 - `dict` → desciende recursivamente, ordenando las claves
 - `list` vacía → `"empty_list"`
 - `list` no vacía → `{"list_of": estructura_del_primer_elemento}`
@@ -87,10 +85,10 @@ Contraste con la versión Sysmon:
 Sysmon:   EventID + [campo1:present, campo2:null, ...]  →  MD5
 NetFlow:  {campo1: {subcampo: "str"}, campo2: "int"}    →  MD5
 ```
+:::
 
----
-
-**`classify_structure_variations(structure_counts, total_samples)`**
+:::{admonition} ¿Cómo funciona classify_structure_variations?
+:class: dropdown note
 
 Recibe un `Counter` de `{hash: frecuencia}` y clasifica cada patrón según su porcentaje de aparición:
 
@@ -103,12 +101,12 @@ Recibe un `Counter` de `{hash: frecuencia}` y clasifica cada patrón según su p
 | < 1% | `OUTLIER` |
 
 Retorna un diccionario `{hash: {classification, count, percentage}}`. Esta clasificación permite distinguir rápidamente los patrones dominantes de los casos excepcionales sin inspeccionar el conteo raw.
+:::
 
----
+:::{admonition} ¿Cómo funciona analyze_field_presence_patterns?
+:class: dropdown note
 
-**`analyze_field_presence_patterns(records)`**
-
-Recorre todos los registros y extrae recursivamente cada ruta de campo (dot-notation). Cuenta cuántas veces aparece cada ruta en el total de registros. El resultado muestra qué campos son universales (100%) vs opcionales (<100%), con más granularidad que el análisis de primer nivel del notebook 4a — aquí se detectan variaciones a cualquier nivel de anidamiento.
+Recorre todos los registros y extrae recursivamente cada ruta de campo en dot-notation. Cuenta cuántas veces aparece cada ruta en el total de registros. El resultado muestra qué campos son universales (100%) vs opcionales (<100%), con más granularidad que el análisis de primer nivel del notebook 4a — aquí se detectan variaciones a cualquier nivel de anidamiento, no solo en el primer nivel.
 :::
 
 ```
