@@ -192,28 +192,12 @@ El resultado muestra 12 campos totales, pero con una diferencia importante: **11
 | `data_stream` | 200,000 | 100.0% | dict |
 | `host` | 200,000 | 100.0% | dict |
 | `event` | 200,000 | 100.0% | dict |
-| `process` | 97,947 | **49.0%** | dict |
+| `process` | 98,078 | **49.0%** | dict |
 
 **Hallazgo clave:** El campo `process` solo aparece en el **49.0%** de los registros. Esto se debe a que Packetbeat (el agente de captura de red) solo puede asociar un flujo de red con un proceso del sistema operativo cuando tiene suficiente información para hacer esa correlación. Los flujos donde no se identifica el proceso origen/destino simplemente omiten el campo.
 
 ```{important}
 Este porcentaje (49.0%) corresponde **exclusivamente a la ejecución `run-01-apt-1`**. Nuestro dataset contiene 48 ejecuciones (*runs*) con diferentes campañas APT, y cada una puede presentar una proporción diferente de registros con información de proceso — dependiendo de la naturaleza del ataque, los servicios activos en la red, y las condiciones de captura. En sesiones posteriores analizaremos la consistencia estructural a lo largo de todos los runs para determinar si este patrón se mantiene o varía.
-```
-
-Veamos la diferencia entre un registro con y sin `process`:
-
-```python
-# Registro CON process: 12 claves de primer nivel
->>> record_con_process = json.loads(lineas[0])
->>> len(record_con_process)
-12
-
-# Registro SIN process: 11 claves de primer nivel
->>> record_sin_process = json.loads(lineas[1])
->>> len(record_sin_process)
-11
->>> 'process' in record_sin_process
-False
 ```
 
 A diferencia de Sysmon, donde la variación proviene de 21 esquemas de EventID diferentes, en NetFlow la variación proviene de una **única distinción binaria**: presencia o ausencia de `process`.
