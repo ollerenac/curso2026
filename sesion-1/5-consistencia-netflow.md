@@ -386,7 +386,7 @@ El análisis de consistencia estructural de NetFlow revela un panorama cualitati
 
 4. **Variación determinista vs estocástica**: En Sysmon, conocer el EventID permite predecir exactamente qué campos contendrá el registro. En NetFlow, no existe esa predicción — la presencia de `process` depende de si el host estaba monitorizado en el momento del flujo. Esta distinción tiene consecuencias directas para el diseño de los conversores CSV.
 
-**Implicación para el preprocesamiento**: El conversor NetFlow (Script 3) debe implementar un **esquema unificado** donde las 89 rutas se extraen con `get_nested_value()`, usando valores por defecto (`None`) para los campos ausentes. En contraste, el conversor Sysmon (Script 2) usa un esquema fijo por EventID con el diccionario `fields_per_eventid`.
+**Implicación para el preprocesamiento**: El conversor NetFlow debe implementar un **esquema unificado** donde las 89 rutas se extraen con manejo de nulos, usando valores por defecto (`None`) para los 27 campos condicionales ausentes. En contraste, el conversor Sysmon usa un esquema fijo por EventID.
 
 ## Actividad Práctica
 
@@ -396,11 +396,11 @@ Responde las siguientes preguntas basándote en el análisis de consistencia:
 
 1. **¿Por qué Sysmon logra una evaluación "ALTAMENTE CONSISTENTE" mientras que NetFlow es solo "MODERADAMENTE CONSISTENTE", a pesar de tener menos patrones (15 vs 19)?** Explica el papel del discriminador de tipo (EventID) en la consistencia estructural.
 
-2. **¿Qué nos dice la presencia de `process` en el 64% de los registros sobre la infraestructura de monitorización?** Considera: si un flujo va de un host externo a un servidor monitorizado, ¿aparecería `process`, `source.process`, `destination.process`, o ninguno?
+2. **¿Qué nos dice la presencia de `process` en el 49.2% de los registros sobre la infraestructura de monitorización?** Considera: si un flujo va de un host externo a un servidor monitorizado, ¿aparecería `process`, `source.process`, `destination.process`, o ninguno?
 
 3. **Si quisiéramos añadir un campo discriminador a NetFlow (equivalente a EventID), ¿cuál sería el candidato más natural?** Pista: piensa en la presencia/ausencia de `process` como una variable binaria. ¿Cuántos "tipos" definirías y qué significaría cada uno?
 
-4. **Los patrones #1 y #3 comparten las mismas características visibles** (ambos tienen `process` y `source.process`), pero el fingerprinting los distingue como patrones diferentes. **Diseña un test** para verificar que esta diferencia es real y no un artefacto del hashing. ¿Qué campos o subestructuras examinarías?
+4. **Los patrones #2 y #3 comparten las mismas características visibles** (ambos tienen `process` y `source.process`), pero el fingerprinting los distingue como patrones diferentes. **Diseña un test** para verificar que esta diferencia es real y no un artefacto del hashing. ¿Qué campos o subestructuras examinarías?
 
 ### Resultado esperado
 
@@ -408,7 +408,7 @@ Al finalizar esta sección, deberías comprender:
 
 - Cómo adaptar la técnica de fingerprinting de XML plano (Sysmon) a JSON anidado (NetFlow).
 - Que los 15 patrones de NetFlow reflejan variación **estocástica** (campos opcionales) frente a la variación **determinista** de Sysmon (EventIDs).
-- La distribución de campos: 64 siempre presentes, 17 condicionales, 8 raros.
+- La distribución de campos: 62 siempre presentes, 27 condicionales, 0 raros.
 - Por qué esta consistencia moderada requiere un conversor con esquema unificado y manejo de nulos.
 
 ---
