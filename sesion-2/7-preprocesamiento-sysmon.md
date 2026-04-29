@@ -105,31 +105,33 @@ Sin embargo, esto presenta varios problemas:
 | **Campos anidados** | NetFlow tiene hasta 3 niveles de anidamiento (`destination.process.name`) |
 | **Volumen** | Archivos de cientos de miles de eventos requieren procesamiento paralelo |
 
-:::{admonition} Ejemplo: un registro real del JSONL de Sysmon
+:::{admonition} Ejemplo: un registro real del JSONL de Sysmon (EventID 3 — Network Connection)
 :class: dropdown note
 
-Cada línea del archivo `.jsonl` es un documento JSON como este (simplificado). Observa cómo cada problema de la tabla aparece en el dato real:
+Cada línea del archivo `.jsonl` es un documento JSON como este (simplificado a los campos más relevantes). Observa cómo cada problema de la tabla aparece en el dato real:
 
 ```json
 {
-  "@timestamp": "2025-03-19T06:09:05.866Z",
-  "agent":        { "...": "metadatos de Filebeat" },
-  "elastic_agent":{ "...": "metadatos de Elasticsearch" },
-  "host":         { "name": "WATERFALLS.boombox.local", "...": "..." },
-  "winlog":       { "event_id": 7, "computer_name": "WATERFALLS.boombox.local" },
+  "@timestamp": "2025-03-19T06:09:13.567Z",
+  "agent":      { "name": "WATERFALLS", "type": "filebeat", "version": "8.17.3", "...": "..." },
+  "destination":{ "port": 53, "ip": "10.1.0.4", "domain": "diskjockey.boombox.local" },
+  "source":     { "port": 63707, "ip": "10.1.0.6", "domain": "WATERFALLS.boombox.local" },
+  "network":    { "transport": "udp", "protocol": "domain", "direction": "egress" },
+  "process":    { "name": "svchost.exe", "pid": 1980, "executable": "C:\\Windows\\System32\\svchost.exe" },
+  "winlog":     { "event_id": "3", "computer_name": "WATERFALLS.boombox.local", "...": "..." },
   "event": {
-    "code": "7",
-    "original": "<Event xmlns='...'><System>...<EventID>7</EventID>...</System><EventData><Data Name='UtcTime'>2025-03-19 06:09:05.109</Data><Data Name='ProcessGuid'>{3fc4fefd-5f81-67da-7700-000000004900}</Data><Data Name='ProcessId'>5864</Data><Data Name='Image'>C:\\Program Files\\Microsoft\\Exchange Server\\V15\\Bin\\Microsoft.Exchange.ServiceHost.exe</Data><Data Name='ImageLoaded'>C:\\Windows\\System32\\msvcrt.dll</Data><Data Name='Hashes'>SHA256=39095FE...</Data><Data Name='Signed'>true</Data><Data Name='User'>NT AUTHORITY\\SYSTEM</Data></EventData></Event>"
+    "code": "3",
+    "original": "<Event xmlns='...'><System>...<EventID>3</EventID>...</System><EventData><Data Name='UtcTime'>2025-03-19 06:09:13.567</Data><Data Name='ProcessGuid'>{3fc4fefd-5f7b-67da-2d00-000000004900}</Data><Data Name='ProcessId'>1980</Data><Data Name='Image'>C:\\Windows\\System32\\svchost.exe</Data><Data Name='User'>NT AUTHORITY\\NETWORK SERVICE</Data><Data Name='Protocol'>udp</Data><Data Name='SourceIp'>10.1.0.6</Data><Data Name='SourcePort'>63707</Data><Data Name='DestinationIp'>10.1.0.4</Data><Data Name='DestinationPort'>53</Data></EventData></Event>"
   }
 }
 ```
 
 Los problemas concretos visibles aquí:
 
-- **XML embebido**: el campo `event.original` es un string XML de ~2.000 caracteres — `pd.read_json()` lo dejará como texto plano, sin extraer ningún campo de Sysmon.
-- **Campos anidados**: los datos útiles están en `event.original`, `winlog.event_id`, `host.name` — pandas crearía columnas como `event` (un dict entero) en lugar de columnas individuales.
-- **Tipos de datos**: `ProcessGuid` incluye llaves `{...}` que deben eliminarse; los puertos en otros EventIDs llegan como `443.0` (float) en vez de `443` (int).
-- **Esquema variable**: este registro es EventID 7 (Image Load) y tiene `ImageLoaded`, `Hashes`, `Signed`. Un EventID 1 (Process Create) tendría `CommandLine`, `ParentProcessGuid`, `CurrentDirectory` en su lugar — campos completamente distintos en el mismo archivo.
+- **XML embebido**: `event.original` es un string XML de ~2.000 caracteres — `pd.read_json()` lo deja como texto plano sin extraer ningún campo de Sysmon. Los campos que necesitamos (`DestinationIp`, `ProcessGuid`, `UtcTime`) están enterrados dentro de ese string.
+- **Campos anidados**: `destination.port`, `source.ip`, `network.transport` son dicts anidados — pandas crearía una columna `destination` con un diccionario entero como valor, no columnas `destination_port` y `destination_ip` separadas.
+- **Tipos de datos**: `destination.port: 53` llega como `53.0` (float) desde Elasticsearch — debe convertirse a entero. `ProcessGuid` incluye llaves `{...}` que deben eliminarse.
+- **Esquema variable**: este EventID 3 tiene `DestinationIp`, `SourceIp`, `Protocol` en su XML. Un EventID 7 (Image Load) tiene `ImageLoaded`, `Hashes`, `Signed` en su lugar — campos completamente distintos dentro del mismo archivo `.jsonl`.
 :::
 
 Por estas razones, necesitamos scripts especializados que manejen cada dominio de datos según sus particularidades.
