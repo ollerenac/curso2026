@@ -260,6 +260,40 @@ with ThreadPoolExecutor(max_workers=8) as executor:
 En lugar de procesar los chunks del archivo uno a uno, los 8 hilos los procesan simultáneamente, reduciendo el tiempo total proporcionalmente al número de workers disponibles.
 :::
 
+:::{admonition} Diseño de clases: una sola interfaz pública
+:class: dropdown note
+
+`SysmonCSVCreator` tiene más de diez métodos y siete atributos, pero **solo uno es el punto de entrada real**: `convert_to_csv()`. El resto — `parse_sysmon_event()`, `process_chunk()`, `clean_guid()`, `safe_int_conversion()` — son pasos internos que la clase usa para organizarse, no métodos que el usuario de la clase necesita conocer.
+
+Piénsalo como una cafetera: tú presionas un botón (`convert_to_csv`). Internamente, la máquina calienta el agua, muele el café, aplica presión y controla el tiempo — pero esos pasos son invisibles para ti.
+
+**La pregunta que guía el diseño de cualquier clase:**
+
+> *¿Cuál es la única cosa que esta clase hace para el mundo exterior?*
+
+En este caso: *toma un archivo JSONL de Sysmon y produce un CSV*. Esa es la interfaz pública. Todo lo que soporta esa operación es un detalle interno.
+
+**La regla práctica en Python:**
+
+Los métodos internos se prefijan con `_` para señalar que son privados por convención:
+
+```python
+class SysmonCSVCreator:
+    def convert_to_csv(self, input, output):  # ← interfaz pública
+        chunks = self._split_into_chunks(input)
+        results = self._process_chunks(chunks)
+        self._write_csv(results, output)
+
+    def _split_into_chunks(self, input): ...  # ← interno
+    def _process_chunks(self, chunks):   ...  # ← interno
+    def _write_csv(self, results, output): ... # ← interno
+```
+
+Python no impide llamar a `_método` desde fuera de la clase, pero el `_` es una señal para otros programadores (y para ti mismo en el futuro): *este método no es parte de la interfaz, puede cambiar sin aviso*.
+
+**Señal de alerta al diseñar:** si tu clase tiene más de 2–3 métodos públicos, pregúntate si está haciendo demasiado. A menudo conviene dividirla en clases más pequeñas con una responsabilidad cada una.
+:::
+
 ### Arquitectura del script
 
 El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar el procesamiento de archivos grandes:
