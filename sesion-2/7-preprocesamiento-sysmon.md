@@ -307,29 +307,48 @@ El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar e
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────┐
-│                  SysmonCSVCreator                                              │
+│                        SysmonCSVCreator.run()                                  │
+│                         (interfaz pública)                                     │
 │                                                                                │
 │  Archivo JSONL                                                                 │
 │       │                                                                        │
 │       ▼                                                                        │
-│  read_jsonl_in_chunks()                                                        │
+│  process_events()  ◄─────────────────────────────────────────────────────┐    │
+│       │                                                                   │    │
+│       ▼                                                                   │    │
+│  read_jsonl_in_chunks()                                                   │    │
+│       │                                                                   │    │
+│       ├──► Chunk 1 ──┐                                                    │    │
+│       ├──► Chunk 2 ──┤  ThreadPoolExecutor + as_completed()               │    │
+│       ├──► Chunk 3 ──┤       process_chunk() por cada chunk               │    │
+│       └──► Chunk N ──┘                                                    │    │
+│                          Dentro de cada hilo:                             │    │
+│                          json.loads()                                     │    │
+│                               │                                           │    │
+│                               ▼                                           │    │
+│                          sanitize_xml()                                   │    │
+│                               │                                           │    │
+│                               ▼                                           │    │
+│                          parse_sysmon_event()                             │    │
+│                               │                                           │    │
+│                               ▼                                           │    │
+│                          _build_event_record()                            │    │
+│                               │                                           │    │
+│                  merge_chunk_stats()  (tras todos los chunks)             │    │
+│                               │                                           │    │
+│                               ▼                                           │    │
+│                          pd.DataFrame(all_records)                        │    │
+│                               │                                           │    │
+│                          _save_processing_log()  (log parcial)            │    │
+│                               └──────────────────────────────────────────┘    │
+│                                                                                │
+│       ▼                                                                        │
+│  clean_dataframe()                                                             │
 │       │                                                                        │
-│       ├──► Chunk 1 ──►  ThreadPoolExecutor ──┐                                 │
-│       ├──► Chunk 2 ──►   (process_chunk)   ──┤                                 │
-│       ├──► Chunk 3 ──►                     ──┤                                 │
-│       └──► Chunk N ──►                     ──┘                                 │
-│                          Cada hilo:                                            │
-│                          json.loads → parse_sysmon_event → _build_event_record │
-│                                              │                                 │
-│                                    merge_chunk_stats()                         │
-│                                              │                                 │
-│                                              ▼                                 │
-│                                     pd.DataFrame                               │
-│                                              │                                 │
-│                                    clean_dataframe()                           │
-│                                              │                                 │
-│                                              ▼                                 │
-│                                        CSV final                               │
+│  _save_complete_processing_log()  (log final con estadísticas)                 │
+│       │                                                                        │
+│       ▼                                                                        │
+│  df.to_csv()  →  CSV final                                                     │
 └────────────────────────────────────────────────────────────────────────────────┘
 ```
 
