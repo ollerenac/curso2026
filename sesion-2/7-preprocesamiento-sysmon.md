@@ -257,6 +257,13 @@ with ThreadPoolExecutor(max_workers=8) as executor:
     results = [f.result() for f in futures]
 ```
 
+Línea por línea:
+
+- `with ThreadPoolExecutor(max_workers=8) as executor:` — crea un grupo de 8 hilos listos para recibir trabajo. El `with` garantiza que todos los hilos terminen y se liberen al salir del bloque, aunque ocurra un error.
+- `executor.submit(process_chunk, chunk)` — encarga a un hilo disponible que ejecute `process_chunk(chunk)`. No espera a que termine: devuelve inmediatamente un `Future` — un objeto que representa *"el resultado que llegará en algún momento"*.
+- `futures = [... for chunk in chunks]` — encarga todos los chunks en rápida sucesión. Los 8 hilos los toman y procesan en paralelo mientras este bucle ya terminó.
+- `f.result()` — espera a que ese `Future` concreto termine y devuelve su resultado. Si el hilo lanzó una excepción, `result()` la relanza aquí.
+
 En lugar de procesar los chunks del archivo uno a uno, los 8 hilos los procesan simultáneamente, reduciendo el tiempo total proporcionalmente al número de workers disponibles.
 :::
 
