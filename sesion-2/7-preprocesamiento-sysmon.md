@@ -396,6 +396,53 @@ def read_jsonl_in_chunks(self, jsonl_path: str) -> List[List[str]]:
 - Al dividir en chunks, cada hilo de ejecución procesa un bloque independiente sin compartir estado.
 - El número de workers se auto-detecta con `multiprocessing.cpu_count()` o se configura manualmente en el mismo archivo YAML.
 
+:::{admonition} Lógica de read_jsonl_in_chunks paso a paso
+:class: dropdown note
+
+La función resuelve un problema concreto: un archivo JSONL de 2.1 GB no cabe cómodamente en memoria, y aunque cupiera, procesarlo en un solo hilo sería lento. La solución es leerlo línea a línea y agrupar las líneas en bloques del mismo tamaño.
+
+**¿Qué es "streaming"?**
+
+Leer en streaming significa que Python no carga el archivo entero en RAM — lee una línea, la procesa, y la descarta antes de leer la siguiente. La instrucción `for line in f` hace exactamente esto: el archivo se abre como un cursor que avanza línea por línea.
+
+Comparación:
+
+```python
+# ❌ Carga todo en memoria (363,657 líneas × ~6 KB = ~2 GB en RAM)
+lines = f.readlines()
+
+# ✓ Streaming: solo una línea en RAM en cada iteración
+for line in f:
+    ...
+```
+
+**¿Por qué agrupar en chunks?**
+
+Si entregáramos cada línea individualmente a un hilo, el overhead de crear y gestionar 363,657 tareas sería mayor que el trabajo en sí. Agrupar en bloques de 10,000 líneas produce ~36 tareas — una cantidad razonable para el `ThreadPoolExecutor`.
+
+**La lógica del acumulador:**
+
+```python
+chunks = []         # lista final de bloques
+current_chunk = []  # bloque en construcción
+
+for line in f:
+    current_chunk.append(line.strip())      # acumula líneas
+    if len(current_chunk) >= chunk_size:    # ¿bloque lleno?
+        chunks.append(current_chunk)        # guarda el bloque
+        current_chunk = []                  # empieza uno nuevo
+
+if current_chunk:                           # ¿sobran líneas?
+    chunks.append(current_chunk)            # guarda el último bloque (incompleto)
+```
+
+El último `if current_chunk` es importante: 363,657 líneas / 10,000 = 36 bloques completos + 1 bloque final de 3,657 líneas. Sin ese `if`, esas 3,657 líneas se perderían silenciosamente.
+
+**Resultado:** una lista de listas de strings, donde cada string es una línea JSON sin procesar lista para que un hilo la interprete.
+:::
+
+### Parsing de eventos Sysmon: de XML a diccionario
+
 ### Parsing de eventos Sysmon: de XML a diccionario
 
 Una vez que tenemos los chunks, cada hilo debe procesar sus líneas individualmente. Pero antes de poder extraer campos, el XML embebido puede contener caracteres inválidos (bytes corruptos de logs de Windows). Por eso el parsing se divide en dos pasos: primero **sanitizar** el XML para hacerlo parseable, y luego **extraer** los campos estructurados:
