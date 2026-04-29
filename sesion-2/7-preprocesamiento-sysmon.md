@@ -306,51 +306,49 @@ Python no impide llamar a `_método` desde fuera de la clase, pero el `_` es una
 El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar el procesamiento de archivos grandes:
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────┐
-│                        SysmonCSVCreator.run()                                  │
-│                         (interfaz pública)                                     │
-│                                                                                │
-│  Archivo JSONL                                                                 │
-│       │                                                                        │
-│       ▼                                                                        │
-│  process_events()  ◄─────────────────────────────────────────────────────┐    │
-│       │                                                                   │    │
-│       ▼                                                                   │    │
-│  read_jsonl_in_chunks()                                                   │    │
-│       │                                                                   │    │
-│       ├──► Chunk 1 ──┐                                                    │    │
-│       ├──► Chunk 2 ──┤  ThreadPoolExecutor + as_completed()               │    │
-│       ├──► Chunk 3 ──┤       process_chunk() por cada chunk               │    │
-│       └──► Chunk N ──┘                                                    │    │
-│                          Dentro de cada hilo:                             │    │
-│                          json.loads()                                     │    │
-│                               │                                           │    │
-│                               ▼                                           │    │
-│                          sanitize_xml()                                   │    │
-│                               │                                           │    │
-│                               ▼                                           │    │
-│                          parse_sysmon_event()                             │    │
-│                               │                                           │    │
-│                               ▼                                           │    │
-│                          _build_event_record()                            │    │
-│                               │                                           │    │
-│                  merge_chunk_stats()  (tras todos los chunks)             │    │
-│                               │                                           │    │
-│                               ▼                                           │    │
-│                          pd.DataFrame(all_records)                        │    │
-│                               │                                           │    │
-│                          _save_processing_log()  (log parcial)            │    │
-│                               └──────────────────────────────────────────┘    │
-│                                                                                │
-│       ▼                                                                        │
-│  clean_dataframe()                                                             │
-│       │                                                                        │
-│  _save_complete_processing_log()  (log final con estadísticas)                 │
-│       │                                                                        │
-│       ▼                                                                        │
-│  df.to_csv()  →  CSV final                                                     │
-└────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      SysmonCSVCreator.run()                                 │
+│                       (interfaz pública)                                    │
+│                                                                             │
+│  Archivo JSONL                                                              │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─── process_events() ──────────────────────────────────────────────────┐ │
+│  │         │                                                              │ │
+│  │         ▼                                                              │ │
+│  │    read_jsonl_in_chunks()                                              │ │
+│  │         │                                                              │ │
+│  │         ├──► Chunk 1 ──┐                                               │ │
+│  │         ├──► Chunk 2 ──┤  ThreadPoolExecutor + as_completed()          │ │
+│  │         └──► Chunk N ──┘  process_chunk() por cada chunk               │ │
+│  │                                                                        │ │
+│  │              Dentro de cada hilo (process_chunk):                      │ │
+│  │              json.loads() → sanitize_xml() → parse_sysmon_event()      │ │
+│  │                                                   │                    │ │
+│  │                                       _build_event_record()            │ │
+│  │                                                                        │ │
+│  │         merge_chunk_stats()  (tras completar todos los chunks)         │ │
+│  │              │                                                         │ │
+│  │              ▼                                                         │ │
+│  │         pd.DataFrame(all_records)                                      │ │
+│  │              │                                                         │ │
+│  │         _save_processing_log()  (log parcial)                          │ │
+│  │              │                                                         │ │
+│  │              ▼  devuelve df a run()                                    │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│       │                                                                     │
+│       ▼                                                                     │
+│  clean_dataframe()                                                          │
+│       │                                                                     │
+│       ▼                                                                     │
+│  _save_complete_processing_log()  (log final con estadísticas de tiempo)   │
+│       │                                                                     │
+│       ▼                                                                     │
+│  df.to_csv()  →  CSV final                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+El diagrama tiene dos niveles. El nivel exterior es `run()`, el único método público: recibe los paths de entrada y salida y orquesta todo el proceso. Dentro de él, `process_events()` forma un bloque propio — su caja interior — que se encarga de toda la lectura paralela y el parsing del XML; cuando termina, **devuelve el DataFrame a `run()`** (flecha `▼ devuelve df a run()`). A partir de ese punto, `run()` aplica la limpieza del DataFrame, guarda el log completo con estadísticas de tiempo, y finalmente escribe el CSV en disco. Los tres pasos finales (`clean_dataframe`, `_save_complete_processing_log`, `df.to_csv`) están en el nivel exterior porque pertenecen a `run()`, no a `process_events()`.
 
 ### Lectura y partición en chunks
 
