@@ -105,6 +105,33 @@ Sin embargo, esto presenta varios problemas:
 | **Campos anidados** | NetFlow tiene hasta 3 niveles de anidamiento (`destination.process.name`) |
 | **Volumen** | Archivos de cientos de miles de eventos requieren procesamiento paralelo |
 
+:::{admonition} Ejemplo: un registro real del JSONL de Sysmon
+:class: dropdown note
+
+Cada línea del archivo `.jsonl` es un documento JSON como este (simplificado). Observa cómo cada problema de la tabla aparece en el dato real:
+
+```json
+{
+  "@timestamp": "2025-03-19T06:09:05.866Z",
+  "agent":        { "...": "metadatos de Filebeat" },
+  "elastic_agent":{ "...": "metadatos de Elasticsearch" },
+  "host":         { "name": "WATERFALLS.boombox.local", "...": "..." },
+  "winlog":       { "event_id": 7, "computer_name": "WATERFALLS.boombox.local" },
+  "event": {
+    "code": "7",
+    "original": "<Event xmlns='...'><System>...<EventID>7</EventID>...</System><EventData><Data Name='UtcTime'>2025-03-19 06:09:05.109</Data><Data Name='ProcessGuid'>{3fc4fefd-5f81-67da-7700-000000004900}</Data><Data Name='ProcessId'>5864</Data><Data Name='Image'>C:\\Program Files\\Microsoft\\Exchange Server\\V15\\Bin\\Microsoft.Exchange.ServiceHost.exe</Data><Data Name='ImageLoaded'>C:\\Windows\\System32\\msvcrt.dll</Data><Data Name='Hashes'>SHA256=39095FE...</Data><Data Name='Signed'>true</Data><Data Name='User'>NT AUTHORITY\\SYSTEM</Data></EventData></Event>"
+  }
+}
+```
+
+Los problemas concretos visibles aquí:
+
+- **XML embebido**: el campo `event.original` es un string XML de ~2.000 caracteres — `pd.read_json()` lo dejará como texto plano, sin extraer ningún campo de Sysmon.
+- **Campos anidados**: los datos útiles están en `event.original`, `winlog.event_id`, `host.name` — pandas crearía columnas como `event` (un dict entero) en lugar de columnas individuales.
+- **Tipos de datos**: `ProcessGuid` incluye llaves `{...}` que deben eliminarse; los puertos en otros EventIDs llegan como `443.0` (float) en vez de `443` (int).
+- **Esquema variable**: este registro es EventID 7 (Image Load) y tiene `ImageLoaded`, `Hashes`, `Signed`. Un EventID 1 (Process Create) tendría `CommandLine`, `ParentProcessGuid`, `CurrentDirectory` en su lugar — campos completamente distintos en el mismo archivo.
+:::
+
 Por estas razones, necesitamos scripts especializados que manejen cada dominio de datos según sus particularidades.
 
 ### Pipeline de preprocesamiento
