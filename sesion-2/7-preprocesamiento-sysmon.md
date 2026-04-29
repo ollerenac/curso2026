@@ -208,6 +208,54 @@ El script debe:
 3. Mapear los campos según el esquema específico de cada EventID
 4. Construir un registro tabular plano
 
+:::{admonition} Conceptos previos: clases y paralelismo en Python
+:class: dropdown note
+
+**¿Qué es una clase?**
+
+Una clase es una plantilla que agrupa datos y funciones relacionadas bajo un mismo nombre. En lugar de tener decenas de variables sueltas y funciones independientes, una clase las organiza como una unidad coherente. Por ejemplo:
+
+```python
+class SysmonCSVCreator:
+    def __init__(self, config):
+        self.max_workers = 8        # dato: cuántos hilos usar
+        self.integer_columns = {...} # dato: qué columnas convertir a int
+
+    def process_chunk(self, chunk): # función: procesar un bloque de líneas
+        ...
+    def convert_to_csv(self, input, output): # función: orquestar todo
+        ...
+```
+
+Una vez definida la clase, crear una instancia es como construir una herramienta configurada lista para usar: `creator = SysmonCSVCreator(config)`. A partir de ahí, `creator.convert_to_csv(...)` ejecuta toda la lógica interna sin exponer su complejidad.
+
+**¿Qué contiene `SysmonCSVCreator`?**
+
+| Atributo / Método | Tipo | Propósito |
+|---|---|---|
+| `max_workers` | dato | número de hilos paralelos |
+| `integer_columns` | dato | columnas a convertir a int |
+| `guid_columns` | dato | columnas cuyos GUIDs limpiar |
+| `fields_per_eventid` | dato | esquema de campos por EventID |
+| `parse_sysmon_event()` | función | extrae campos del XML |
+| `process_chunk()` | función | procesa un bloque de líneas |
+| `convert_to_csv()` | función | orquesta lectura, procesamiento y escritura |
+
+**¿Qué es un `ThreadPoolExecutor`?**
+
+Es una herramienta de Python que gestiona un grupo de hilos (*thread pool*). Un hilo es una línea de ejecución dentro del mismo programa — varios hilos pueden trabajar en paralelo dentro del mismo proceso.
+
+`ThreadPoolExecutor` simplifica el patrón de "repartir trabajo entre hilos y recolectar resultados":
+
+```python
+with ThreadPoolExecutor(max_workers=8) as executor:
+    futures = [executor.submit(process_chunk, chunk) for chunk in chunks]
+    results = [f.result() for f in futures]
+```
+
+En lugar de procesar los chunks del archivo uno a uno, los 8 hilos los procesan simultáneamente, reduciendo el tiempo total proporcionalmente al número de workers disponibles.
+:::
+
 ### Arquitectura del script
 
 El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar el procesamiento de archivos grandes:
