@@ -64,11 +64,11 @@ La respuesta depende del **uso posterior** de los datos:
 
 El script elige la **unión de esquemas** porque el pipeline completo necesita análisis cruzado entre EventIDs.
 
-El coste de esta decisión es evidente: ~85% de las celdas del CSV resultante serán `NaN`. ¿Es esto un problema para machine learning? En la práctica, no — por tres razones:
+El coste de esta decisión es evidente: ~80% de las celdas del CSV resultante serán `NaN`. ¿Es esto un problema para machine learning? En la práctica, no — por tres razones:
 
 1. **Los NaN son deterministas, no aleatorios**: cada NaN se explica por el EventID de la fila. Filtrar `df[df.EventID == 3]` antes de analizar tráfico de red produce un subset con cero NaN en las columnas de red. La dispersión desaparece al segmentar por tipo de evento.
-2. **Los frameworks de ML modernos lo manejan nativamente**: XGBoost y LightGBM tratan NaN como una dirección de split aprendible, y las matrices dispersas (`scipy.sparse`) almacenan solo los valores no nulos — el 85% de celdas vacías no consume memoria.
-3. **Es el estándar de la industria**: los datasets de ciberseguridad de referencia (CICIDS, UNSW-NB15) y las herramientas SIEM (Splunk, Elastic) usan esquemas unificados con dispersión estructural.
+2. **Los frameworks de ML modernos lo manejan nativamente**: XGBoost y LightGBM tratan NaN como una dirección de split aprendible, y las matrices dispersas (`scipy.sparse`) almacenan solo los valores no nulos — el ~80% de celdas vacías no consume memoria.
+3. **Es el estándar de la industria**: los datasets de ciberseguridad de referencia (CICIDS, UNSW-NB15) y las herramientas SIEM (Splunk, Elastic) usan esquemas unificados con dispersión estructural (*structural sparsity*: celdas vacías que no son datos faltantes sino consecuencia predecible del diseño — cada EventID solo tiene sentido en sus propias columnas).
 
 ### ¿Por qué no usar pandas directamente?
 
