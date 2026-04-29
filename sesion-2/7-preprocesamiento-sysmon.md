@@ -316,6 +316,96 @@ El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar e
 
 El diagrama tiene dos niveles. El nivel exterior es `run()`, el único método público: recibe los paths de entrada y salida y orquesta todo el proceso. Dentro de él, `process_events()` forma un bloque propio — su caja interior — que se encarga de toda la lectura paralela y el parsing del XML; cuando termina, **devuelve el DataFrame a `run()`** (flecha `▼ devuelve df a run()`). A partir de ese punto, `run()` aplica la limpieza del DataFrame, guarda el log completo con estadísticas de tiempo, y finalmente escribe el CSV en disco. Los tres pasos finales (`clean_dataframe`, `_save_complete_processing_log`, `df.to_csv`) están en el nivel exterior porque pertenecen a `run()`, no a `process_events()`.
 
+:::{admonition} Esqueleto completo de SysmonCSVCreator
+:class: dropdown note
+
+Antes de leer cada método en detalle, aquí está el mapa completo de la clase — todos sus atributos y métodos agrupados por rol, tal como aparecen en el diagrama. Úsalo como referencia mientras recorres las subsecciones siguientes.
+
+```python
+class SysmonCSVCreator:
+
+    # ── Atributos (inicializados en __init__) ───────────────────────────────
+    chunk_size           # líneas por chunk (default: 10,000)
+    max_workers          # hilos paralelos (default: cpu_count())
+    fields_per_eventid   # esquema: EventID → lista de campos a extraer
+    integer_columns      # columnas que deben convertirse a int
+    guid_columns         # columnas cuyos GUIDs hay que limpiar de llaves
+    shared_stats         # estadísticas acumuladas de forma thread-safe
+
+    # ── Interfaz pública ────────────────────────────────────────────────────
+    def run(self, input_file, output_file):
+        # Orquesta todo: process_events → clean_dataframe → to_csv
+
+    # ── Orquestación del pipeline ───────────────────────────────────────────
+    def process_events(self, jsonl_path):
+        # Llama a read_jsonl_in_chunks, lanza ThreadPoolExecutor,
+        # recoge resultados, llama a merge_chunk_stats, crea DataFrame
+
+    # ── Lectura del archivo ─────────────────────────────────────────────────
+    def read_jsonl_in_chunks(self, jsonl_path):
+        # Streaming línea a línea → lista de bloques de 10,000 líneas
+
+    # ── Parsing XML (ejecutado dentro de cada hilo) ─────────────────────────
+    def process_chunk(self, chunk_lines, chunk_id):
+        # Itera las líneas del chunk: json.loads → parse_sysmon_event
+        #                                        → _build_event_record
+
+    def sanitize_xml(self, xml_str):
+        # Elimina caracteres no-ASCII inválidos con BeautifulSoup
+
+    def parse_sysmon_event(self, xml_str):
+        # XML → (EventID, Computer, dict de campos EventData)
+
+    def _build_event_record(self, event_id, computer, fields, chunk_stats):
+        # Aplica fields_per_eventid, safe_int_conversion, clean_guid
+        # → diccionario plano listo para el DataFrame
+
+    # ── Conversión de tipos ─────────────────────────────────────────────────
+    def safe_int_conversion(self, value):
+        # str/float → int, maneja None y NaN
+
+    def clean_guid(self, value):
+        # '{abc-123}' → 'abc-123'
+
+    # ── Estadísticas de chunks ──────────────────────────────────────────────
+    def merge_chunk_stats(self, chunk_stats_list):
+        # Agrega contadores de EventIDs y campos faltantes de todos los hilos
+
+    def _track_missing_field(self, event_id, field, chunk_stats):
+        # Registra un campo ausente en el XML de un evento
+
+    # ── Limpieza del DataFrame ──────────────────────────────────────────────
+    def clean_dataframe(self, df):
+        # Trim strings, UtcTime → timestamp epoch ms, tipos Int64/category
+
+    # ── Logging y persistencia ──────────────────────────────────────────────
+    def _save_processing_log(self, ...):
+        # Log parcial guardado dentro de process_events (sin stats de tiempo)
+
+    def _save_complete_processing_log(self, input_file, df):
+        # Log final guardado en run() con estadísticas temporales completas
+
+    def _calculate_timestamp_statistics(self, df):
+        # Calcula min/max/duración del dataset para el log final
+
+    # ── Utilidades ──────────────────────────────────────────────────────────
+    def backup_existing_file(self, output_path):
+        # Hace copia del CSV existente antes de sobreescribir
+
+    def compare_outputs(self, original_path, new_path):
+        # Compara el nuevo CSV con el backup para validación
+
+    def _extract_run_number(self, jsonl_path):
+        # Extrae el número de run del nombre del archivo (ej: "01")
+
+    def _load_config(self, config_file):
+        # Carga el YAML de configuración opcional
+
+    def _setup_logging(self):
+        # Inicializa el logger con formato y nivel
+```
+:::
+
 :::{admonition} Diseño de clases: una sola interfaz pública
 :class: dropdown note
 
@@ -440,8 +530,6 @@ El último `if current_chunk` es importante: 363,657 líneas / 10,000 = 36 bloqu
 
 **Resultado:** una lista de listas de strings, donde cada string es una línea JSON sin procesar lista para que un hilo la interprete.
 :::
-
-### Parsing de eventos Sysmon: de XML a diccionario
 
 ### Parsing de eventos Sysmon: de XML a diccionario
 
@@ -743,10 +831,13 @@ def process_events(self, jsonl_path: str) -> pd.DataFrame:
 
     self.merge_chunk_stats(chunk_stats_list)
 
-    # Guardar log estructurado JSON con estadísticas
+    # Crear DataFrame con todos los registros
+    df = pd.DataFrame(all_records)
+
+    # Guardar log parcial con estadísticas de procesamiento
     self._save_processing_log(jsonl_path, ...)
 
-    return pd.DataFrame(all_records)
+    return df
 ```
 
 El script además genera un **log de procesamiento** en formato JSON (`02_log-sysmon-jsonl-to-csv-run-XX.json`) que incluye: tiempos de ejecución, distribución de EventIDs, campos faltantes, tasa de errores, y velocidad de procesamiento.
@@ -847,23 +938,34 @@ python3 7_sysmon_csv_creator.py \
 ```
 :::
 
-**Salida del script:**
+**Salida real del script (run-01-apt-1, 16 workers):**
 ```
-╔══════════════════════════════════════════════════════════════╗
-║              Sysmon JSONL → CSV Creator v2.0                ║
-╚══════════════════════════════════════════════════════════════╝
-Processing: ds-logs-windows-sysmon-run05.jsonl
-Chunks: 42 (chunk_size=10000, workers=8)
-
-[████████████████████████████████████████] 100% - 42/42 chunks
-
-Results:
-  Total events processed: 418,234
-  Events by EventID: {1: 45231, 3: 89012, 5: 12340, 7: 98765, ...}
-  XML parse errors: 3 (0.0007%)
-  Output: dataset/run-05-apt-1/sysmon-run-05.csv (187.4 MB)
-  Processing time: 34.2s
+INFO 🚀 Starting Sysmon CSV creation process
+INFO Input: ../dataset/run-01-apt-1/ds-logs-windows-sysmon_operational-default-run-01.jsonl
+INFO Output: ../dataset/run-01-apt-1/02_sysmon-run-01.csv
+INFO 📖 Reading and chunking JSONL file...
+INFO 📦 Created 37 chunks of max size 10,000
+INFO 🚀 Processing 37 chunks with 16 threads
+INFO 📈 Progress: 4/37 chunks (10.8%)
+INFO 📈 Progress: 8/37 chunks (21.6%)
+...
+INFO 📈 Progress: 37/37 chunks (100.0%)
+INFO ✅ Multi-threaded processing complete:
+INFO    ⏱️  Processing duration: 0:09:18
+INFO    📊 Total XML events processed: 363,657
+INFO    ✅ Successfully converted to CSV rows: 363,657
+INFO    ❌ Processing errors: 0
+INFO    🚀 Processing speed: 650.7 events/second
+INFO 📈 EventID distribution:
+INFO    EventID 1:  1,023    EventID 3:  14,424   EventID 5:     900
+INFO    EventID 7: 56,875    EventID 10: 114,736  EventID 11:  6,782
+INFO    EventID 12: 109,413  EventID 13: 46,100   EventID 23: 10,126
+INFO    ... (20 EventIDs en total)
+INFO 💾 Exporting to CSV: ../dataset/run-01-apt-1/02_sysmon-run-01.csv
+INFO ✅ CSV creation completed successfully!
 ```
+
+El archivo resultante `02_sysmon-run-01.csv` ocupa **105 MB** en disco (363,657 filas × 50 columnas).
 
 
 ---
