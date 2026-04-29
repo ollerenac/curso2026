@@ -267,40 +267,6 @@ Línea por línea:
 En lugar de procesar los chunks del archivo uno a uno, los 8 hilos los procesan simultáneamente, reduciendo el tiempo total proporcionalmente al número de workers disponibles.
 :::
 
-:::{admonition} Diseño de clases: una sola interfaz pública
-:class: dropdown note
-
-`SysmonCSVCreator` tiene más de diez métodos y siete atributos, pero **solo uno es el punto de entrada real**: `convert_to_csv()`. El resto — `parse_sysmon_event()`, `process_chunk()`, `clean_guid()`, `safe_int_conversion()` — son pasos internos que la clase usa para organizarse, no métodos que el usuario de la clase necesita conocer.
-
-Piénsalo como una cafetera: tú presionas un botón (`convert_to_csv`). Internamente, la máquina calienta el agua, muele el café, aplica presión y controla el tiempo — pero esos pasos son invisibles para ti.
-
-**La pregunta que guía el diseño de cualquier clase:**
-
-> *¿Cuál es la única cosa que esta clase hace para el mundo exterior?*
-
-En este caso: *toma un archivo JSONL de Sysmon y produce un CSV*. Esa es la interfaz pública. Todo lo que soporta esa operación es un detalle interno.
-
-**La regla práctica en Python:**
-
-Los métodos internos se prefijan con `_` para señalar que son privados por convención:
-
-```python
-class SysmonCSVCreator:
-    def convert_to_csv(self, input, output):  # ← interfaz pública
-        chunks = self._split_into_chunks(input)
-        results = self._process_chunks(chunks)
-        self._write_csv(results, output)
-
-    def _split_into_chunks(self, input): ...  # ← interno
-    def _process_chunks(self, chunks):   ...  # ← interno
-    def _write_csv(self, results, output): ... # ← interno
-```
-
-Python no impide llamar a `_método` desde fuera de la clase, pero el `_` es una señal para otros programadores (y para ti mismo en el futuro): *este método no es parte de la interfaz, puede cambiar sin aviso*.
-
-**Señal de alerta al diseñar:** si tu clase tiene más de 2–3 métodos públicos, pregúntate si está haciendo demasiado. A menudo conviene dividirla en clases más pequeñas con una responsabilidad cada una.
-:::
-
 ### Arquitectura del script
 
 El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar el procesamiento de archivos grandes:
@@ -349,6 +315,43 @@ El `SysmonCSVCreator` utiliza una arquitectura **multi-hilo** para paralelizar e
 ```
 
 El diagrama tiene dos niveles. El nivel exterior es `run()`, el único método público: recibe los paths de entrada y salida y orquesta todo el proceso. Dentro de él, `process_events()` forma un bloque propio — su caja interior — que se encarga de toda la lectura paralela y el parsing del XML; cuando termina, **devuelve el DataFrame a `run()`** (flecha `▼ devuelve df a run()`). A partir de ese punto, `run()` aplica la limpieza del DataFrame, guarda el log completo con estadísticas de tiempo, y finalmente escribe el CSV en disco. Los tres pasos finales (`clean_dataframe`, `_save_complete_processing_log`, `df.to_csv`) están en el nivel exterior porque pertenecen a `run()`, no a `process_events()`.
+
+:::{admonition} Diseño de clases: una sola interfaz pública
+:class: dropdown note
+
+`SysmonCSVCreator` tiene más de quince métodos, pero **solo uno es el punto de entrada para el mundo exterior**: `run()`. El resto — `process_events()`, `read_jsonl_in_chunks()`, `parse_sysmon_event()`, `_build_event_record()`, `clean_dataframe()`, `_save_processing_log()` — son pasos internos que el diagrama acaba de mostrar. Nadie que use esta clase necesita llamarlos directamente.
+
+Piénsalo como la cafetera del diagrama: tú llamas a `run(input, output)`. Internamente, la clase lee el archivo, lo parte en chunks, lanza los hilos, parsea el XML, construye el DataFrame, lo limpia y escribe el CSV — pero esos pasos son invisibles desde fuera.
+
+**La pregunta que guía el diseño de cualquier clase:**
+
+> *¿Cuál es la única cosa que esta clase hace para el mundo exterior?*
+
+En este caso: *toma un archivo JSONL de Sysmon y produce un CSV*. Todo lo que soporta esa operación es un detalle interno.
+
+**La regla práctica en Python:**
+
+Los métodos internos se prefijan con `_` para señalar que son privados por convención:
+
+```python
+class SysmonCSVCreator:
+    def run(self, input_file, output_file):   # ← único método público
+        df = self.process_events(input_file)  # interno (sin _ por claridad semántica)
+        df = self.clean_dataframe(df)         # interno
+        self._save_complete_processing_log(input_file, df)  # ← _ indica privado
+        df.to_csv(output_file, index=False)
+
+    def process_events(self, jsonl_path): ...          # interno
+    def clean_dataframe(self, df): ...                 # interno
+    def _save_complete_processing_log(self, ...): ...  # ← _ = privado por convención
+    def _build_event_record(self, ...): ...            # ← _ = privado por convención
+    def _load_config(self, config_file): ...           # ← _ = privado por convención
+```
+
+Python no impide llamar a `_método` desde fuera, pero el `_` es una señal para otros programadores — y para ti mismo en el futuro — de que ese método es un detalle de implementación que puede cambiar sin aviso.
+
+**Señal de alerta al diseñar:** si tu clase tiene más de 2–3 métodos que el usuario externo necesita llamar, probablemente está haciendo demasiado. A menudo conviene dividirla en clases más pequeñas, cada una con una sola responsabilidad.
+:::
 
 ### Lectura y partición en chunks
 
