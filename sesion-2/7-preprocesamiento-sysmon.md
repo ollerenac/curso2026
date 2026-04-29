@@ -101,7 +101,7 @@ Sin embargo, esto presenta varios problemas:
 |----------|-------------|
 | **XML embebido** | Los eventos Sysmon contienen XML dentro del campo `event.original` — pandas no puede aplanarlo automáticamente |
 | **Esquema variable** | Cada EventID de Sysmon tiene campos diferentes (ej: EventID 1 tiene `CommandLine`, EventID 3 tiene `DestinationIp`) |
-| **Tipos de datos** | Los puertos llegan como `float` desde Elasticsearch (`443.0`), los GUIDs tienen llaves innecesarias |
+| **Tipos de datos** | En el XML todos los campos son strings; los numéricos deben convertirse a int, pero el CSV unificado los almacena como `float64` (`53.0`) por la mezcla con `NaN`. Los GUIDs incluyen llaves `{...}` que deben eliminarse |
 | **Campos anidados** | NetFlow tiene hasta 3 niveles de anidamiento (`destination.process.name`) |
 | **Volumen** | Archivos de cientos de miles de eventos requieren procesamiento paralelo |
 
@@ -130,7 +130,7 @@ Los problemas concretos visibles aquí:
 
 - **XML embebido**: `event.original` es un string XML de ~2.000 caracteres — `pd.read_json()` lo deja como texto plano sin extraer ningún campo de Sysmon. Los campos que necesitamos (`DestinationIp`, `ProcessGuid`, `UtcTime`) están enterrados dentro de ese string.
 - **Campos anidados**: `destination.port`, `source.ip`, `network.transport` son dicts anidados — pandas crearía una columna `destination` con un diccionario entero como valor, no columnas `destination_port` y `destination_ip` separadas.
-- **Tipos de datos**: `destination.port: 53` llega como `53.0` (float) desde Elasticsearch — debe convertirse a entero. `ProcessGuid` incluye llaves `{...}` que deben eliminarse.
+- **Tipos de datos**: en el XML todos los campos son strings — `'53'`, `'1980'`, `'{3fc4fefd-...}'`. El script convierte explícitamente los campos numéricos (`DestinationPort`, `ProcessId`, etc.) con `int(float(value))` → Python int. Sin embargo, al construir el DataFrame unificado, las filas de otros EventIDs tienen `None` en esas columnas, y pandas convierte automáticamente las columnas con int+None a `float64` — por eso en el CSV de salida aparece `53.0` en lugar de `53`. El paso por `float` en la conversión es defensivo: maneja los pocos casos donde Elasticsearch serializa el valor como `'53.0'` en el XML. `ProcessGuid` incluye llaves `{...}` que el script también limpia.
 - **Esquema variable**: este EventID 3 tiene `DestinationIp`, `SourceIp`, `Protocol` en su XML. Un EventID 7 (Image Load) tiene `ImageLoaded`, `Hashes`, `Signed` en su lugar — campos completamente distintos dentro del mismo archivo `.jsonl`.
 :::
 
