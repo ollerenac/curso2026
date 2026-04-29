@@ -216,14 +216,18 @@ El script debe:
 Una clase es una plantilla que agrupa datos y funciones relacionadas bajo un mismo nombre. En lugar de tener decenas de variables sueltas y funciones independientes, una clase las organiza como una unidad coherente. Por ejemplo:
 
 ```python
-class SysmonCSVCreator:
-    def __init__(self, config):
-        self.max_workers = 8        # dato: cuántos hilos usar
-        self.integer_columns = {...} # dato: qué columnas convertir a int
+class SysmonCSVCreator:          # ← nombre de la clase
+    def __init__(self, config):  # ← método especial: se ejecuta al crear una instancia
+        # Atributos: se definen con "self.<nombre> = <valor>"
+        # "self" es la referencia al objeto actual (como "este objeto")
+        self.max_workers = 8         # atributo: cuántos hilos usar
+        self.integer_columns = {...} # atributo: qué columnas convertir a int
 
-    def process_chunk(self, chunk): # función: procesar un bloque de líneas
+    # Métodos: funciones definidas con "def" dentro de la clase
+    # Siempre reciben "self" como primer argumento
+    def process_chunk(self, chunk):       # método: procesar un bloque de líneas
         ...
-    def convert_to_csv(self, input, output): # función: orquestar todo
+    def convert_to_csv(self, input, output):  # método: orquestar todo
         ...
 ```
 
