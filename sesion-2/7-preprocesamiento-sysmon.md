@@ -79,6 +79,22 @@ import pandas as pd
 df = pd.read_json("sysmon.jsonl", lines=True)
 ```
 
+:::{admonition} ¿Qué es pandas?
+:class: dropdown note
+
+**pandas** es la librería de Python más usada para trabajar con datos tabulares. Piensa en ella como Excel dentro de Python: te permite cargar una tabla de datos, filtrarla, agruparla, calcular estadísticas y transformar columnas — todo con unas pocas líneas de código.
+
+Su estructura central es el `DataFrame`: una tabla con filas y columnas donde cada columna puede tener su propio tipo de dato (números, texto, fechas, etc.). En el fragmento de arriba, `df` es un `DataFrame` que contendría todos los eventos del archivo JSONL como filas.
+
+```python
+df.shape          # → (363657, 42)  — filas × columnas
+df["EventID"].value_counts()  # cuántos eventos de cada tipo
+df[df["EventID"] == 3]        # solo conexiones de red
+```
+
+pandas es ideal para exploración y análisis, pero no está diseñado para resolver XML embebido, esquemas variables por fila ni procesamiento paralelo — por eso necesitamos el script especializado.
+:::
+
 Sin embargo, esto presenta varios problemas:
 
 | Problema | Descripción |
