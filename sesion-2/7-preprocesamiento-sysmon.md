@@ -1026,6 +1026,23 @@ El archivo resultante `02_sysmon-run-01.csv` ocupa **105 MB** en disco (363,657 
 
 ## Actividad Práctica
 
+```{admonition} Instrucciones de entrega
+:class: note
+
+**Formato**: entrega un único archivo Jupyter Notebook (`.ipynb`) que contenga los tres ejercicios en orden.
+
+**Estructura del notebook**:
+- Crea una celda Markdown con el encabezado `## Ejercicio 1`, `## Ejercicio 2`, `## Ejercicio 3` antes de cada sección.
+- Los Ejercicios 1 y 2 se responden en celdas Markdown — escribe tus respuestas en texto, no en comentarios de código.
+- El Ejercicio 3 se implementa en celdas de código Python. El notebook debe poder ejecutarse de principio a fin con **Kernel → Restart & Run All** sin errores.
+
+**Outputs obligatorios**: antes de entregar, ejecuta todas las celdas y guarda el notebook **con los outputs visibles**. El evaluador debe poder ver el resultado de `df.shape`, `df["EventID"].value_counts()` y `df.notna().mean().sort_values()` sin necesidad de volver a ejecutar el código. Un notebook sin outputs se considera no entregado.
+
+**Entorno**: ejecuta el notebook desde el directorio `sesion-2/` con el entorno virtual del curso activo (`source .venv/bin/activate`). Usa rutas relativas para acceder al JSONL: `"../dataset/run-01-apt-1/ds-logs-windows-sysmon_operational-default-run-01.jsonl"`.
+
+**Nombre del archivo**: `apellido_nombre_sesion2_ej3.ipynb` — por ejemplo, `garcia_ana_sesion2_ej3.ipynb`.
+```
+
 ### Ejercicio 1: Decisiones de Diseño del Conversor Sysmon
 
 1. **¿Por qué el Script 2 usa `ThreadPoolExecutor` en lugar de `ProcessPoolExecutor`?** Considera qué tipo de operación domina el procesamiento (I/O vs CPU) y las implicaciones del GIL de Python.
