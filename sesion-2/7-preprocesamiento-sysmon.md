@@ -875,9 +875,8 @@ def clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
     if 'UtcTime' in df.columns:
         df['UtcTime'] = pd.to_datetime(df['UtcTime'], errors='coerce')
 
-        # Ordenamiento cronológico (configurable vía YAML)
-        if enable_temporal_sorting:
-            df = df.sort_values('UtcTime', na_position='last').reset_index(drop=True)
+        # Ordenamiento cronológico — habilitado por defecto (configurable vía YAML)
+        df = df.sort_values('UtcTime', na_position='last').reset_index(drop=True)
 
         # Conversión a epoch milliseconds como entero
         df['timestamp'] = (df['UtcTime'].astype('int64') // 10**6).astype('int64')
