@@ -531,9 +531,57 @@ El último `if current_chunk` es importante: 363,657 líneas / 10,000 = 36 bloqu
 **Resultado:** una lista de listas de strings, donde cada string es una línea JSON sin procesar lista para que un hilo la interprete.
 :::
 
+### Procesamiento por hilo: process_chunk
+
+`read_jsonl_in_chunks` devuelve una lista de bloques de líneas JSON en crudo. El `ThreadPoolExecutor` entrega cada bloque a un hilo disponible; la función que cada hilo ejecuta es `process_chunk`. Es el puente entre la lectura del archivo y el parsing del XML: recibe un bloque de strings y devuelve una lista de diccionarios planos listos para el DataFrame.
+
+```python
+def process_chunk(self, chunk_lines: List[str], chunk_id: int) -> Tuple[List[Dict], Dict]:
+    records = []
+    chunk_stats = {
+        'processed': 0,
+        'errors': 0,
+        'eventid_counts': {},
+        'missing_fields_tracker': {}
+    }
+
+    for line in chunk_lines:
+        try:
+            if not line.strip():
+                continue
+
+            event = json.loads(line)              # JSON externo → dict Python
+            xml_str = event['event']['original']  # extrae el XML embebido
+
+            event_id, computer, fields = self.parse_sysmon_event(xml_str)
+
+            if not event_id or not computer:      # descarta eventos con parsing fallido
+                chunk_stats['errors'] += 1
+                continue
+
+            chunk_stats['eventid_counts'][event_id] = \
+                chunk_stats['eventid_counts'].get(event_id, 0) + 1
+
+            record = self._build_event_record(event_id, computer, fields, chunk_stats)
+            if record:
+                records.append(record)
+                chunk_stats['processed'] += 1
+
+        except Exception as e:
+            chunk_stats['errors'] += 1
+
+    return records, chunk_stats
+```
+
+**Puntos clave:**
+- **Entrada y salida**: recibe `chunk_lines` (lista de strings JSON) y devuelve `(records, chunk_stats)` — la tupla que `process_events` recolecta con `as_completed()`.
+- **Cadena de llamadas**: `json.loads()` → `event['event']['original']` → `parse_sysmon_event()` → `_build_event_record()`. Las subsecciones siguientes explican en detalle cada uno de esos pasos.
+- **`chunk_stats` local**: cada hilo mantiene sus propios contadores (`processed`, `errors`, `eventid_counts`, `missing_fields_tracker`). Al completarse todos los hilos, `merge_chunk_stats` los agrega en `shared_stats`.
+- **Aislamiento de errores**: el `try/except` por línea garantiza que un XML corrupto no aborte el chunk entero — solo incrementa `errors` y continúa con la línea siguiente.
+
 ### Parsing de eventos Sysmon: de XML a diccionario
 
-Una vez que tenemos los chunks, cada hilo debe procesar sus líneas individualmente. Pero antes de poder extraer campos, el XML embebido puede contener caracteres inválidos (bytes corruptos de logs de Windows). Por eso el parsing se divide en dos pasos: primero **sanitizar** el XML para hacerlo parseable, y luego **extraer** los campos estructurados:
+Dentro de `process_chunk`, una vez extraído `xml_str = event['event']['original']`, el primer paso es sanitizarlo: los logs de Windows pueden contener bytes corruptos o caracteres fuera del rango ASCII imprimible que rompen el parser XML. Por eso la extracción se divide en dos pasos: primero **sanitizar** el XML para hacerlo parseable, y luego **extraer** los campos estructurados:
 
 ```python
 def sanitize_xml(self, xml_str: str) -> str:
