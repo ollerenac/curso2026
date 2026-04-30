@@ -1148,11 +1148,11 @@ Con el DataFrame de Parte A (500 líneas), responde:
 2. Para cada columna, calcula el porcentaje de valores no-nulos: `df.notna().mean().sort_values()`. ¿Qué columnas tienen menos del 10% de valores presentes? ¿Por qué?
 3. Filtra solo los EventID 3 (`df[df["EventID"] == 3]`). En ese subset, ¿hay columnas con NaN? ¿Qué nos dice esto sobre la dispersión estructural?
 
-```{admonition} Pista — Parte B, pregunta 2
+:::{admonition} Pista — Parte B, pregunta 2
 :class: dropdown note
 
 Las columnas con muy pocos valores presentes son aquellas que solo aparecen en un EventID poco frecuente. Por ejemplo, `DestinationIp` solo tiene valores en EID 3 (Network Connection). Si en tus 500 líneas hay pocos eventos EID 3, esa columna tendrá ~95% de NaN — no porque los datos estén corruptos, sino por la dispersión estructural que discutimos al inicio de la sección.
-```
+:::
 
 ---
 
