@@ -763,15 +763,12 @@ def _build_event_record(self, event_id: int, computer: str,
     Construye un registro tabular a partir de los campos parseados.
 
     Returns:
-        Diccionario plano listo para insertar en DataFrame, o None
+        Diccionario plano listo para insertar en DataFrame
     """
-    schema = self.fields_per_eventid.get(event_id)
-    if schema is None:
-        return None
-
     record = {'EventID': event_id, 'Computer': computer}
 
-    for field_name in schema:
+    expected_fields = self.fields_per_eventid.get(event_id, [])
+    for field_name in expected_fields:
         # Caso especial: EventID 8 usa 'SourceProcessGuid' en el XML
         # pero la columna del CSV es 'SourceProcessGUID' (mayúsculas)
         if event_id == 8:
@@ -781,6 +778,10 @@ def _build_event_record(self, event_id: int, computer: str,
             elif field_name == 'TargetProcessGuid':
                 record['TargetProcessGUID'] = self.clean_guid(fields.get(field_name))
                 continue
+
+        # Tracking de campos ausentes en el XML
+        if field_name not in fields:
+            self._track_missing_field(event_id, field_name, chunk_stats)
 
         # Procesamiento normal con conversión de tipos
         value = fields.get(field_name)
@@ -797,7 +798,7 @@ def _build_event_record(self, event_id: int, computer: str,
 ```
 
 **Puntos clave:**
-- **Esquema unión**: El CSV final contiene la **unión** de todos los campos de los 21 EventIDs (50 columnas totales). Un evento de tipo 1 (Process Creation) tendrá valores `NaN` en los campos específicos de tipo 3 (Network Connection) y viceversa.
+- **Esquema unión**: El CSV final contiene la **unión** de todos los campos de los 21 EventIDs (50 columnas totales). Un evento de tipo 1 (Process Creation) tendrá valores `NaN` en los campos específicos de tipo 3 (Network Connection) y viceversa. Si un evento tiene un EventID no contemplado en `fields_per_eventid`, el bucle itera sobre una lista vacía y el registro queda con solo `EventID` y `Computer` — permanece en el DataFrame como fila casi vacía.
 - **Mapeo de case EID 8**: En el esquema, EventID 8 define `SourceProcessGuid` y `TargetProcessGuid` (minúscula), pero EventID 10 usa `SourceProcessGUID` y `TargetProcessGUID` (mayúscula). El script mapea ambos a la misma columna `SourceProcessGUID`/`TargetProcessGUID` para unificación.
 - **Tracking de campos faltantes**: El script registra estadísticas de campos que no se encuentran en el XML, útil para diagnosticar problemas de calidad.
 
