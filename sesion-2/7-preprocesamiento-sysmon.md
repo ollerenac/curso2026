@@ -747,7 +747,7 @@ def clean_guid(self, value) -> Optional[str]:
 ```
 
 **Puntos clave:**
-- `safe_int_conversion` pasa por `float` antes de `int` para manejar valores como `"1234.0"` que llegan desde Elasticsearch.
+- `safe_int_conversion` pasa por `float` antes de `int` para manejar valores como `"1234.0"` — algunas versiones de Sysmon o variantes del pipeline serialinan campos numéricos en el XML con decimal, y `int("1234.0")` en Python lanza `ValueError`; `int(float("1234.0"))` resuelve ambos formatos.
 - `clean_guid` elimina las llaves (`{...}`) de los GUIDs de Windows. Por ejemplo, `{3fc4fefd-de08-67da-0c00-000000004900}` se convierte en `3fc4fefd-de08-67da-0c00-000000004900`.
 
 ### Construcción de registros tabulares
