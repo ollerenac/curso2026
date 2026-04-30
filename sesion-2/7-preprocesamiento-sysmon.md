@@ -814,7 +814,12 @@ def process_events(self, jsonl_path: str) -> pd.DataFrame:
     Returns:
         DataFrame con todos los eventos procesados
     """
+    start_time = datetime.now()
     chunks = self.read_jsonl_in_chunks(jsonl_path)
+
+    if not chunks:
+        return pd.DataFrame()
+
     all_records = []
     chunk_stats_list = []
 
@@ -835,8 +840,9 @@ def process_events(self, jsonl_path: str) -> pd.DataFrame:
     # Crear DataFrame con todos los registros
     df = pd.DataFrame(all_records)
 
-    # Guardar log parcial con estadísticas de procesamiento
-    self._save_processing_log(jsonl_path, ...)
+    # Guardar log con métricas de tiempo y rendimiento
+    end_time = datetime.now()
+    self._save_processing_log(jsonl_path, start_time, end_time, ...)
 
     return df
 ```
@@ -845,7 +851,7 @@ El script además genera un **log de procesamiento** en formato JSON (`02_log-sy
 
 **Puntos clave:**
 - Se utiliza `ThreadPoolExecutor` en lugar de `ProcessPoolExecutor` porque la tarea principal es I/O-bound (lectura de archivo) con algo de CPU (parsing XML). Los hilos son suficientes para este caso de uso.
-- `as_completed()` procesa los resultados en orden de finalización, no de envío, lo que permite una barra de progreso más fluida.
+- `as_completed()` procesa los resultados en orden de finalización, no de envío — cada vez que llega un `Future`, el script registra el porcentaje completado (`"📈 Progress: 4/37 chunks (10.8%)"`). Si esperásemos a que todos terminen antes de procesar, no habría forma de informar el avance parcial.
 - Las estadísticas de cada chunk se agregan de forma thread-safe usando `threading.Lock`.
 - La función `merge_chunk_stats` combina contadores de EventIDs y campos faltantes de todos los hilos.
 
