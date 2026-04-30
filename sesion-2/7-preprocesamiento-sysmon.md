@@ -1044,6 +1044,116 @@ Usando la tabla de EventIDs de Sysmon presentada en esta sección, mapea los sig
 | Un proceso accede a la memoria de LSASS | ? |
 | El atacante borra archivos para cubrir sus huellas | ? |
 
+### Ejercicio 3: Implementar un mini-conversor secuencial
+
+El objetivo es reproducir la cadena de procesamiento del script — sin threading — para entender qué hace cada pieza antes de que el `ThreadPoolExecutor` la ejecute en paralelo.
+
+**Parte A — Implementar `simple_convert`**
+
+Copia el siguiente esqueleto en un notebook o script y completa las partes marcadas con `# TODO`:
+
+```python
+import json
+import pandas as pd
+from bs4 import BeautifulSoup
+import xml.etree.ElementTree as ET
+from typing import Optional, Dict, Tuple
+
+# --- Utilidades dadas (no modificar) ---
+
+FIELDS_PER_EVENTID = {
+    1:  ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'CommandLine',
+         'CurrentDirectory', 'User', 'Hashes', 'ParentProcessGuid',
+         'ParentProcessId', 'ParentImage', 'ParentCommandLine'],
+    3:  ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'User', 'Protocol',
+         'SourceIp', 'SourcePort', 'DestinationIp', 'DestinationPort'],
+    11: ['UtcTime', 'ProcessGuid', 'ProcessId', 'Image', 'TargetFilename',
+         'CreationUtcTime', 'User'],
+    23: ['UtcTime', 'ProcessGuid', 'ProcessId', 'User', 'Image',
+         'TargetFilename', 'Hashes'],
+}
+
+INTEGER_COLUMNS = {'ProcessId', 'SourcePort', 'DestinationPort'}
+
+def safe_int_conversion(value) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(float(str(value).strip()))
+    except (ValueError, TypeError):
+        return None
+
+def sanitize_xml(xml_str: str) -> str:
+    cleaned = ''.join(c for c in xml_str if 31 < ord(c) < 127 or c in '\t\n\r')
+    return BeautifulSoup(cleaned, "xml").prettify()
+
+def parse_sysmon_event(xml_str: str) -> Tuple[Optional[int], Optional[str], Dict]:
+    try:
+        clean_xml = sanitize_xml(xml_str)
+        ns = {'ns': 'http://schemas.microsoft.com/win/2004/08/events/event'}
+        root = ET.fromstring(clean_xml)
+        system = root.find('ns:System', ns)
+        if not system:
+            return None, None, {}
+        eid_elem = system.find('ns:EventID', ns)
+        comp_elem = system.find('ns:Computer', ns)
+        event_id = int(eid_elem.text) if eid_elem is not None else None
+        computer = comp_elem.text.lower() if comp_elem is not None else None
+        event_data = root.find('ns:EventData', ns)
+        fields = {}
+        if event_data:
+            for data in event_data.findall('ns:Data', ns):
+                fields[data.get('Name')] = data.text if data.text else None
+        return event_id, computer, fields
+    except Exception:
+        return None, None, {}
+
+# --- Tu implementación ---
+
+def build_event_record(event_id: int, computer: str, fields: Dict) -> Optional[Dict]:
+    """
+    Construye un diccionario plano para un evento Sysmon.
+    Usa FIELDS_PER_EVENTID para saber qué columnas extraer.
+    Aplica safe_int_conversion a las columnas en INTEGER_COLUMNS.
+    """
+    # TODO: implementar
+    pass
+
+def simple_convert(jsonl_path: str, max_lines: int = 500) -> pd.DataFrame:
+    """
+    Lee las primeras max_lines líneas del JSONL y devuelve un DataFrame.
+    Para cada línea: json.loads → event['event']['original']
+                     → parse_sysmon_event → build_event_record.
+    Descarta líneas donde event_id o computer sean None.
+    """
+    records = []
+    # TODO: implementar
+    return pd.DataFrame(records)
+```
+
+Prueba con las primeras 500 líneas del JSONL de run-01:
+
+```python
+JSONL = "../dataset/run-01-apt-1/ds-logs-windows-sysmon_operational-default-run-01.jsonl"
+df = simple_convert(JSONL, max_lines=500)
+print(df.shape)
+print(df["EventID"].value_counts())
+```
+
+**Parte B — Inspección del DataFrame resultante**
+
+Con el DataFrame de Parte A (500 líneas), responde:
+
+1. ¿Cuántas columnas tiene? ¿Coincide con el número esperado dado `FIELDS_PER_EVENTID`?
+2. Para cada columna, calcula el porcentaje de valores no-nulos: `df.notna().mean().sort_values()`. ¿Qué columnas tienen menos del 10% de valores presentes? ¿Por qué?
+3. Filtra solo los EventID 3 (`df[df["EventID"] == 3]`). En ese subset, ¿hay columnas con NaN? ¿Qué nos dice esto sobre la dispersión estructural?
+
+```{admonition} Pista — Parte B, pregunta 2
+:class: dropdown note
+
+Las columnas con muy pocos valores presentes son aquellas que solo aparecen en un EventID poco frecuente. Por ejemplo, `DestinationIp` solo tiene valores en EID 3 (Network Connection). Si en tus 500 líneas hay pocos eventos EID 3, esa columna tendrá ~95% de NaN — no porque los datos estén corruptos, sino por la dispersión estructural que discutimos al inicio de la sección.
+```
+
 ---
 
 ## Conclusiones
