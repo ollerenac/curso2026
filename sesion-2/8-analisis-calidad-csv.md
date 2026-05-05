@@ -156,6 +156,8 @@ Hosts únicos:       4
 | 14 | TargetProcessGUID | 29 | OriginalFileName | 44 | Hash |
 | 15 | TargetProcessId | 30 | Device | 45 | timestamp |
 
+Para una descripción detallada de qué significa cada columna y a qué EventID pertenece, consulta el [Apéndice: Event Data Collection](../appendices/event-data-collection.md#sysmon-events-and-fields-per-event).
+
 **Distribución de tipos de datos:**
 
 | Tipo | Cantidad | Uso |
