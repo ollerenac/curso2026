@@ -375,21 +375,41 @@ El notebook evalúa los 4 pares: para cada uno filtra las filas donde ambas colu
 
 ### 5b. GUID centinela: procesos no identificables
 
-El análisis de la tabla anterior revela 36 registros (0.01% del total) donde `ProcessGuid` contiene el valor centinela `00000000-0000-0000-0000-000000000000` — indicando que Sysmon no pudo asociar el evento a un proceso concreto en el momento de la captura.
+La investigación se extiende a los cuatro pares GUID/PID del schema, verificando en cada uno si aparece el valor centinela `00000000-0000-0000-0000-000000000000` y si algún GUID real mapea a más de un PID.
 
-Aunque 0.01% parece insignificante, el contexto de seguridad cambia el cálculo. El dataset tiene un desbalance severo: los 4 EventIDs dominantes (10, 12, 7, 13) concentran el 89.95% de los registros y corresponden a actividad de fondo benigna. Los EventIDs de alto valor para detección de amenazas — donde se espera encontrar las trazas del APT — representan menos del 9% del total. Dentro de esa fracción pequeña, cualquier registro con GUID erróneo rompe la cadena causal: un evento de red sin proceso identificable no puede correlacionarse con el proceso que lo originó, lo que lo convierte en un enlace roto en el grafo de dependencias. No se puede entregar al bloque de machine learning un dataset con estas inconsistencias sin corregirlas primero.
+**Resultados en run-01 por par GUID/PID:**
 
-**EventIDs afectados (run-01):**
+| Par | Centinela | Filas | PIDs distintos | EventIDs afectados |
+|-----|-----------|-------|----------------|--------------------|
+| `ProcessGuid` / `ProcessId` | SÍ | 36 | 14 | 3, 7, 13 |
+| `ParentProcessGuid` / `ParentProcessId` | SÍ | 500 | 22 | solo 1 |
+| `SourceProcessGUID` / `SourceProcessId` | no | 0 | — | — |
+| `TargetProcessGUID` / `TargetProcessId` | SÍ | 4 | 2 | solo 10 |
 
-| EventID | Descripción | Filas con GUID nulo |
-|---------|-------------|---------------------|
-| 3 | Network Connection | 8 |
-| 7 | Image Load | 27 |
-| 13 | Registry Value Set | 1 |
+**`ProcessGuid`** (EIDs 3, 7, 13): Sysmon no pudo atribuir 36 eventos a ningún proceso. Son 36 eslabones rotos en el grafo de dependencias — cada uno es un evento de red, carga de imagen o escritura en registro sin origen identificable.
 
-**Verificación cross-run**: en los 38 APT runs con CSV procesado, el GUID nulo aparece en el 100% de ellos. EID 3 es el único EventID presente en todos los runs; EID 5, 7, 9, 12 y 13 aparecen de forma intermitente según la intensidad de actividad del run. Ningún GUID real (no centinela) presenta esta anomalía en ningún run.
+**`ParentProcessGuid`** (solo EID 1): es el par más afectado en número de filas. Solo aparece en eventos de creación de proceso, donde registra quién creó el hijo. Que el centinela aparezca 500 veces significa que 500 procesos nacieron con un padre que Sysmon no pudo identificar — su cadena causal está rota desde el primer eslabón. Esto tiene una consecuencia directa en el análisis de 5c, examinada más adelante.
 
-**Acción requerida**: estos registros deben marcarse o eliminarse antes del entrenamiento de modelos. Un evento de red sin `ProcessGuid` válido no puede participar en la construcción del árbol de procesos ni en la correlación Sysmon–NetFlow.
+**`SourceProcessGUID`** (EIDs 8 y 10): completamente limpio. El proceso que *inicia* un acceso a otro proceso (inyección de hilo, lectura de memoria) siempre es identificable para Sysmon — es el proceso que genera el evento. Que Source sea siempre conocido refleja que Sysmon captura el evento desde la perspectiva del actor.
+
+**`TargetProcessGUID`** (solo EID 10): el proceso *al que se accede* puede ser desconocido. Solo 4 filas en run-01, pero el patrón es estructural: Source siempre limpio, Target ocasionalmente contaminado.
+
+**GUIDs reales con múltiples PIDs**: cero en todos los pares. La anomalía de múltiples PIDs por GUID existe únicamente en el centinela, que no es un identificador real sino un placeholder de "desconocido".
+
+Aunque las proporciones parecen pequeñas (0.14% del total si se suman los cuatro pares), el contexto de seguridad cambia el cálculo. El dataset tiene un desbalance severo: los 4 EventIDs dominantes (10, 12, 7, 13) concentran el 89.95% de los registros y corresponden a actividad de fondo benigna. Los EventIDs de alto valor para detección de amenazas representan menos del 9% del total. Dentro de esa fracción pequeña, cualquier registro con GUID centinela rompe la cadena causal: no puede correlacionarse con el proceso que lo originó, ni enlazarse con eventos anteriores o posteriores. No se puede entregar al bloque de machine learning un dataset con estas inconsistencias sin corregirlas primero.
+
+**Verificación cross-run** (38 APT runs):
+
+| Par | Runs afectados | Filas por run (rango) |
+|-----|---------------|-----------------------|
+| `ProcessGuid` | 38/38 (100%) | 12–439 |
+| `ParentProcessGuid` | 24/38 (63%) | 2–500 |
+| `TargetProcessGUID` | 22/38 (58%) | 4–71 |
+| `SourceProcessGUID` | 8/38 (21%) | 2–5 |
+
+`ProcessGuid` es el único par universalmente contaminado — aparece en todos los runs sin excepción. Los otros tres son intermitentes: `TargetProcessGUID` afecta a más de la mitad de los runs pero con volúmenes bajos; `SourceProcessGUID` es el más excepcional, aparece solo en los runs de mayor actividad con 2–5 filas. En todos los casos, `real_multi = 0` — ningún GUID real presenta la anomalía en ningún run ni en ningún par.
+
+**Acción requerida**: los registros con GUID centinela en cualquiera de los cuatro pares deben marcarse o eliminarse antes del entrenamiento de modelos. Un evento sin GUID válido en su par de referencia no puede participar en la construcción del árbol de procesos ni en la correlación Sysmon–NetFlow.
 
 ### 5c. Análisis de creación de procesos (EventID 1)
 
@@ -399,9 +419,11 @@ EventID 1 (Process Create) es el evento clave para reconstruir el árbol de proc
 
 ```
 Eventos de creación de procesos:    1,023
-Con relación padre-hijo válida:     1,023 (100%)
+Con relación padre-hijo válida:     1,023 (100%)  ⚠️ ver nota
 Procesos huérfanos (sin padre):     0
 ```
+
+> **Nota**: la verificación usa `.notna()` sobre `ParentProcessGuid`, que no distingue el GUID centinela `00000000-...` de un GUID real — ambos son strings no nulos. De los 1,023 registros que pasan el filtro, **500 tienen el GUID centinela como padre** (padre no identificable por Sysmon). Solo **523 tienen un `ParentProcessGuid` real y trazable**. Este detalle se examina en la sección 5b.
 
 **Estadísticas de procesos padre:**
 
@@ -424,7 +446,7 @@ Procesos huérfanos (sin padre):     0
 
 **Hallazgos de seguridad:**
 
-- **"Parent not found in dataset"** significa que el proceso padre fue creado *antes* del inicio de la ventana de captura (05:00 UTC). Su GUID existe en los registros EID 1 de sus hijos, pero no hay un evento EID 1 propio en el dataset. El padre con 500 hijos es probablemente `svchost.exe` o `services.exe`.
+- **"Parent not found in dataset"** significa que el proceso padre fue creado *antes* del inicio de la ventana de captura (05:00 UTC). Su GUID existe en los registros EID 1 de sus hijos, pero no hay un evento EID 1 propio en el dataset — son GUIDs reales, solo ausentes del CSV. Esto es distinto del GUID centinela: aquí el padre tiene un GUID conocido pero no capturado; en el centinela, el padre es directamente no identificable. El padre con 500 hijos es probablemente `svchost.exe` o `services.exe`.
 - **`SystemFailureReporter.exe`** en `C:\Users\Public\` es altamente sospechoso: un ejecutable con nombre engañoso ubicado en una carpeta pública (accesible por cualquier usuario). Con 31 procesos hijos, es consistente con un implante de la simulación APT.
 - **Chrome con 19 hijos** es comportamiento normal — cada pestaña y extensión genera procesos hijos.
 
