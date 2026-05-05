@@ -259,23 +259,21 @@ La siguiente figura muestra la distribución completa de los 20 EventIDs en esca
 
 ![Distribución de EventIDs de Sysmon — escala lineal y logarítmica](/images/sysmon-eventid-distribution.png)
 
-**Interpretación (escala lineal):** La distribución está extremadamente sesgada — los EventIDs 10 y 12 dominan visualmente el gráfico con barras que alcanzan ~115K y ~110K respectivamente, mientras que los restantes 18 tipos de evento quedan comprimidos en la base. El aspecto más revelador es el vasto espacio vacío entre el rango estándar (EventIDs 1-25, agrupados a la izquierda) y el EventID 255, aislado en el extremo derecho del eje X — esta separación visual confirma inmediatamente que 255 es un valor anómalo fuera del rango documentado de Sysmon.
+**Escala lineal:** Los EventIDs 10 y 12 dominan visualmente (~115K y ~110K), comprimiendo todos los demás en la base. La separación visual entre el rango estándar (1-25) y el EventID 255 confirma inmediatamente que 255 es un valor anómalo.
 
-**Interpretación (escala logarítmica):** Al aplicar escala logarítmica, los eventos raros se hacen visibles. Se distinguen claramente 3 órdenes de magnitud: eventos frecuentes (>10K: EIDs 10, 12, 7, 13, 3, 23), eventos moderados (100-10K: EIDs 11, 18, 9, 1, 5, 17, 2), y eventos raros (<100: EIDs 24, 6, 15, 8, 25, 4, 255). Esta escala es esencial para no pasar por alto eventos de baja frecuencia que pueden tener alto valor para la detección de amenazas.
+**Escala logarítmica:** Hace visibles los eventos raros que la escala lineal aplana. Tres órdenes de magnitud claramente distinguibles: frecuentes (>10K), moderados (100-10K), y raros (<100). Esta escala importa porque **EID 8 (Create Remote Thread) tiene solo 6 registros** — en escala lineal es invisible, pero es uno de los indicadores más directos de inyección de código. La diferencia de ~4 órdenes de magnitud entre EID 10 (114K) y EID 8 (6) es también el problema de desbalance de clases que cualquier modelo ML tendrá que resolver: con 6 ejemplos positivos, un clasificador no aprenderá a detectar inyección de código.
 
-Para examinar el rango estándar de Sysmon sin la distorsión visual del EventID 255, se repite la visualización excluyendo EventIDs > 30:
+Para examinar el rango estándar sin la distorsión del EventID 255, se repite la visualización excluyendo EventIDs > 30:
 
 ![Distribución de EventIDs de Sysmon — rango estándar (1-25), escala lineal y logarítmica](/images/sysmon-eventid-distribution-zoomed.png)
 
-**Interpretación (vista ampliada):** Sin el outlier, las barras individuales se distinguen con claridad. En escala lineal, los 4 EventIDs dominantes (10, 12, 7, 13) acaparan el gráfico, pero ahora también son visibles EID 3 (~14K), EID 23 (~10K) y EID 11 (~7K) como barras más pequeñas. En escala logarítmica, se revela un patrón de "escalera" descendente desde ~10^5 hasta 10^0, donde los 20 EventIDs son claramente distinguibles — incluyendo los 6 eventos de EID 8 (Create Remote Thread) y el único evento de EID 4 (Sysmon State Change). Los huecos en el eje X (EventIDs 14, 16, 19-22) corresponden a tipos de evento de Sysmon que no se registraron durante esta captura — esto es normal, ya que no todas las capacidades de monitorización de Sysmon generan actividad en cada sesión.
+Los huecos en el eje X (EventIDs 14, 16, 19-22) son EventIDs definidos en Sysmon que no generaron actividad en esta captura — comportamiento normal, no un problema de calidad.
 
 **Observaciones:**
 
-- Los **4 EventIDs dominantes** (10, 12, 7, 13) concentran el 89.96% del dataset — actividad de fondo típica de servidores Windows (acceso entre procesos, operaciones de registro, carga de librerías).
-- **EventID 255** es un evento no estándar de Sysmon con un solo registro. Este valor no está documentado en la especificación oficial de Sysmon y merece investigación — podría ser un error de parsing, un evento de error de Sysmon, o un artefacto del preprocesamiento.
-- Comparando con el análisis de consistencia (notebook 2b, 200K muestras), los porcentajes relativos se mantienen consistentes, confirmando que el muestreo del 55% fue representativo.
-- Los eventos de alto valor para detección de amenazas (**EID 1** Process Create, **EID 3** Network Connection, **EID 8** Create Remote Thread) representan solo el 4.25% del total, pero contienen la información más relevante para análisis de cadenas causales.
-- La escala logarítmica es imprescindible para el análisis exploratorio de datos de telemetría: la distribución de EventIDs sigue un patrón de ley de potencias donde unos pocos tipos dominan y la mayoría son raros pero informativos.
+- Los **4 EventIDs dominantes** (10, 12, 7, 13) concentran el 89.96% del dataset — actividad de fondo típica de Windows (acceso entre procesos, operaciones de registro, carga de librerías).
+- **EventID 255** (1 registro) no está documentado en la especificación oficial de Sysmon. Se investiga en el Paso 8.
+- Los eventos de alto valor para detección de amenazas (**EID 1** Process Create, **EID 3** Network Connection, **EID 8** Create Remote Thread) representan solo el 4.25% del total — el signal está enterrado en el noise.
 
 ## Paso 4: Análisis temporal
 
