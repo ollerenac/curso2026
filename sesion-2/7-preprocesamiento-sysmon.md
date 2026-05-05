@@ -1056,7 +1056,7 @@ Usando la tabla de EventIDs de Sysmon presentada en esta sección, mapea los sig
 | Escenario de ataque | EventID esperado |
 |---------------------|-----------------|
 | El atacante ejecuta `mimikatz.exe` para extraer credenciales | ? |
-| Se establece un túnel DNS hacia un servidor C2 | ? |
+| Se establece una conexión TCP a un servidor de control remoto (C2) | ? |
 | Se descarga un payload malicioso al disco | ? |
 | Un proceso accede a la memoria de LSASS | ? |
 | El atacante borra archivos para cubrir sus huellas | ? |
@@ -1132,6 +1132,7 @@ def build_event_record(event_id: int, computer: str, fields: Dict) -> Optional[D
     Construye un diccionario plano para un evento Sysmon.
     Usa FIELDS_PER_EVENTID para saber qué columnas extraer.
     Aplica safe_int_conversion a las columnas en INTEGER_COLUMNS.
+    Si event_id no está en FIELDS_PER_EVENTID, devuelve None.
     """
     # TODO: implementar
     pass
@@ -1142,6 +1143,7 @@ def simple_convert(jsonl_path: str, max_lines: int = 500) -> pd.DataFrame:
     Para cada línea: json.loads → event['event']['original']
                      → parse_sysmon_event → build_event_record.
     Descarta líneas donde event_id o computer sean None.
+    Descarta también las líneas donde build_event_record devuelve None.
     """
     records = []
     # TODO: implementar
@@ -1161,7 +1163,7 @@ print(df["EventID"].value_counts())
 
 Con el DataFrame de Parte A (500 líneas), responde:
 
-1. ¿Cuántas columnas tiene? ¿Coincide con el número esperado dado `FIELDS_PER_EVENTID`?
+1. ¿Cuántas filas tiene el DataFrame? ¿Coincide con las 500 líneas leídas? Si hay menos, ¿por qué? ¿Cuántas columnas tiene? ¿Coincide con el número esperado dado `FIELDS_PER_EVENTID`?
 2. Para cada columna, calcula el porcentaje de valores no-nulos: `df.notna().mean().sort_values()`. ¿Qué columnas tienen menos del 10% de valores presentes? ¿Por qué?
 3. Filtra solo los EventID 3 (`df[df["EventID"] == 3]`). En ese subset, ¿hay columnas con NaN? ¿Qué nos dice esto sobre la dispersión estructural?
 
