@@ -88,8 +88,14 @@ dtype_spec = {
     'ProcessId': 'Int64',          # Nullable integer (permite NaN)
     'SourcePort': 'Int64',
     'DestinationPort': 'Int64',
+    'SourceProcessId': 'Int64',
+    'ParentProcessId': 'Int64',
+    'SourceThreadId': 'Int64',
+    'TargetProcessId': 'Int64',
     'ProcessGuid': 'string',       # GUIDs como string
     'SourceProcessGUID': 'string',
+    'TargetProcessGUID': 'string',
+    'ParentProcessGuid': 'string',
     'Computer': 'category',        # Categorías para eficiencia
     'Protocol': 'category',
     'EventType': 'category'
@@ -112,7 +118,7 @@ Uso de memoria:       525.58 MB
 
 | Tipo | Columnas | Ejemplo |
 |------|----------|---------|
-| `Int64` (nullable) | ProcessId, SourcePort, DestinationPort, SourceProcessId, ParentProcessId | `1212` |
+| `Int64` (nullable) | ProcessId, SourcePort, DestinationPort, SourceProcessId, ParentProcessId, SourceThreadId, TargetProcessId | `1212` |
 | `string` | ProcessGuid, SourceProcessGUID, TargetProcessGUID, ParentProcessGuid | `44d66c27-4e6d-67da-1c00-000000007000` |
 | `category` | Computer, Protocol, EventType | `WATERFALLS.boombox.local` |
 
