@@ -367,8 +367,7 @@ El notebook evalúa los 4 pares: para cada uno filtra las filas donde ambas colu
 **Interpretación:**
 
 - **PID reuse confirmado** en 3 de 4 pares (ratio ≥ 1.10). El par ProcessGuid/ProcessId muestra el ratio más alto (1.33): cada PID está asociado en promedio a 1.33 instancias de proceso distintas, lo que refleja tanto reasignación temporal dentro de una misma máquina como la coexistencia del mismo PID en los 4 hosts del dataset.
-- **GUIDs son el identificador confiable**: los 1,632 GUIDs reales identifican cada uno exactamente una instancia de proceso. Los 13 pares extra (1,646 − 1,633) provienen del GUID nulo `00000000-0000-0000-0000-000000000000` — el valor centinela que Sysmon asigna cuando no puede identificar el proceso propietario de un evento. Verificado en los 38 APT runs disponibles: en todos ellos es el único GUID con múltiples PIDs; ningún GUID real presenta esta anomalía.
-- **GUID nulo**: aparece en los EventIDs 3, 5, 7, 9, 12 y 13 — siendo EID 3 (Network Connection) el único presente en el 100% de los runs. Se examina en detalle en el análisis siguiente.
+- **GUIDs son el identificador confiable**: los 1,632 GUIDs reales identifican cada uno exactamente una instancia de proceso — la excepción es el GUID centinela `00000000-0000-0000-0000-000000000000`, examinado en detalle en la sección siguiente.
 - **ParentProcess** solo tiene 1,023 pares no nulos — exclusivamente de EventID 1 (Process Create), el único tipo de evento que registra información del proceso padre.
 - **Source/Target** tienen 114,742 pares no nulos — de EventIDs 8 (Create Remote Thread) y 10 (Process Access), que modelan interacciones entre dos procesos.
 
