@@ -74,14 +74,14 @@ pip install -r requirements.txt
 
 ## Paso 1: Carga del CSV preprocesado
 
-El CSV generado en la sección de preprocesamiento se carga con tipos de datos explícitos para garantizar un manejo correcto de valores nulos y eficiencia en memoria:
+El CSV generado en la sección anterior no se puede cargar con un `pd.read_csv()` sin configuración: su diseño de **esquema unión** — una sola tabla para los 20 tipos de EventID — produce columnas con mezcla de enteros y `NaN` que pandas malinterpreta por defecto. La carga correcta requiere dos parámetros explícitos:
 
 ```python
 import pandas as pd
 import os
 
-TARGET_PATH = "/path/to/dataset/run-01-apt-1/"
-TARGET_FILE = "sysmon-run-01-corrected.csv"
+TARGET_PATH = "../dataset/run-01-apt-1/"
+TARGET_FILE = "02_sysmon-run-01.csv"
 TARGET_FILEPATH = os.path.join(TARGET_PATH, TARGET_FILE)
 
 dtype_spec = {
@@ -104,7 +104,9 @@ Columnas:             45
 Uso de memoria:       525.58 MB
 ```
 
-**¿Por qué especificar tipos de datos?** Pandas por defecto convierte columnas con valores faltantes a `float64`, lo que distorsiona PIDs y puertos (e.g., `648.0` en lugar de `648`). Usar `Int64` (nullable integer) preserva los valores enteros mientras permite `NA`. Las columnas categóricas (`Computer`, `Protocol`) reducen el uso de memoria significativamente.
+**¿Por qué `low_memory=False`?** Por defecto, pandas lee el CSV en bloques (*chunks*) para inferir el tipo de cada columna. En un CSV de esquema unión, una misma columna puede tener valores enteros en algunas filas y `NaN` en otras — dependiendo de qué bloque se lea primero, pandas puede inferir tipos distintos para la misma columna y generar errores silenciosos o warnings. `low_memory=False` fuerza la lectura de cada columna completa antes de inferir su tipo, garantizando consistencia. En un CSV de 363K filas con 45 columnas heterogéneas, esto es imprescindible.
+
+**¿Por qué `dtype=dtype_spec`?** Incluso con `low_memory=False`, pandas aplica sus propias reglas de conversión por defecto: cualquier columna entera que contenga al menos un `NaN` se convierte automáticamente a `float64` — porque `NaN` es un concepto del tipo float en NumPy. En nuestro CSV esto afecta directamente a `ProcessId`, `SourcePort` y `DestinationPort`: son enteros, pero el esquema unión los deja vacíos en el 31–96% de las filas (los EventIDs que no usan esas columnas). Sin `dtype_spec`, un PID de `1212` aparecería en el DataFrame como `1212.0`. El tipo `Int64` (con mayúscula) es el entero *nullable* de pandas: acepta `NA` sin convertirse a float.
 
 **Verificación de tipos:**
 
@@ -114,7 +116,7 @@ Uso de memoria:       525.58 MB
 | `string` | ProcessGuid, SourceProcessGUID, TargetProcessGUID, ParentProcessGuid | `44d66c27-4e6d-67da-1c00-000000007000` |
 | `category` | Computer, Protocol, EventType | `WATERFALLS.boombox.local` |
 
-Nota: los GUIDs en este dataset **no tienen llaves** (`{...}`), a diferencia del formato estándar Windows. Esto es importante para validaciones posteriores.
+Nota: los GUIDs en este dataset **no tienen llaves** (`{...}`), a diferencia del formato estándar Windows. Esto es consecuencia de la limpieza aplicada por `7_sysmon_csv_creator.py` y es importante para las validaciones del Paso 8.
 
 ## Paso 2: Inspección básica del dataset
 
