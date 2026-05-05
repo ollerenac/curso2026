@@ -182,9 +182,8 @@ Cuando correlacionemos Sysmon con NetFlow por `timestamp` (y posiblemente por IP
 
 **Observaciones iniciales:**
 
-- **20 EventIDs** en el CSV completo vs 19 en el muestreo de 200K del análisis de consistencia — el EventID adicional probablemente tiene muy pocos registros y no fue capturado en la muestra.
-- **Rango de EventID hasta 255** es inesperado para Sysmon (que normalmente usa 1-25). Esto sugiere un EventID no estándar que merece investigación.
-- Los nombres de host aparecen en **minúsculas** (`waterfalls.boombox.local`) a diferencia del JSONL crudo (`WATERFALLS.boombox.local`) — una normalización aplicada durante el preprocesamiento.
+- **20 EventIDs únicos** en el dataset. El esquema de `7_sysmon_csv_creator.py` define 21 tipos en `FIELDS_PER_EVENTID`, pero los EventIDs 14 y 16 no tienen ningún registro en esta captura — son tipos de evento válidos de Sysmon que simplemente no se activaron durante el escenario APT de run-01.
+- **Rango de EventID hasta 255** es inesperado para Sysmon (que normalmente usa 1-25). Con solo 1 registro, probablemente es un error interno de Sysmon al generar el evento. Se investiga en el Paso 8.
 
 **Naturaleza dispersa del CSV unificado:**
 
@@ -196,7 +195,7 @@ Row 0: EventID=3, Computer=diskjockey.boombox.local
   ❌ ImageLoaded=NaN, CommandLine=NaN, TargetObject=NaN, PipeName=NaN ...
 ```
 
-Esto es consecuencia del diseño "una tabla para todos los EventIDs": cada fila solo tiene valores en las columnas relevantes para su tipo de evento. Las 45 columnas representan la unión de los campos de los 19+ EventIDs, pero cada registro individual solo usa entre 4 y 23 de ellas.
+Esto es consecuencia del diseño "una tabla para todos los EventIDs": cada fila solo tiene valores en las columnas relevantes para su tipo de evento. Las 45 columnas representan la unión de los campos de los 21 EventIDs definidos en el esquema, pero cada registro individual solo usa entre 4 y 23 de ellas.
 
 El análisis detallado de tipos y nulos por columna confirma y cuantifica la dispersión:
 
