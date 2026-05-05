@@ -122,7 +122,7 @@ Uso de memoria:       525.58 MB
 | `string` | ProcessGuid, SourceProcessGUID, TargetProcessGUID, ParentProcessGuid | `44d66c27-4e6d-67da-1c00-000000007000` |
 | `category` | Computer, Protocol, EventType | `WATERFALLS.boombox.local` |
 
-Nota: los GUIDs en este dataset **no tienen llaves** (`{...}`), a diferencia del formato estándar Windows. Esto es consecuencia de la limpieza aplicada por `7_sysmon_csv_creator.py` y es importante para las validaciones del Paso 8.
+Nota: los GUIDs en este dataset **no tienen llaves** (`{...}`). El formato original de Windows los incluye (`{3fc4fefd-de08-67da-...}`), pero `7_sysmon_csv_creator.py` los elimina con `clean_guid()` durante el preprocesamiento. Esto es relevante para las validaciones del Paso 8, que verifican el formato sin llaves.
 
 ## Paso 2: Inspección básica del dataset
 
