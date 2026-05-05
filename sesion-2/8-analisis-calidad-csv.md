@@ -5,8 +5,7 @@
 ```{admonition} Script de trabajo
 :class: note
 
-**Notebook**: `scripts/exploratory/notebooks/2c-sysmon-csv-exploratory-analysis.ipynb`
-**Scripts de detección**: `scripts/pipeline/quality/find_processguid_pid_violations.py`, `find_processguid_image_violations.py`
+**Notebook**: `8_sysmon_csv_exploratory_analysis.ipynb`
 ```
 
 ## Contexto: ¿Por qué analizar la calidad del CSV?
