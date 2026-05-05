@@ -357,7 +357,7 @@ El notebook evalúa los 4 pares: para cada uno filtra las filas donde ambas colu
 
 **Pares GUID/PID en el dataset:**
 
-| Par de columnas | Pares no nulos | GUIDs únicos | PIDs únicos | Combinaciones | PID reuse |
+| Par de columnas | Pares no nulos | GUIDs únicos | PIDs únicos | Combinaciones GUID-PID únicas | PID reuse |
 |-----------------|----------------|--------------|-------------|---------------|-----------|
 | ProcessGuid / ProcessId | 248,846 | 1,633 | 1,240 | 1,646 | 1.33 ⚠️ |
 | ParentProcessGuid / ParentProcessId | 1,023 | 235 | 242 | 256 | 1.06 |
