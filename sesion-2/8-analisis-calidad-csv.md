@@ -10,7 +10,7 @@
 
 ## Contexto: ¿Por qué analizar la calidad del CSV?
 
-En la sección anterior convertimos los datos Sysmon de formato JSONL a un CSV tabular de 45 columnas usando el Script 2. Ahora tenemos un archivo CSV con un esquema unión que abarca los 22 tipos de EventID.
+En la sección anterior convertimos los datos Sysmon de formato JSONL a un CSV tabular de 45 columnas usando `7_sysmon_csv_creator.py`. Ahora tenemos un archivo CSV con un esquema unión que abarca los 20 tipos de EventID registrados en la captura.
 
 Pero antes de usar estos datos para construir un sistema de detección de intrusiones, necesitamos responder: **¿los datos tienen la calidad suficiente para alimentar algoritmos de análisis causal?** Este análisis cubre distribución de eventos, patrones temporales, relaciones entre procesos, actividad de red/archivos, y una evaluación de "readiness" algorítmica.
 
