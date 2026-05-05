@@ -357,8 +357,8 @@ El notebook evalúa los 4 pares: para cada uno filtra las filas donde ambas colu
 
 **Pares GUID/PID en el dataset:**
 
-| Par de columnas | Pares válidos | GUIDs únicos | PIDs únicos | Combinaciones | PID reuse |
-|-----------------|---------------|--------------|-------------|---------------|-----------|
+| Par de columnas | Pares no nulos | GUIDs únicos | PIDs únicos | Combinaciones | PID reuse |
+|-----------------|----------------|--------------|-------------|---------------|-----------|
 | ProcessGuid / ProcessId | 248,846 | 1,633 | 1,240 | 1,646 | 1.33 ⚠️ |
 | ParentProcessGuid / ParentProcessId | 1,023 | 235 | 242 | 256 | 1.06 |
 | SourceProcessGUID / SourceProcessId | 114,742 | 493 | 447 | 493 | 1.10 ⚠️ |
@@ -366,15 +366,33 @@ El notebook evalúa los 4 pares: para cada uno filtra las filas donde ambas colu
 
 **Interpretación:**
 
-- **PID reuse confirmado** en 3 de 4 pares (ratio > 1.1). El par ProcessGuid/ProcessId muestra el ratio más alto (1.33): 1,646 combinaciones únicas GUID-PID frente a 1,240 PIDs — aproximadamente el 32% de los PIDs fueron reasignados a más de un proceso durante la ventana de 72 minutos.
+- **PID reuse confirmado** en 3 de 4 pares (ratio ≥ 1.10). El par ProcessGuid/ProcessId muestra el ratio más alto (1.33): cada PID está asociado en promedio a 1.33 instancias de proceso distintas, lo que refleja tanto reasignación temporal dentro de una misma máquina como la coexistencia del mismo PID en los 4 hosts del dataset.
 - **GUIDs son el identificador confiable**: los 1,632 GUIDs reales identifican cada uno exactamente una instancia de proceso. Los 13 pares extra (1,646 − 1,633) provienen del GUID nulo `00000000-0000-0000-0000-000000000000` — el valor centinela que Sysmon asigna cuando no puede identificar el proceso propietario de un evento. Verificado en los 38 APT runs disponibles: en todos ellos es el único GUID con múltiples PIDs; ningún GUID real presenta esta anomalía.
-- **GUID nulo**: aparece en los EventIDs 3, 5, 7, 9, 12 y 13 — siendo EID 3 (Network Connection) el único presente en el 100% de los runs. Representa entre 12 y 439 filas por run (<0.05% del total). Se investiga en el Paso 8.
-- **ParentProcess** solo tiene 1,023 pares válidos — exclusivamente de EventID 1 (Process Create), el único tipo de evento que registra información del proceso padre.
-- **Source/Target** tienen 114,742 pares — de EventIDs 8 (Create Remote Thread) y 10 (Process Access), que modelan interacciones entre dos procesos.
+- **GUID nulo**: aparece en los EventIDs 3, 5, 7, 9, 12 y 13 — siendo EID 3 (Network Connection) el único presente en el 100% de los runs. Se examina en detalle en el análisis siguiente.
+- **ParentProcess** solo tiene 1,023 pares no nulos — exclusivamente de EventID 1 (Process Create), el único tipo de evento que registra información del proceso padre.
+- **Source/Target** tienen 114,742 pares no nulos — de EventIDs 8 (Create Remote Thread) y 10 (Process Access), que modelan interacciones entre dos procesos.
 
 **Implicación para algoritmos causales**: Cualquier algoritmo de análisis causal **debe usar GUIDs, no PIDs**, para rastrear procesos. Usar PIDs produciría falsos positivos por reutilización.
 
-### 5b. Análisis de creación de procesos (EventID 1)
+### 5b. GUID centinela: procesos no identificables
+
+El análisis de la tabla anterior revela 36 registros (0.01% del total) donde `ProcessGuid` contiene el valor centinela `00000000-0000-0000-0000-000000000000` — indicando que Sysmon no pudo asociar el evento a un proceso concreto en el momento de la captura.
+
+Aunque 0.01% parece insignificante, el contexto de seguridad cambia el cálculo. El dataset tiene un desbalance severo: los 4 EventIDs dominantes (10, 12, 7, 13) concentran el 89.95% de los registros y corresponden a actividad de fondo benigna. Los EventIDs de alto valor para detección de amenazas — donde se espera encontrar las trazas del APT — representan menos del 9% del total. Dentro de esa fracción pequeña, cualquier registro con GUID erróneo rompe la cadena causal: un evento de red sin proceso identificable no puede correlacionarse con el proceso que lo originó, lo que lo convierte en un enlace roto en el grafo de dependencias. No se puede entregar al bloque de machine learning un dataset con estas inconsistencias sin corregirlas primero.
+
+**EventIDs afectados (run-01):**
+
+| EventID | Descripción | Filas con GUID nulo |
+|---------|-------------|---------------------|
+| 3 | Network Connection | 8 |
+| 7 | Image Load | 27 |
+| 13 | Registry Value Set | 1 |
+
+**Verificación cross-run**: en los 38 APT runs con CSV procesado, el GUID nulo aparece en el 100% de ellos. EID 3 es el único EventID presente en todos los runs; EID 5, 7, 9, 12 y 13 aparecen de forma intermitente según la intensidad de actividad del run. Ningún GUID real (no centinela) presenta esta anomalía en ningún run.
+
+**Acción requerida**: estos registros deben marcarse o eliminarse antes del entrenamiento de modelos. Un evento de red sin `ProcessGuid` válido no puede participar en la construcción del árbol de procesos ni en la correlación Sysmon–NetFlow.
+
+### 5c. Análisis de creación de procesos (EventID 1)
 
 ```
 Eventos de creación de procesos:    1,023
@@ -407,7 +425,7 @@ Procesos huérfanos (sin padre):     0
 - **`SystemFailureReporter.exe`** en `C:\Users\Public\` es altamente sospechoso: un ejecutable con nombre engañoso ubicado en una carpeta pública (accesible por cualquier usuario). Con 31 procesos hijos, es consistente con un implante de la simulación APT.
 - **Chrome con 19 hijos** es comportamiento normal — cada pestaña y extensión genera procesos hijos.
 
-### 5c. Análisis de líneas de comando (EventID 1)
+### 5d. Análisis de líneas de comando (EventID 1)
 
 Solo 1,023 eventos (0.3%) tienen línea de comando — exclusivamente EventID 1 (Process Create).
 
