@@ -169,6 +169,17 @@ Para una descripción detallada de qué significa cada columna y a qué EventID 
 | `category` | 3 | Computer, Protocol, EventType |
 | `float64` | 1 | Columna numérica con nulos |
 
+El dataset es **multi-tipo por diseño** — consecuencia directa del esquema unión. Para la mayoría de operaciones (filtrado, agrupación, estadísticas) pandas lo maneja sin intervención. Pero hay dos casos donde los tipos importan y requieren atención explícita:
+
+- **Operaciones entre columnas**: no se pueden mezclar tipos incompatibles (ej. `object` + `Int64`) sin conversión previa. En la práctica, el análisis de seguridad rara vez necesita esto.
+- **Joins entre DataFrames**: las columnas clave deben tener exactamente el mismo tipo en ambos DataFrames. La distinción `int64` vs `Int64` (nullable) es una fuente real de errores silenciosos en pandas — un join entre una columna `int64` y una `Int64` puede fallar o producir resultados incorrectos sin ningún mensaje de error.
+
+```{admonition} Pendiente — Sesión 3: correlación Sysmon–NetFlow
+:class: warning
+
+Cuando correlacionemos Sysmon con NetFlow por `timestamp` (y posiblemente por IP/puerto), hay que verificar que las columnas clave tengan tipos compatibles en ambos DataFrames antes de hacer el join. En particular: `timestamp` es `int64` en Sysmon — confirmar que NetFlow usa el mismo tipo y la misma escala (epoch en milisegundos).
+```
+
 **Observaciones iniciales:**
 
 - **20 EventIDs** en el CSV completo vs 19 en el muestreo de 200K del análisis de consistencia — el EventID adicional probablemente tiene muy pocos registros y no fue capturado en la muestra.
