@@ -359,15 +359,16 @@ El notebook evalúa los 4 pares: para cada uno filtra las filas donde ambas colu
 
 | Par de columnas | Pares válidos | GUIDs únicos | PIDs únicos | Combinaciones | PID reuse |
 |-----------------|---------------|--------------|-------------|---------------|-----------|
-| ProcessGuid / ProcessId | 248,846 | 1,632 | 1,240 | 1,632 | 1.32 ⚠️ |
+| ProcessGuid / ProcessId | 248,846 | 1,633 | 1,240 | 1,646 | 1.33 ⚠️ |
 | ParentProcessGuid / ParentProcessId | 1,023 | 235 | 242 | 256 | 1.06 |
 | SourceProcessGUID / SourceProcessId | 114,742 | 493 | 447 | 493 | 1.10 ⚠️ |
 | TargetProcessGUID / TargetProcessId | 114,742 | 1,421 | 1,143 | 1,422 | 1.24 ⚠️ |
 
 **Interpretación:**
 
-- **PID reuse confirmado** en 3 de 4 pares (ratio > 1.1). El par ProcessGuid/ProcessId muestra el ratio más alto (1.32): 1,632 instancias de proceso únicas comparten solo 1,240 PIDs. Esto significa que ~30% de los PIDs fueron reutilizados por procesos diferentes durante la ventana de 72 minutos.
-- **GUIDs son el identificador confiable**: El número de GUIDs únicos coincide exactamente con el número de combinaciones GUID-PID (1,632 = 1,632), confirmando que cada GUID identifica una instancia de proceso única. En contraste, los PIDs son ambiguos.
+- **PID reuse confirmado** en 3 de 4 pares (ratio > 1.1). El par ProcessGuid/ProcessId muestra el ratio más alto (1.33): 1,646 combinaciones únicas GUID-PID frente a 1,240 PIDs — aproximadamente el 32% de los PIDs fueron reasignados a más de un proceso durante la ventana de 72 minutos.
+- **GUIDs son el identificador confiable**: los 1,632 GUIDs reales identifican cada uno exactamente una instancia de proceso. Los 13 pares extra (1,646 − 1,633) provienen del GUID nulo `00000000-0000-0000-0000-000000000000` — el valor centinela que Sysmon asigna cuando no puede identificar el proceso propietario de un evento. Verificado en los 38 APT runs disponibles: en todos ellos es el único GUID con múltiples PIDs; ningún GUID real presenta esta anomalía.
+- **GUID nulo**: aparece en los EventIDs 3, 5, 7, 9, 12 y 13 — siendo EID 3 (Network Connection) el único presente en el 100% de los runs. Representa entre 12 y 439 filas por run (<0.05% del total). Se investiga en el Paso 8.
 - **ParentProcess** solo tiene 1,023 pares válidos — exclusivamente de EventID 1 (Process Create), el único tipo de evento que registra información del proceso padre.
 - **Source/Target** tienen 114,742 pares — de EventIDs 8 (Create Remote Thread) y 10 (Process Access), que modelan interacciones entre dos procesos.
 
