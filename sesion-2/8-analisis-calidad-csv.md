@@ -393,6 +393,10 @@ Aunque 0.01% parece insignificante, el contexto de seguridad cambia el cálculo.
 
 ### 5c. Análisis de creación de procesos (EventID 1)
 
+EventID 1 (Process Create) es el evento clave para reconstruir el árbol de procesos. Cada registro captura la instancia recién creada (el hijo) en los campos `ProcessGuid`/`ProcessId`, y registra simultáneamente su padre en `ParentProcessGuid`/`ParentProcessId`. Esta estructura de doble enlace — cada fila lleva un puntero explícito a su creador — es lo que permite rastrear cadenas causales: de un proceso malicioso hacia atrás hasta el proceso que lo lanzó, y hacia adelante hasta los procesos que él mismo generó.
+
+**Operaciones del código**: el código filtra `EventID == 1` y cuenta los registros donde ambos `ProcessGuid` y `ParentProcessGuid` son no nulos (pares padre-hijo válidos), y los que tienen `ParentProcessGuid` nulo (huérfanos). Para las estadísticas de padres, aplica `value_counts()` sobre `ParentProcessGuid` para contar cuántos hijos tiene cada GUID padre, obteniendo media y máximo. Para identificar el proceso padre por nombre, busca el GUID padre en la columna `ProcessGuid` del mismo subconjunto EID 1 — si no hay coincidencia, el padre se inició antes de la ventana de captura y no tiene evento EID 1 propio en el dataset.
+
 ```
 Eventos de creación de procesos:    1,023
 Con relación padre-hijo válida:     1,023 (100%)
@@ -425,6 +429,10 @@ Procesos huérfanos (sin padre):     0
 - **Chrome con 19 hijos** es comportamiento normal — cada pestaña y extensión genera procesos hijos.
 
 ### 5d. Análisis de líneas de comando (EventID 1)
+
+El campo `CommandLine` registra el comando completo con el que se invocó el proceso, incluyendo ejecutable y argumentos. Solo EventID 1 popula este campo; el resto de los EventIDs lo dejan en blanco. Esto lo convierte en una fuente de señales de alta fidelidad para detección de técnicas ofensivas: comandos codificados en base64, bypass de políticas de ejecución, o descarga remota de payloads.
+
+**Operaciones del código**: el código filtra filas donde `CommandLine` no es nulo, extrae el "comando base" tomando la primera palabra de la cadena y eliminando la ruta del directorio con una expresión regular (`str.replace(r'.*\\', '')`) para quedarse solo con el nombre del ejecutable. Aplica `value_counts()` sobre ese campo derivado para obtener el top-15. Para la longitud, calcula media, mediana y máximo de `CommandLine.str.len()`, y cuenta las líneas que superan los 500 y 1,000 caracteres. Finalmente busca patrones sospechosos con `str.contains()` sobre expresiones regulares predefinidas.
 
 Solo 1,023 eventos (0.3%) tienen línea de comando — exclusivamente EventID 1 (Process Create).
 
@@ -465,6 +473,8 @@ Estos patrones, junto con `SystemFailureReporter.exe` del análisis anterior y l
 ## Paso 6: Actividad de red
 
 El análisis de EventID 3 (Network Connection) examina 14,424 conexiones de red capturadas durante la ventana de 72 minutos.
+
+**Operaciones del código**: el código filtra `EventID == 3` y aplica `value_counts()` sobre `Protocol` para la distribución TCP/UDP. Para los puertos de destino, cuenta con `value_counts()` sobre `DestinationPort` y aplica un diccionario de mapeo de puertos a nombres de servicio. Para la clasificación de IPs, evalúa `DestinationIP` contra rangos de red privados (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, `::1`, `fe80::`) para separar tráfico interno de externo.
 
 **Distribución de protocolos:**
 
@@ -517,6 +527,10 @@ IPs públicas:             6,420 (44.5%)
 
 ## Paso 7: Actividad del sistema de archivos
 
+El análisis combina EventID 11 (File Create) y EventID 23 (File Delete).
+
+**Operaciones del código**: el código filtra dos subsets: `EventID == 11` y `EventID == 23`. Para las extensiones, aplica `str.extract(r'\.([^.\\]+)$')` sobre `TargetFilename` para capturar el sufijo final, convierte a minúsculas y cuenta con `value_counts().head(15)`. Para la ubicación, clasifica cada ruta con `str.contains()` usando expresiones regulares para cuatro categorías (temp, system32/windows, users/home, appdata) — estas categorías pueden solaparse, por lo que los porcentajes no suman 100%. Para los patrones sospechosos, aplica el mismo mecanismo con regexes sobre extensiones ejecutables, nombres con punto inicial (archivos ocultos estilo Unix), longitud de ruta >100 caracteres, y presencia de espacios.
+
 El análisis combina EventID 11 (File Create) y EventID 23 (File Delete):
 
 ```
@@ -559,6 +573,8 @@ La ratio eliminación/creación de 1.49 indica que se eliminan más archivos de 
 La creación de **264 DLLs** y **347 ejecutables** durante 72 minutos merece atención: mientras algunos son legítimos (actualizaciones, caché), en el contexto de una simulación APT podrían incluir payloads desplegados por el atacante.
 
 ## Paso 8: Evaluación de calidad de datos
+
+**Operaciones del código**: el código itera sobre todas las columnas calculando `df[col].isnull().sum()` para construir un ranking de nulos ordenado por porcentaje descendente. Para los campos críticos (EventID, Computer, UtcTime, ProcessGuid, ProcessId), aplica umbrales: 0% → `GOOD`, <5% → `ISSUE`, ≥5% → `CRITICAL`. Para las consistencia, valida EventIDs contra un conjunto de valores conocidos (EIDs 1-25); valida el formato de todas las columnas GUID con la regex `r'^\{?[0-9a-fA-F]{8}-...\}?$'` (acepta formato con y sin llaves); y verifica que los PIDs sean positivos.
 
 ### 8a. Valores faltantes
 
@@ -614,7 +630,7 @@ Antes de verificar la consistencia semántica, es necesario entender los dos mec
 
 **El problema: ambigüedad del PID.** Supongamos que `cmd.exe` se ejecuta con PID 4520, crea un archivo (EID 11), establece una conexión de red (EID 3), y luego termina (EID 5). Segundos después, el sistema operativo asigna PID 4520 a `svchost.exe`. Ahora aparecen nuevos eventos con PID 4520 — ¿pertenecen a `cmd.exe` o a `svchost.exe`? Sin más información, es imposible saberlo.
 
-**PID (Process ID):** Entero asignado por el sistema operativo a cada proceso activo. Es único *solo mientras el proceso está vivo* — cuando termina, el OS recicla su número para nuevos procesos. En nuestro dataset, el ratio de reutilización es 1.32 (Paso 5): 1,632 instancias de proceso únicas comparten solo 1,240 PIDs. Consecuencia: los PIDs **no pueden identificar procesos de forma unívoca** a lo largo del tiempo.
+**PID (Process ID):** Entero asignado por el sistema operativo a cada proceso activo. Es único *solo mientras el proceso está vivo* — cuando termina, el OS recicla su número para nuevos procesos. En nuestro dataset, el ratio de reutilización es 1.33 (Paso 5): 1,633 GUIDs de proceso únicos (1,646 combinaciones GUID-PID) comparten solo 1,240 PIDs distintos. Consecuencia: los PIDs **no pueden identificar procesos de forma unívoca** a lo largo del tiempo.
 
 **ProcessGuid (Globally Unique Identifier):** Sysmon genera un identificador único para cada *instancia* de proceso en el momento de su creación. El formato `{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}` combina información de la máquina, un timestamp y un número secuencial, garantizando que **nunca se repite** — ni entre reinicios del sistema, ni entre máquinas diferentes. Un ProcessGuid nace con el proceso y muere con él: no se recicla.
 
@@ -668,7 +684,7 @@ GUIDs con múltiples PIDs:    0
   ✅ No PID violations — each GUID maps to exactly 1 PID
 ```
 
-✅ **Sin violaciones.** Cada ProcessGuid mapea a exactamente 1 PID. Esto confirma que el ratio de reutilización (1.32) del Paso 5 opera en dirección *inversa*: múltiples GUIDs comparten PIDs (reutilización normal del sistema operativo), pero ningún GUID tiene PIDs inconsistentes.
+✅ **Sin violaciones.** Cada ProcessGuid mapea a exactamente 1 PID. Esto confirma que el ratio de reutilización (1.33) del Paso 5 opera en dirección *inversa*: múltiples GUIDs comparten PIDs (reutilización normal del sistema operativo), pero ningún GUID tiene PIDs inconsistentes.
 
 **Verificación 2: GUID → Image**
 
@@ -719,7 +735,9 @@ Esta detección utiliza la misma lógica de los scripts `find_processguid_pid_vi
 
 ## Paso 9: Evaluación de readiness algorítmica
 
-Esta evaluación mide si los datos son aptos para alimentar un algoritmo de búsqueda de cadenas causales, puntuando la presencia de columnas críticas:
+Esta evaluación mide si los datos son aptos para alimentar un algoritmo de búsqueda de cadenas causales, puntuando la presencia de columnas críticas.
+
+**Operaciones del código**: el código divide las columnas necesarias en categorías (Core, Process Tracking, Inter-Process, Command Analysis, File Operations) y para cada una calcula el porcentaje de no nulos en el dataset completo. Asigna 1 punto si el porcentaje ≥50%, 0.5 si está entre 10% y 50%, y 0 si es <10%. La puntuación total suma estos puntos y calcula el porcentaje sobre el máximo posible. Una segunda evaluación (Step 9b) repite el análisis filtrando cada columna *dentro del grupo de EventIDs que realmente la usa*, evitando la penalización artificial de columnas que por diseño son nulas en EventIDs que no las requieren.
 
 **Evaluación por categoría:**
 
@@ -779,6 +797,8 @@ Del mismo modo, `ParentProcessGuid` y `CommandLine` solo existen en EID 1 (Proce
 
 ## Paso 10: Reporte resumen
 
+**Operaciones del código**: construye un diccionario Python con todas las métricas calculadas en los pasos anteriores (total de filas y columnas, distribución de EventIDs, rango temporal, estadísticas de GUIDs, puntuación de readiness) y lo serializa a JSON con `json.dump()` en el directorio del dataset.
+
 El notebook genera un reporte JSON (`sysmon_csv_analysis_summary.json`) en el directorio del dataset con todas las métricas consolidadas. Del reporte se extrae la **distribución por host** no mostrada en secciones anteriores:
 
 | Host | Registros | % |
@@ -798,7 +818,7 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
 
 2. **Consistencia temporal**: Ventana de 72 minutos (05:00-06:12 UTC) con tasa media de 84 eventos/segundo. Ráfagas significativas (pico de 30,563 eventos/minuto) sugieren períodos de actividad intensa.
 
-3. **Identificadores de proceso confiables**: Los GUIDs proporcionan identificación unívoca (1,632 procesos únicos). PID reuse confirmado (ratio 1.32), reforzando la necesidad de usar GUIDs para rastreo causal. Sin embargo, **28 GUIDs presentan violaciones de Image** (2.07% de eventos) que deben corregirse antes del análisis causal — la mayoría son artefactos (`<unknown process>`, prefijo `\\?\`, rutas versionadas), pero 2 son colisiones genuinas.
+3. **Identificadores de proceso confiables**: Los GUIDs proporcionan identificación unívoca (1,633 GUIDs únicos, 1,240 PIDs distintos). PID reuse confirmado (ratio 1.33), reforzando la necesidad de usar GUIDs para rastreo causal. Sin embargo, **28 GUIDs presentan violaciones de Image** (2.07% de eventos) que deben corregirse antes del análisis causal — la mayoría son artefactos (`<unknown process>`, prefijo `\\?\`, rutas versionadas), pero 2 son colisiones genuinas.
 
 4. **Indicadores de actividad APT detectados**:
    - `SystemFailureReporter.exe` en `C:\Users\Public\` (implante sospechoso, 31 procesos hijos)
@@ -826,7 +846,7 @@ Responde las siguientes preguntas basándote en el análisis de calidad:
 
 3. **El análisis de red muestra 1,378 conexiones al puerto 444, que no es un servicio estándar.** Formula una hipótesis de seguridad: ¿qué tipo de actividad APT podría explicar este tráfico? Considera la proximidad al puerto 443 (HTTPS) y el contexto de la simulación de ataque.
 
-4. **El PID reuse ratio es 1.32 para ProcessGuid/ProcessId.** Diseña una prueba de validación que demuestre por qué usar PIDs (en lugar de GUIDs) para rastreo causal produciría falsos positivos. Describe los datos de entrada y el resultado esperado.
+4. **El PID reuse ratio es 1.33 para ProcessGuid/ProcessId.** Diseña una prueba de validación que demuestre por qué usar PIDs (en lugar de GUIDs) para rastreo causal produciría falsos positivos. Describe los datos de entrada y el resultado esperado.
 
 5. **Si tuvieras que elegir solo 5 columnas como "mínimo viable" para entrenar un modelo IDS**, ¿cuáles elegirías y por qué? Considera: identificación del evento, contexto temporal, identificación de proceso, y actividad observable.
 
