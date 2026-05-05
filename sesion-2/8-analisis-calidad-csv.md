@@ -271,9 +271,9 @@ Los huecos en el eje X (EventIDs 14, 16, 19-22) son EventIDs definidos en Sysmon
 
 **Observaciones:**
 
-- Los **4 EventIDs dominantes** (10, 12, 7, 13) concentran el 89.96% del dataset — actividad de fondo típica de Windows (acceso entre procesos, operaciones de registro, carga de librerías).
-- **EventID 255** (1 registro) no está documentado en la especificación oficial de Sysmon. Se investiga en el Paso 8.
-- Los eventos de alto valor para detección de amenazas (**EID 1** Process Create, **EID 3** Network Connection, **EID 8** Create Remote Thread) representan solo el 4.25% del total — el signal está enterrado en el noise.
+- Los **4 EventIDs dominantes** (10, 12, 7, 13) concentran el 89.95% del dataset — actividad de fondo típica de Windows (acceso entre procesos, operaciones de registro, carga de librerías).
+- **EventID 255** (1 registro) es el evento de error interno de Sysmon — se genera cuando Sysmon encuentra un problema al procesar un evento. No es un tipo de telemetría de monitorización. Se investiga en el Paso 8.
+- Los eventos de alto valor para detección de amenazas (**EID 1** Process Create, **EID 3** Network Connection, **EID 8** Create Remote Thread, **EID 11** File Create, **EID 23** File Delete) representan solo el 8.90% del total — el signal está enterrado en el noise.
 
 ## Paso 4: Análisis temporal
 
