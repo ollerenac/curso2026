@@ -346,7 +346,14 @@ El notebook genera 4 visualizaciones adaptadas a la ventana de 72 minutos, agrup
 
 ## Paso 5: Análisis de relaciones entre procesos
 
-Los eventos Sysmon identifican procesos mediante dos mecanismos complementarios: **GUIDs** (identificadores globales únicos por instancia de proceso) y **PIDs** (identificadores numéricos reutilizables por el sistema operativo). Analizar ambos revela la fiabilidad de cada uno para rastreo causal.
+Los eventos Sysmon identifican procesos mediante dos mecanismos complementarios: **GUIDs** (identificadores globales únicos por instancia de proceso) y **PIDs** (identificadores numéricos reutilizables por el sistema operativo). Su relación es asimétrica: Windows asigna PIDs secuencialmente en un rango finito (~65K valores), y una vez que un proceso termina su PID queda libre para ser reasignado a un nuevo proceso. Sysmon genera el `ProcessGuid` combinando el boot GUID de la máquina, el PID y el timestamp de inicio del proceso — garantizando unicidad incluso si el PID se reutiliza. Consecuencia directa: un mismo PID puede aparecer asociado a varios GUIDs distintos (procesos diferentes que recibieron ese PID en momentos distintos), pero un GUID siempre identifica exactamente una instancia de proceso. Analizar ambos revela cuál es fiable para rastreo causal.
+
+Los 4 pares GUID/PID que aparecen en la tabla responden a dos tipos de relación entre procesos que Sysmon modela con nombres de columna distintos:
+
+- **`ProcessGuid` / `ParentProcessGuid`** — relación **vertical (genealógica)**: un proceso padre *spawneó* al proceso hijo. `ProcessGuid` identifica al proceso que generó el evento; `ParentProcessGuid` al que lo creó. Presentes en la mayoría de EventIDs, con `ParentProcessGuid` exclusivo de EID 1 (Process Create).
+- **`SourceProcessGUID` / `TargetProcessGUID`** — relación **lateral (interacción en tiempo de ejecución)**: dos procesos independientes donde uno actúa sobre el otro. `SourceProcessGUID` es el proceso que inicia la acción; `TargetProcessGUID` el que la recibe. Presentes en EID 8 (Create Remote Thread) y EID 10 (Process Access) — ninguno creó al otro, simplemente interactúan. En seguridad, estos dos EventIDs son indicadores directos de técnicas de inyección de código.
+
+El notebook evalúa los 4 pares: para cada uno filtra las filas donde ambas columnas son no-nulas, cuenta GUIDs únicos y PIDs únicos con `nunique()`, y cuenta combinaciones únicas GUID-PID con `groupby([guid_col, pid_col]).size().shape[0]`. El **ratio de reuso** = combinaciones / PIDs únicos: si es > 1, hay PIDs que aparecen con múltiples GUIDs distintos — reutilización confirmada.
 
 **Pares GUID/PID en el dataset:**
 
