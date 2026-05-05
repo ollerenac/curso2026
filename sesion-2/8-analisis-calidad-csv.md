@@ -217,6 +217,8 @@ El análisis detallado de tipos y nulos por columna confirma y cuantifica la dis
 | Creación proceso | 99.7% | CommandLine, ParentImage, ParentProcessId, etc. | Solo EID 1 |
 | Muy raros | >99.9% | NewThreadId (6 valores), Hash (15), PreviousCreationUtcTime (212) | EID 8, 15, 2 |
 
+La conclusión es directa: **los NaN no son datos faltantes — son la consecuencia estructural del esquema unión**. Cada columna tiene NaN exactamente en las filas cuyo EventID no usa esa columna. Esto no es un problema de calidad; es el comportamiento esperado del diseño explicado en la sección anterior.
+
 **Observaciones de calidad:**
 
 - **`NewThreadId`** es `float64` con solo 6 valores no nulos — corresponde a los 6 eventos de EID 8 (Create Remote Thread). El tipo debería ser `Int64` pero Pandas lo convierte a float por los nulos.
