@@ -281,10 +281,12 @@ Los huecos en el eje X (EventIDs 14, 16, 19-22) son EventIDs definidos en Sysmon
 
 ## Paso 4: Análisis temporal
 
+El notebook convierte `df['timestamp']` (int64, epoch ms) a `datetime64` con `pd.to_datetime(..., unit='ms', errors='coerce')`, almacenando el resultado en una nueva columna `UtcTime`. De ahí extrae `valid_times = df['UtcTime'].dropna()` para calcular el rango temporal (`min()` / `max()`), la duración como resta de dos `datetime64`, y las tasas de evento dividiendo `len(valid_times)` entre `duration.total_seconds()`. La visualización 2×2 se construye con cuatro operaciones de agrupación: `sort_values('UtcTime')` + `range(len(...))` para la timeline acumulativa; `.resample('1T').size()` para el histograma de eventos por minuto; `.dt.hour` + `value_counts().sort_index()` para el patrón horario; y `.resample('5T').size()` para la tasa en ventanas de 5 minutos.
+
 El CSV no tiene una columna `UtcTime` directa, pero contiene `timestamp` — un epoch en milisegundos (int64) con cobertura del 100%. La conversión es directa:
 
 ```python
-df['UtcTime'] = pd.to_datetime(df['timestamp'], unit='ms')
+df['UtcTime'] = pd.to_datetime(df['timestamp'], unit='ms', errors='coerce')
 ```
 
 ```
@@ -306,7 +308,7 @@ Sin timestamp:      2 registros
 
 - El dataset cubre una **ventana de ~72 minutos** de actividad, lo que indica una captura de un período específico de ejecución del escenario APT, no una monitorización continua.
 - La tasa de ~84 eventos/segundo es considerable y refleja la intensidad de actividad en un entorno con 4 servidores Windows activos.
-- Solo **2 registros** carecen de timestamp tras la conversión — probablemente los eventos EID 4 (Sysmon State Change) y EID 255 (Unknown), que pueden tener timestamps en formato no estándar.
+- Solo **2 registros** carecen de timestamp tras la conversión — los eventos EID 4 (Sysmon State Change) y EID 255 (error interno), ambos con el valor centinela `-9223372036855` que indica que Sysmon no registró timestamp para estos eventos. `errors='coerce'` los convierte en `NaT`.
 
 **Patrones temporales (visualizaciones):**
 
@@ -321,10 +323,20 @@ El notebook genera 4 visualizaciones adaptadas a la ventana de 72 minutos, agrup
 
 ![Análisis temporal de eventos Sysmon — 4 visualizaciones](/images/sysmon-temporal-analysis.png)
 
-1. **Timeline acumulativa** (arriba izquierda) — La línea acumulativa revela una curva en S con fases de intensidad variable. La pendiente más pronunciada se observa en los primeros ~10 minutos (05:00-05:10), donde se acumulan rápidamente más de 100K eventos. Después la pendiente se suaviza y vuelve a aumentar en torno a 05:30-05:40. Estos cambios de pendiente son la señal visual de ráfagas de actividad.
+1. **Timeline acumulativa** (arriba izquierda) — La línea acumulativa revela una curva en S con fases de intensidad variable. La pendiente más pronunciada se observa en los primeros ~10 minutos (05:00-05:10), donde se acumulan rápidamente más de 100K eventos. Después la pendiente se suaviza y vuelve a aumentar en torno a 05:35-05:45. Estos cambios de pendiente son la señal visual de ráfagas de actividad.
 2. **Histograma de eventos/minuto** (arriba derecha) — La distribución está fuertemente sesgada a la derecha: la mayoría de los minutos registran menos de 2,000 eventos (las barras más altas, frecuencia ~11), pero la cola se extiende hasta ~30,000 eventos/minuto con una única ocurrencia. Esta forma confirma que la actividad no es uniforme — hay pocos minutos con ráfagas extremas que elevan drásticamente la media (~5,000) por encima de la moda (<2,000).
 3. **Eventos por hora del día** (abajo izquierda) — Solo aparecen 2 barras (hora 5 con ~305K y hora 6 con ~58K), reflejando que la captura abarca únicamente 05:00-06:12 UTC. La proporción ~5:1 entre ambas barras es simplemente consecuencia de que la hora 5 tiene 60 minutos de datos y la hora 6 solo 12 — no indica un cambio real de intensidad.
-4. **Tasa de eventos en ventanas de 5 minutos** (abajo derecha) — La visualización más reveladora. Se identifican **3 ráfagas diferenciadas**: un pico inicial de ~72K eventos (05:00-05:05), un segundo pico de ~45K (05:30-05:40), y un tercero de ~33K (05:55-06:05). Entre los picos, la tasa desciende a ~10K-15K. Este patrón multi-fase podría reflejar etapas distintas del escenario APT (ej: acceso inicial, movimiento lateral, exfiltración), aunque la correlación con fases específicas requiere el análisis de los Scripts 7-8 en sesiones posteriores.
+4. **Tasa de eventos en ventanas de 5 minutos** (abajo derecha) — La visualización más reveladora. Se identifican **3 ráfagas diferenciadas**: un pico inicial de ~72K eventos (05:05-05:10), un segundo pico de ~45K (05:35-05:40), y un tercero de ~33K (06:00-06:05). Entre los picos, la tasa desciende a ~10K-20K. Este patrón multi-fase podría reflejar etapas distintas del escenario APT (ej: acceso inicial, movimiento lateral, exfiltración), aunque la correlación con fases específicas requiere el análisis de los Scripts 7-8 en sesiones posteriores.
+
+```{dropdown} ¿Cuándo usar cada una de estas visualizaciones?
+**Timeline acumulativa** — Útil cuando quieres detectar cambios en la *tasa de llegada* a lo largo del tiempo. Si la línea sube uniformemente, el proceso es estable; si tiene inflexiones o escalones, hay ráfagas, pausas o batches. Aplica a cualquier serie temporal: commits de git, transacciones bancarias, lecturas de sensores.
+
+**Histograma de eventos/minuto** — Revela si el proceso es regular (distribución centrada) o bursty (cola larga a la derecha). Úsalo cuando la *variabilidad* de la tasa importa más que la tasa media: tráfico web, llamadas a una API, volumen de ventas por hora.
+
+**Eventos por hora del día** — Detecta patrones diurnos o cíclicos. Especialmente útil cuando hay sospecha de periodicidad: actividad de fraude (se concentra en ciertos horarios), consumo energético, interacciones en redes sociales.
+
+**Tasa en ventanas fijas** — La más útil para *detección de fases* en cualquier proceso acotado en el tiempo. Si el proceso tiene etapas distintas (experimento, campaña, incidente), aparecen como picos separados con valles entre ellos. La elección del tamaño de la ventana (aquí 5 minutos) es un parámetro clave: ventanas muy pequeñas producen ruido, muy grandes ocultan las fases.
+```
 
 **Puntos clave:**
 - La ventana de **72 minutos** confirma que el dataset captura un período específico de ejecución del escenario APT, no una monitorización continua — cada evento en esta ventana es potencialmente relevante.
