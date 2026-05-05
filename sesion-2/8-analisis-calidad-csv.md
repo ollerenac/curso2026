@@ -126,6 +126,8 @@ Nota: los GUIDs en este dataset **no tienen llaves** (`{...}`). El formato origi
 
 ## Paso 2: Inspección básica del dataset
 
+El notebook calcula `len(df)` y `len(df.columns)` para dimensiones, `nunique()` sobre `EventID` y `Computer` para cardinalidad, y para cada columna construye una tabla con `count()` (valores no nulos), `isnull().sum()` (nulos), porcentaje de nulidad, y `nunique()` (valores únicos). Esta última tabla es la fuente de los grupos de nulidad y las observaciones de calidad que siguen.
+
 Una inspección inicial del DataFrame revela la estructura del CSV:
 
 ```
@@ -227,6 +229,8 @@ La conclusión es directa: **los NaN no son datos faltantes — son la consecuen
 - **16 usuarios únicos** (`User`) y solo **5 usuarios fuente** (`SourceUser`) — coherente con un entorno Windows corporativo.
 
 ## Paso 3: Distribución de eventos
+
+El notebook aplica `value_counts()` sobre la columna `EventID` para obtener el recuento de registros por tipo de evento, y `value_counts(normalize=True)` para los porcentajes. Los resultados se ordenan por `EventID` con `sort_index()` para producir una tabla indexada numéricamente. A continuación se generan dos gráficas de barras — escala lineal y logarítmica — con los mismos datos para comparar la visibilidad de eventos frecuentes y raros.
 
 La distribución de los 20 EventIDs en el dataset completo (363,657 registros):
 

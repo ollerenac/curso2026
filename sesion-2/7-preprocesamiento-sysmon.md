@@ -46,9 +46,9 @@ dataset/run-XX-apt-Y/
 
 Sysmon tiene 21 tipos de eventos, cada uno con entre 3 y 16 campos diferentes. Podríamos generar un CSV por EventID (21 archivos densos, sin columnas vacías) o un CSV unificado (un solo archivo con la unión de todos los campos, donde ~80% de las celdas serán `NaN`). ¿Cuál es mejor?
 
-| Aspecto | CSV por EventID (21 archivos) | CSV unificado (50 columnas) |
+| Aspecto | CSV por EventID (21 archivos) | CSV unificado (45 columnas) |
 |---------|-------------------------------|---------------------------|
-| **Columnas por archivo** | 5–18 (según EventID) | 50 (fijas) |
+| **Columnas por archivo** | 5–18 (según EventID) | 45 (fijas) |
 | **NaN estructurales** | ~0% | ~80% de las celdas |
 | **Análisis cruzado** | Requiere joins por ProcessGuid | Directo (un solo DataFrame) |
 | **Lifecycle tracing** | Multi-join entre 21 archivos | `df[df.ProcessGuid == guid]` |
@@ -842,7 +842,7 @@ def _build_event_record(self, event_id: int, computer: str,
 ```
 
 **Puntos clave:**
-- **Esquema unión**: El CSV final contiene la **unión** de todos los campos de los 21 EventIDs (50 columnas totales). Un evento de tipo 1 (Process Creation) tendrá valores `NaN` en los campos específicos de tipo 3 (Network Connection) y viceversa. Si un evento tiene un EventID no contemplado en `fields_per_eventid`, el bucle itera sobre una lista vacía y el registro queda con solo `EventID` y `Computer` — permanece en el DataFrame como fila casi vacía.
+- **Esquema unión**: El CSV final contiene la **unión** de todos los campos de los 21 EventIDs (45 columnas totales). Un evento de tipo 1 (Process Creation) tendrá valores `NaN` en los campos específicos de tipo 3 (Network Connection) y viceversa. Si un evento tiene un EventID no contemplado en `fields_per_eventid`, el bucle itera sobre una lista vacía y el registro queda con solo `EventID` y `Computer` — permanece en el DataFrame como fila casi vacía.
 - **Mapeo de case EID 8**: En el esquema, EventID 8 define `SourceProcessGuid` y `TargetProcessGuid` (minúscula), pero EventID 10 usa `SourceProcessGUID` y `TargetProcessGUID` (mayúscula). El script mapea ambos a la misma columna `SourceProcessGUID`/`TargetProcessGUID` para unificación.
 - **Tracking de campos faltantes**: El script registra estadísticas de campos que no se encuentran en el XML, útil para diagnosticar problemas de calidad.
 
@@ -1015,7 +1015,7 @@ INFO 💾 Exporting to CSV: ../dataset/run-01-apt-1/02_sysmon-run-01.csv
 INFO ✅ CSV creation completed successfully!
 ```
 
-El archivo resultante `02_sysmon-run-01.csv` ocupa **105 MB** en disco (363,657 filas × 50 columnas).
+El archivo resultante `02_sysmon-run-01.csv` ocupa **105 MB** en disco (363,657 filas × 45 columnas).
 
 
 ---
@@ -1179,7 +1179,7 @@ En esta sección hemos recorrido el Script 2, que transforma los datos crudos de
 
 | Entrada | Salida | Decisión clave |
 |---------|--------|----------------|
-| JSONL con XML embebido (2.1 GB) | CSV tabular (50 columnas, 363K filas) | Esquema unión de 21 EventIDs |
+| JSONL con XML embebido (2.1 GB) | CSV tabular (45 columnas, 363K filas) | Esquema unión de 21 EventIDs |
 
 ### Decisiones de diseño y sus consecuencias
 
@@ -1187,7 +1187,7 @@ Las decisiones tomadas en este script no son arbitrarias — cada una tiene cons
 
 1. **Epoch milliseconds en lugar de datetime strings**: Permite la correlación temporal con NetFlow en el Script 5 (Sesión 3). Ambos dominios comparten la misma escala numérica, haciendo que las operaciones de ventana temporal sean simples restas de enteros.
 
-2. **Esquema unión (50 columnas con NaN)**: Mantiene todos los eventos en un solo DataFrame. La alternativa — un CSV por EventID — haría imposible el análisis cruzado entre tipos de eventos que el Script 8 (trazado de ciclo de vida) necesita.
+2. **Esquema unión (45 columnas con NaN)**: Mantiene todos los eventos en un solo DataFrame. La alternativa — un CSV por EventID — haría imposible el análisis cruzado entre tipos de eventos que el Script 8 (trazado de ciclo de vida) necesita.
 
 3. **Normalización de Computer a minúsculas**: Evita que `ITM2-DC.intmaniac.local` y `ITM2-DC.INTMANIAC.LOCAL` se traten como hosts diferentes en el análisis de movimiento lateral.
 
@@ -1195,6 +1195,6 @@ Las decisiones tomadas en este script no son arbitrarias — cada una tiene cons
 
 ### Conexión con lo que sigue
 
-Tenemos un CSV de Sysmon con 50 columnas y ~363K filas. Pero antes de continuar con el pipeline, necesitamos verificar la calidad de este CSV: ¿la distribución de EventIDs es coherente? ¿Hay relaciones rotas entre procesos? ¿El dataset está listo para ML?
+Tenemos un CSV de Sysmon con 45 columnas y ~363K filas. Pero antes de continuar con el pipeline, necesitamos verificar la calidad de este CSV: ¿la distribución de EventIDs es coherente? ¿Hay relaciones rotas entre procesos? ¿El dataset está listo para ML?
 
 En la **siguiente sección** analizamos la calidad del CSV resultante — distribución de eventos, patrones temporales, relaciones entre procesos, y readiness para algoritmos de machine learning. Ese análisis nos revelará problemas concretos (como violaciones de ProcessGuid) que motivarán la sección de limpieza que viene después.
