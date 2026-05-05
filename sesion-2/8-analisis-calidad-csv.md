@@ -54,6 +54,24 @@ El código de esta sección se puede ejecutar paso a paso en el notebook `8_sysm
 9. **Readiness algorítmica** — Determinar si el dataset cumple los requisitos mínimos para alimentar algoritmos de correlación causal.
 10. **Reporte resumen** — Consolidar todos los hallazgos en un diagnóstico accionable que guíe la limpieza posterior.
 
+:::{admonition} Dependencia nueva: matplotlib y seaborn
+:class: important
+
+Esta sección usa `matplotlib` y `seaborn` para las visualizaciones. Si ejecutas el notebook localmente, instálalos antes de abrirlo:
+
+**1. Activa tu entorno virtual:**
+```bash
+source .venv/bin/activate
+```
+
+**2. Instala las dependencias:**
+```bash
+pip install -r requirements.txt
+```
+
+**3. Abre el notebook desde el entorno activo** — si ya tenías el IDE abierto, ciérralo y vuélvelo a abrir con el entorno activado para que el kernel detecte los paquetes nuevos.
+:::
+
 ## Paso 1: Carga del CSV preprocesado
 
 El CSV generado en la sección de preprocesamiento se carga con tipos de datos explícitos para garantizar un manejo correcto de valores nulos y eficiencia en memoria:
