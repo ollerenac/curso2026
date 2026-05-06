@@ -605,9 +605,7 @@ El 55.5% de tráfico interno refleja comunicación normal entre los 4 hosts del 
 
 El análisis combina EventID 11 (File Create) y EventID 23 (File Delete).
 
-**Operaciones del código**: el código filtra dos subsets: `EventID == 11` y `EventID == 23`. Para las extensiones, aplica `str.extract(r'\.([^.\\]+)$')` sobre `TargetFilename` para capturar el sufijo final, convierte a minúsculas y cuenta con `value_counts().head(15)`. Para la ubicación, clasifica cada ruta con `str.contains()` usando expresiones regulares para cuatro categorías (temp, system32/windows, users/home, appdata) — estas categorías pueden solaparse, por lo que los porcentajes no suman 100%. Para los patrones sospechosos, aplica el mismo mecanismo con regexes sobre extensiones ejecutables, nombres con punto inicial (archivos ocultos estilo Unix), longitud de ruta >100 caracteres, y presencia de espacios.
-
-El análisis combina EventID 11 (File Create) y EventID 23 (File Delete):
+**Operaciones del código**: el código filtra dos subsets: `EventID == 11` y `EventID == 23`. Para las extensiones, aplica `str.extract(r'\.([^.\\]+)$')` sobre `TargetFilename` para capturar el sufijo final, convierte a minúsculas y cuenta con `value_counts().head(15)`. Para la ubicación, clasifica cada ruta con `str.contains()` usando expresiones regulares para cuatro categorías (temp, system32/windows, users/home, appdata) — las categorías se solapan (AppData está dentro de Users), por lo que los porcentajes no suman 100%. Para los patrones de interés, aplica regexes sobre extensiones ejecutables, nombres con punto inicial (archivos ocultos estilo Unix) y longitud de ruta completa >100 caracteres.
 
 ```
 Eventos de creación de archivos (EID 11):   6,782
@@ -637,14 +635,17 @@ La ratio eliminación/creación de 1.49 indica que se eliminan más archivos de 
 | Directorios del sistema | 1,310 | 19.3% |
 | Directorios temporales | 507 | 7.5% |
 
-**Patrones sospechosos:**
+Los porcentajes no suman 100% porque las categorías se solapan: AppData (`C:\Users\*\AppData\`) está contenido dentro de "directorios de usuario" (`C:\Users\`), por lo que un mismo archivo puede contar en ambas. La categoría dominante es AppData/usuarios con ~85% del total, lo cual es normal — los navegadores, actualizadores y aplicaciones de usuario escriben preferentemente en AppData.
 
-| Patrón | Cantidad | % |
-|--------|----------|---|
-| Archivos ejecutables (.exe, .dll, .bat, .ps1, etc.) | 347 | 5.1% |
-| Archivos ocultos | 8 | 0.1% |
-| Nombres largos (>100 chars) | 3,467 | 51.1% |
-| Nombres con espacios | 2,834 | 41.8% |
+**Patrones de interés:**
+
+| Patrón | Cantidad | % | Nota |
+|--------|----------|---|------|
+| Archivos ejecutables (.exe, .dll, .bat, .ps1, etc.) | 347 | 5.1% | Merece revisión en contexto APT |
+| Archivos ocultos (nombre con punto inicial) | 8 | 0.1% | Patrón Unix, inusual en Windows |
+| Rutas completas >100 caracteres | 3,467 | 51.1% | Normal — rutas Windows profundas |
+
+El 51.1% de rutas largas no es una señal de alerta: rutas como `C:\Users\gosta\AppData\Local\Microsoft\Windows\Caches\...` superan fácilmente los 100 caracteres. Los "nombres con espacios" se eliminaron de la tabla de patrones de interés — son inherentes al sistema de archivos Windows (`C:\Program Files\`, `C:\Windows Defender\`) y no aportan señal.
 
 La creación de **264 DLLs** y **347 ejecutables** durante 72 minutos merece atención: mientras algunos son legítimos (actualizaciones, caché), en el contexto de una simulación APT podrían incluir payloads desplegados por el atacante.
 
