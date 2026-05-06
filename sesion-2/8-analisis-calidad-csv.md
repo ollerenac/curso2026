@@ -397,6 +397,10 @@ Procesos huérfanos (sin padre):     0
 | Máximo hijos de un solo padre | 500 |
 | Padres con >10 hijos | 9 |
 
+```{warning}
+El máximo de 500 hijos generados por un único padre es anómalo. ¿Puede un proceso legítimo spawnear 500 procesos hijos en una ventana de 72 minutos? ¿O es un artefacto en los datos? Este valor merece investigación propia — analizada en el **Paso 8e**.
+```
+
 **Top 5 procesos padre más prolíficos:**
 
 | Hijos | Proceso padre |
@@ -409,7 +413,7 @@ Procesos huérfanos (sin padre):     0
 
 **Hallazgos de seguridad:**
 
-- **"Parent not found in dataset"** significa que el proceso padre fue creado *antes* del inicio de la ventana de captura (05:00 UTC). Su GUID existe en los registros EID 1 de sus hijos, pero no hay un evento EID 1 propio en el dataset — son GUIDs reales, solo ausentes del CSV. Esto es distinto del GUID centinela: aquí el padre tiene un GUID conocido pero no capturado; en el centinela, el padre es directamente no identificable. El padre con 500 hijos es probablemente `svchost.exe` o `services.exe`.
+- **"Parent not found in dataset"** puede significar dos cosas distintas. Para los padres con 44 y 19 hijos: el proceso padre fue creado *antes* del inicio de la ventana de captura (05:00 UTC) — su GUID existe en los registros EID 1 de sus hijos, pero no hay un evento EID 1 propio en el dataset (GUID real, solo ausente del CSV). Para el padre con 500 hijos: es el GUID centinela `00000000-...`, cuya causa se investiga en el **Paso 8e**.
 - **`SystemFailureReporter.exe`** en `C:\Users\Public\` es altamente sospechoso: un ejecutable con nombre engañoso ubicado en una carpeta pública (accesible por cualquier usuario). Con 31 procesos hijos, es consistente con un implante de la simulación APT.
 - **Chrome con 19 hijos** es comportamiento normal — cada pestaña y extensión genera procesos hijos.
 
