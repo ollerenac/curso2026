@@ -471,6 +471,77 @@ La diferencia entre media (170) y mediana (59) indica una distribución sesgada:
 
 Estos patrones, junto con `SystemFailureReporter.exe` del análisis anterior y la presencia de `cmd.exe` (41 ejecuciones) y `netsh` (12 ejecuciones), son consistentes con las fases de ejecución y movimiento lateral de una simulación APT.
 
+### 5d. Análisis de Image (EventID 1)
+
+El campo `Image` contiene la ruta completa del ejecutable creado. Mientras `CommandLine` responde "¿cómo fue invocado el proceso?", `Image` responde "¿qué proceso fue creado y desde dónde?". La ubicación del ejecutable en el sistema de archivos es en sí misma una señal de seguridad: los binarios del sistema operativo residen en rutas predecibles (`System32`, `SysWOW64`), y cualquier ejecutable fuera de esas rutas merece escrutinio.
+
+**Operaciones del código**: el código filtra por `EventID == 1` y verifica cobertura de `Image` dentro de EID 1, separando nulos y `<unknown process>`. Extrae el nombre del ejecutable y el directorio de origen con expresiones regulares sobre la ruta en minúsculas. Aplica `value_counts()` para obtener el top-10 de ejecutables y de directorios. Finalmente evalúa cada ruta contra un conjunto de patrones de directorios sospechosos (`C:\Users\Public`, `AppData`, carpetas Temp, `ProgramData`).
+
+```
+EID 1 events:          1,023
+Null Image:            0
+<unknown process>:     0
+Valid Image:           1,023 (100.0%)
+```
+
+**Top 10 ejecutables creados:**
+
+| Ejecutable | Instancias |
+|-----------|-----------|
+| svchost.exe | 94 |
+| conhost.exe | 70 |
+| dllhost.exe | 60 |
+| wmiprvse.exe | 50 |
+| cmd.exe | 50 |
+| taskhostw.exe | 40 |
+| firefox.exe | 37 |
+| backgroundtaskhost.exe | 35 |
+| runtimebroker.exe | 30 |
+| updater.exe | 26 |
+
+Los primeros cuatro son infraestructura del sistema operativo (ver Paso 5c). `taskhostw.exe`, `backgroundtaskhost.exe` y `runtimebroker.exe` son parte de la infraestructura de tareas programadas y apps modernas de Windows — presencia esperada. `updater.exe` proviene de los procesos de actualización de Google Chrome y Microsoft Edge, confirmados por los directorios de origen.
+
+**Top 10 directorios de origen:**
+
+| Directorio | Instancias |
+|-----------|-----------|
+| `C:\Windows\System32` | 639 |
+| `C:\Windows\System32\wbem` | 59 |
+| `C:\Program Files\Mozilla Firefox` | 41 |
+| `C:\Program Files (x86)\Google\GoogleUpdater\135.0.7023.0` | 25 |
+| `C:\Program Files (x86)\Microsoft\EdgeUpdate` | 20 |
+| `C:\Program Files\Google\Chrome\Application` | 20 |
+| `C:\Program Files (x86)\Microsoft\EdgeWebView\Application\134.0.3124.72` | 16 |
+| `C:\Program Files\Microsoft OneDrive\25.031.0217.0003` | 15 |
+| `C:\Windows\SysWOW64` | 15 |
+| `C:\Windows` | 14 |
+
+El 62% (639/1,023) de los procesos creados provienen de `System32` — distribución normal para un sistema Windows activo.
+
+**Ejecutables en rutas sospechosas:**
+
+| Ruta | Instancias | Ejecutable |
+|------|-----------|-----------|
+| `C:\Users\Public\` | 1 | `SystemFailureReporter.exe` |
+| `C:\Users\Public\Downloads\` | 1 | `plink.exe` |
+| `C:\Users\gosta\AppData\Local\Microsoft\EdgeUpdate\` | 1 | `MicrosoftEdgeUpdate.exe` |
+| `C:\Users\gosta\AppData\Local\SystemFailureReporter\` | 1 | `b.exe` |
+| `C:\Windows\Temp\` | 1 | `m64.exe` |
+| `C:\ProgramData\Microsoft\Windows Defender\...\` | 3 | `MpCmdRun.exe` |
+| `C:\ProgramData\VMware\` | 1 | `VMware.exe` |
+
+**Hallazgos de seguridad:**
+
+- **`plink.exe`** en `C:\Users\Public\Downloads\` — PLink es el cliente SSH de línea de comandos de la suite PuTTY. Herramienta legítima de administración, pero clásicamente usada en ataques para establecer túneles SSH como canal C2 encubierto. Su presencia en una carpeta de acceso público es un indicador fuerte de tunneling o movimiento lateral.
+
+- **`b.exe`** en `C:\Users\gosta\AppData\Local\SystemFailureReporter\` — el mismo nombre de carpeta que el implante `SystemFailureReporter.exe` de `C:\Users\Public\`, pero un binario distinto (`b.exe`). Sugiere una arquitectura de dos componentes: el ejecutable principal en Public (accesible a todos los usuarios) y un componente secundario en el perfil del usuario comprometido.
+
+- **`m64.exe`** en `C:\Windows\Temp\` — ejecutable de nombre ultracorto en una carpeta temporal. El patrón nombre-corto + ruta-Temp es característico de herramientas de ataque que se copian a sí mismas en Temp para ejecución efímera. `m64` podría ser una variante de Mimikatz u otra herramienta de post-explotación.
+
+- **`MpCmdRun.exe`** — herramienta CLI legítima de Windows Defender. Sin embargo, es también un LOLBin (Living-off-the-Land Binary) conocido: atacantes lo usan para descargar archivos y evadir detección aprovechando que es un binario firmado por Microsoft.
+
+- **`VMware.exe`** en `C:\ProgramData\VMware\` — agente del entorno de laboratorio virtualizado. Presencia esperada, no sospechosa.
+
 ## Paso 6: Actividad de red
 
 El análisis de EventID 3 (Network Connection) examina 14,424 conexiones de red capturadas durante la ventana de 72 minutos.
