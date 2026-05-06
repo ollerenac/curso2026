@@ -437,6 +437,18 @@ Solo 1,023 eventos (0.3%) tienen línea de comando — exclusivamente EventID 1 
 
 *\* "program" es un artefacto de parsing: proviene de rutas como `"C:\Program Files\...\app.exe"` donde la extracción del comando base falla al dividir por espacios antes de eliminar la ruta.*
 
+```{dropdown} ¿Qué son svchost.exe, conhost.exe, dllhost.exe y wmiprvse.exe?
+**`svchost.exe`** — Service Host. El proceso contenedor de servicios de Windows. El sistema operativo no ejecuta sus servicios directamente — los agrupa dentro de instancias de `svchost.exe`. En cualquier Windows hay docenas de instancias corriendo simultáneamente, cada una alojando uno o más servicios (DNS, Windows Update, RPC, etc.). Es el ejecutable más lanzado del sistema.
+
+**`conhost.exe`** — Console Host. Cada vez que se abre una ventana de consola (`cmd.exe`, PowerShell, etc.) Windows crea un `conhost.exe` asociado que maneja la ventana de la terminal. En un escenario APT con mucha actividad de línea de comandos, es esperado ver muchas instancias.
+
+**`dllhost.exe`** — DLL Host / COM Surrogate. Ejecuta componentes COM (Component Object Model) en un proceso separado, aislado del proceso que los invoca. Aparece frecuentemente al acceder a carpetas con miniaturas, al ejecutar tareas programadas COM, y en muchas operaciones internas de Windows.
+
+**`wmiprvse.exe`** — WMI Provider Service. Ejecuta los proveedores WMI (Windows Management Instrumentation). Cualquier consulta WMI — del sistema, de software de monitorización, o de un atacante usando WMI para movimiento lateral — genera una instancia de este proceso.
+
+**Relevancia en un escenario APT**: aunque son todos procesos legítimos, son los favoritos para técnicas de evasión. Un atacante puede inyectar código en `svchost.exe` o `dllhost.exe` precisamente porque son ubicuos — se mezclan con el ruido de fondo. En el Paso 8e veremos que muchos de estos procesos aparecen con `ParentProcessGuid` centinela, lo que confirma que se lanzan en las fases tempranas del sistema donde la visibilidad de Sysmon es limitada.
+```
+
 **Longitud de líneas de comando:**
 
 ```
