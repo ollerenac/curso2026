@@ -577,6 +577,10 @@ IPs privadas/locales:     8,004 (55.5%)
 IPs públicas:             6,420 (44.5%)
 ```
 
+14,424 conexiones repartidas entre solo 189 IPs destino — un promedio de 76 conexiones por IP. Esta concentración indica comunicación repetida con un conjunto reducido de servidores, no exploración aleatoria de la red.
+
+El 55.5% de tráfico interno refleja comunicación normal entre los 4 hosts del laboratorio y sus servicios de dominio (Kerberos, LDAP, DNS). El 44.5% externo tiene dos explicaciones complementarias: por un lado, los actualizadores automáticos de Chrome, Firefox, Edge y OneDrive (identificados en el Paso 5d generando 96 procesos) abren conexiones hacia CDNs y servidores de actualización públicos; por otro, la presencia de `plink.exe` en `C:\Users\Public\Downloads\` y los puertos no estándar 444 y 6001 apuntan a tráfico C2 encubierto entre esa actividad legítima.
+
 **Top IPs de destino:**
 
 | IP | Conexiones | % | Contexto |
@@ -595,7 +599,7 @@ IPs públicas:             6,420 (44.5%)
 - **Puerto 6001** (748 conexiones) y **puerto 81** (592 conexiones) son igualmente no estándar y merecen investigación como posibles canales C2.
 - **8.8.8.8** como destino frecuente (924 conexiones) podría ser DNS legítimo o exfiltración vía DNS — una técnica APT conocida.
 - **Puertos 88 (Kerberos)** y **389 (LDAP)** son esperables en un dominio Windows Active Directory.
-- El 44.5% de tráfico hacia IPs públicas es significativo para un entorno corporativo cerrado y sugiere actividad de C2 o exfiltración.
+- El 44.5% de tráfico hacia IPs públicas es significativo para un entorno de laboratorio. Parte es legítima (updaters de Chrome, Edge, OneDrive), pero correlaciona directamente con `plink.exe` (Paso 5d) — un cliente SSH usado para tunneling — y con los puertos no estándar 444 y 6001, reforzando la hipótesis de canal C2 encubierto.
 
 ## Paso 7: Actividad del sistema de archivos
 
