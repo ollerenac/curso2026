@@ -357,16 +357,17 @@ El notebook evalúa los 4 pares: para cada uno filtra las filas donde ambas colu
 
 **Pares GUID/PID en el dataset:**
 
-| Par de columnas | Pares no nulos | GUIDs únicos | PIDs únicos | Combinaciones GUID-PID únicas | PID reuse |
-|-----------------|----------------|--------------|-------------|---------------|-----------|
-| ProcessGuid / ProcessId | 248,846 | 1,633 | 1,240 | 1,646 | 1.33 ⚠️ |
-| ParentProcessGuid / ParentProcessId | 1,023 | 235 | 242 | 256 | 1.06 |
+| Par de columnas | Pares no nulos | GUIDs reales únicos | PIDs únicos | Combinaciones GUID-PID únicas | PID reuse |
+|-----------------|----------------|---------------------|-------------|-------------------------------|-----------|
+| ProcessGuid / ProcessId | 248,846 | 1,632 | 1,240 | 1,632 | 1.32 ⚠️ |
+| ParentProcessGuid / ParentProcessId | 1,023 | 234 | 223 | 234 | 1.05 |
 | SourceProcessGUID / SourceProcessId | 114,742 | 493 | 447 | 493 | 1.10 ⚠️ |
-| TargetProcessGUID / TargetProcessId | 114,742 | 1,421 | 1,143 | 1,422 | 1.24 ⚠️ |
+| TargetProcessGUID / TargetProcessId | 114,742 | 1,420 | 1,143 | 1,420 | 1.24 ⚠️ |
 
 **Interpretación:**
 
-- **PID reuse confirmado** en 3 de 4 pares (ratio ≥ 1.10). El par ProcessGuid/ProcessId muestra el ratio más alto (1.33): cada PID está asociado en promedio a 1.33 instancias de proceso distintas, lo que refleja tanto reasignación temporal dentro de una misma máquina como la coexistencia del mismo PID en los 4 hosts del dataset.
+- **PID reuse confirmado** en 3 de 4 pares (ratio ≥ 1.10). El par ProcessGuid/ProcessId muestra el ratio más alto (1.32): cada PID está asociado en promedio a 1.32 instancias de proceso distintas, lo que refleja tanto reasignación temporal dentro de una misma máquina como la coexistencia del mismo PID en los 4 hosts del dataset.
+- **Ningún GUID real mapea a más de un PID**: en todos los pares, el número de combinaciones GUID-PID es igual al número de GUIDs reales únicos. La asimetría del ratio opera exclusivamente en dirección inversa — múltiples GUIDs comparten un mismo PID (reutilización normal del sistema operativo), nunca un GUID con PIDs inconsistentes.
 - **GUIDs son el identificador confiable**: los 1,632 GUIDs reales identifican cada uno exactamente una instancia de proceso — la excepción es el GUID centinela `00000000-0000-0000-0000-000000000000`, examinado en detalle en el **Paso 8e**.
 - **ParentProcess** solo tiene 1,023 pares no nulos — exclusivamente de EventID 1 (Process Create), el único tipo de evento que registra información del proceso padre.
 - **Source/Target** tienen 114,742 pares no nulos — de EventIDs 8 (Create Remote Thread) y 10 (Process Access), que modelan interacciones entre dos procesos.
@@ -614,7 +615,7 @@ Antes de verificar la consistencia semántica, es necesario entender los dos mec
 
 **El problema: ambigüedad del PID.** Supongamos que `cmd.exe` se ejecuta con PID 4520, crea un archivo (EID 11), establece una conexión de red (EID 3), y luego termina (EID 5). Segundos después, el sistema operativo asigna PID 4520 a `svchost.exe`. Ahora aparecen nuevos eventos con PID 4520 — ¿pertenecen a `cmd.exe` o a `svchost.exe`? Sin más información, es imposible saberlo.
 
-**PID (Process ID):** Entero asignado por el sistema operativo a cada proceso activo. Es único *solo mientras el proceso está vivo* — cuando termina, el OS recicla su número para nuevos procesos. En nuestro dataset, el ratio de reutilización es 1.33 (Paso 5): 1,633 GUIDs de proceso únicos (1,646 combinaciones GUID-PID) comparten solo 1,240 PIDs distintos. Consecuencia: los PIDs **no pueden identificar procesos de forma unívoca** a lo largo del tiempo.
+**PID (Process ID):** Entero asignado por el sistema operativo a cada proceso activo. Es único *solo mientras el proceso está vivo* — cuando termina, el OS recicla su número para nuevos procesos. En nuestro dataset, el ratio de reutilización es 1.32 (Paso 5): 1,632 GUIDs de proceso reales comparten solo 1,240 PIDs distintos. Consecuencia: los PIDs **no pueden identificar procesos de forma unívoca** a lo largo del tiempo.
 
 **ProcessGuid (Globally Unique Identifier):** Sysmon genera un identificador único para cada *instancia* de proceso en el momento de su creación. El formato `{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}` combina información de la máquina, un timestamp y un número secuencial, garantizando que **nunca se repite** — ni entre reinicios del sistema, ni entre máquinas diferentes. Un ProcessGuid nace con el proceso y muere con él: no se recicla.
 
@@ -668,7 +669,7 @@ GUIDs con múltiples PIDs:    0
   ✅ No PID violations — each GUID maps to exactly 1 PID
 ```
 
-✅ **Sin violaciones.** Cada ProcessGuid mapea a exactamente 1 PID. Esto confirma que el ratio de reutilización (1.33) del Paso 5 opera en dirección *inversa*: múltiples GUIDs comparten PIDs (reutilización normal del sistema operativo), pero ningún GUID tiene PIDs inconsistentes.
+✅ **Sin violaciones.** Cada ProcessGuid mapea a exactamente 1 PID. Esto confirma lo que ya era visible en la tabla del Paso 5 — que el ratio de reutilización (1.32) opera en dirección *inversa*: múltiples GUIDs comparten PIDs (reutilización normal del sistema operativo), pero ningún GUID tiene PIDs inconsistentes.
 
 **Verificación 2: GUID → Image**
 
@@ -865,7 +866,7 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
 
 2. **Consistencia temporal**: Ventana de 72 minutos (05:00-06:12 UTC) con tasa media de 84 eventos/segundo. Ráfagas significativas (pico de 30,563 eventos/minuto) sugieren períodos de actividad intensa.
 
-3. **Identificadores de proceso confiables**: Los GUIDs proporcionan identificación unívoca (1,633 GUIDs únicos, 1,240 PIDs distintos). PID reuse confirmado (ratio 1.33), reforzando la necesidad de usar GUIDs para rastreo causal. Sin embargo, **28 GUIDs presentan violaciones de Image** (2.07% de eventos) que deben corregirse antes del análisis causal — la mayoría son artefactos (`<unknown process>`, prefijo `\\?\`, rutas versionadas), pero 2 son colisiones genuinas.
+3. **Identificadores de proceso confiables**: Los GUIDs proporcionan identificación unívoca (1,632 GUIDs reales, 1,240 PIDs distintos). PID reuse confirmado (ratio 1.32), reforzando la necesidad de usar GUIDs para rastreo causal. Sin embargo, **28 GUIDs presentan violaciones de Image** (2.07% de eventos) que deben corregirse antes del análisis causal — la mayoría son artefactos (`<unknown process>`, prefijo `\\?\`, rutas versionadas), pero 2 son colisiones genuinas.
 
 4. **Indicadores de actividad APT detectados**:
    - `SystemFailureReporter.exe` en `C:\Users\Public\` (implante sospechoso, 31 procesos hijos)
@@ -893,7 +894,7 @@ Responde las siguientes preguntas basándote en el análisis de calidad:
 
 3. **El análisis de red muestra 1,378 conexiones al puerto 444, que no es un servicio estándar.** Formula una hipótesis de seguridad: ¿qué tipo de actividad APT podría explicar este tráfico? Considera la proximidad al puerto 443 (HTTPS) y el contexto de la simulación de ataque.
 
-4. **El PID reuse ratio es 1.33 para ProcessGuid/ProcessId.** Diseña una prueba de validación que demuestre por qué usar PIDs (en lugar de GUIDs) para rastreo causal produciría falsos positivos. Describe los datos de entrada y el resultado esperado.
+4. **El PID reuse ratio es 1.32 para ProcessGuid/ProcessId.** Diseña una prueba de validación que demuestre por qué usar PIDs (en lugar de GUIDs) para rastreo causal produciría falsos positivos. Describe los datos de entrada y el resultado esperado.
 
 5. **Si tuvieras que elegir solo 5 columnas como "mínimo viable" para entrenar un modelo IDS**, ¿cuáles elegirías y por qué? Considera: identificación del evento, contexto temporal, identificación de proceso, y actividad observable.
 
