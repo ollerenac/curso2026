@@ -687,19 +687,25 @@ El código evalúa cada campo filtrando por valores no nulos (`dropna()`), calcu
 ### 8c. Consistencia de datos
 
 ```
-EventIDs inválidos:       1 registro (EventID 255)
-Timestamps inválidos:     2 registros (0.0%)
+EventIDs inválidos:         1 registro (EventID 255)
 GUIDs con formato inválido: 0 (validación corregida para soportar formato sin llaves)
-PIDs inválidos:           0
+PIDs inválidos:             0
 ```
 
-La validación de GUIDs ahora reconoce correctamente el formato sin llaves (`44d66c27-4e6d-67da-...`) presente en este dataset, tras corregir la expresión regular original que solo aceptaba GUIDs con llaves (`{...}`).
+**Hosts en el dataset:**
 
-**Puntos clave:**
-- Los altos porcentajes de nulos (hasta 99.998%) **no son un defecto de calidad** — son una consecuencia directa del diseño CSV unificado donde cada fila solo usa las columnas de su EventID.
-- El marcado "CRITICAL" para ProcessGuid (31.57% nulos) es un **falso positivo del scoring**: los registros sin ProcessGuid son EID 8/10 que usan `SourceProcessGUID`/`TargetProcessGUID`. La información de proceso está presente, solo con nomenclatura diferente.
-- **EventID 255** (1 registro) es un hallazgo de calidad a nivel de formato — un evento no documentado en la especificación oficial de Sysmon que requiere investigación.
-- La validación de GUIDs sin llaves demuestra la importancia de adaptar las reglas de validación al dataset real, no a la especificación teórica.
+| Host | Registros | % |
+|------|-----------|---|
+| theblock.boombox.local | 149,254 | 41.0% |
+| waterfalls.boombox.local | 145,217 | 39.9% |
+| endofroad.boombox.local | 41,905 | 11.5% |
+| diskjockey.boombox.local | 27,281 | 7.5% |
+
+Los 4 hosts son exactamente los esperados para el entorno de laboratorio — sin hosts desconocidos ni valores anómalos en la columna `Computer`.
+
+**Hallazgos:**
+- **EventID 255** (1 registro) es un evento de error interno de Sysmon no documentado en la especificación oficial — hallazgo de calidad a nivel de formato.
+- La validación de GUIDs reconoce el formato sin llaves (`44d66c27-4e6d-67da-...`) presente en este dataset, corrigiendo la regex original que solo aceptaba el formato `{...}`.
 
 ### 8d. Consistencia semántica de ProcessGuid
 
