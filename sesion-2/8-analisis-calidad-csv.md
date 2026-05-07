@@ -850,23 +850,45 @@ $$p_k : G \rightarrow \mathbb{N} \quad \text{(función bien definida para cada }
 **Cobertura en este dataset**: el código de esta verificación comprueba explícitamente el par $k=1$ (ProcessGuid/ProcessId). Los pares $k=2,3,4$ son confirmados en el análisis del Paso 8e, donde se establece que $|V_{1,k}| = 0$ en todos los pares y en todos los runs.
 ```
 
+**Operaciones del código**: para cada uno de los cuatro pares $(g_k, p_k)$, filtra el dataframe al dominio $D_k$, descarta filas con nulos en ambas columnas, excluye el centinela, y cuenta cuántos PIDs distintos aparecen para cada GUID real. Un par con 0 violaciones confirma que $p_k : G \rightarrow \mathbb{N}$ es una función bien definida.
+
 ```python
 NULL_GUID = '00000000-0000-0000-0000-000000000000'
 
-guid_pid = df[['ProcessGuid', 'ProcessId']].dropna().drop_duplicates()
-guid_pid = guid_pid[guid_pid['ProcessGuid'] != NULL_GUID]
-pids_per_guid = guid_pid.groupby('ProcessGuid')['ProcessId'].nunique()
-pid_violations = pids_per_guid[pids_per_guid > 1]
-print(f"GUIDs con múltiples PIDs: {len(pid_violations)}")
+PAIRS = [
+    (1, 'ProcessGuid',       'ProcessId',       'EID ∉ {8,10}'),
+    (2, 'ParentProcessGuid', 'ParentProcessId', 'EID = 1'),
+    (3, 'SourceProcessGUID', 'SourceProcessId', 'EID ∈ {8,10}'),
+    (4, 'TargetProcessGUID', 'TargetProcessId', 'EID ∈ {8,10}'),
+]
+
+DOMAIN = {
+    'ProcessGuid':       lambda d: d[~d['EventID'].isin([8, 10])],
+    'ParentProcessGuid': lambda d: d[d['EventID'] == 1],
+    'SourceProcessGUID': lambda d: d[d['EventID'].isin([8, 10])],
+    'TargetProcessGUID': lambda d: d[d['EventID'].isin([8, 10])],
+}
+
+for k, guid_col, pid_col, domain_label in PAIRS:
+    subset = DOMAIN[guid_col](df)
+    valid  = subset[[guid_col, pid_col]].dropna().drop_duplicates()
+    real   = valid[valid[guid_col] != NULL_GUID]
+
+    pids_per_guid = real.groupby(guid_col)[pid_col].nunique()
+    violations    = pids_per_guid[pids_per_guid > 1]
+
+    status = "✅ Sin violaciones" if len(violations) == 0 else f"⚠️  {len(violations)} GUIDs con múltiples PIDs"
+    print(f"\n  k={k}  {guid_col} / {pid_col}  [{domain_label}]")
+    print(f"       GUIDs reales verificados : {len(pids_per_guid):,}")
+    print(f"       Resultado                : {status}")
+
+    if len(violations) > 0:
+        for guid in violations.index[:3]:
+            pids = real[real[guid_col] == guid][pid_col].unique()
+            print(f"       {guid}: PIDs = {sorted([int(p) for p in pids])}")
 ```
 
-```
-Unique ProcessGuids checked: 1,632
-GUIDs con múltiples PIDs:    0
-  ✅ No PID violations — each GUID maps to exactly 1 PID
-```
-
-✅ **Sin violaciones.** Cada ProcessGuid mapea a exactamente 1 PID. Esto confirma lo que ya era visible en la tabla del Paso 5 — que el ratio de reutilización (1.32) opera en dirección *inversa*: múltiples GUIDs comparten PIDs (reutilización normal del sistema operativo), pero ningún GUID tiene PIDs inconsistentes.
+✅ **Sin violaciones en ninguno de los cuatro pares.** El Invariante 1 se cumple para toda instancia de proceso observada en el dataset — $p_k : G \rightarrow \mathbb{N}$ es una función bien definida para cada $k$.
 
 **Verificación 2: GUID → Image**
 
