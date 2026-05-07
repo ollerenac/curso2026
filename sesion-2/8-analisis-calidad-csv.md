@@ -747,8 +747,8 @@ Sea $E$ el conjunto de todos los eventos (filas del CSV). Cada evento $e \in E$ 
 
 $$\text{computer}(e),\ \text{eid}(e),\ t(e) \quad \text{— siempre definidos}$$
 $$\text{guid}(e),\ \text{pid}(e),\ \text{image}(e) \quad \text{— ProcessGuid, ProcessId, Image}$$
-$$\text{parent\_guid}(e) \quad \text{— ParentProcessGuid}$$
-$$\text{source\_guid}(e),\ \text{target\_guid}(e) \quad \text{— SourceProcessGUID, TargetProcessGUID}$$
+$$\text{parent_guid}(e) \quad \text{— ParentProcessGuid}$$
+$$\text{source_guid}(e),\ \text{target_guid}(e) \quad \text{— SourceProcessGUID, TargetProcessGUID}$$
 
 Sea $G$ el conjunto de GUIDs válidos (excluyendo el centinela $\emptyset$).
 
@@ -787,7 +787,7 @@ Una violación es encontrar $g \in G$ y $e_1, e_2 \in [g]_k$ que no cumplan algu
 
 **Relación padre-hijo $R \subseteq G \times G$ (EID 1)**
 
-$$(g_p,\, g_h) \in R \iff \exists\, e \in E :\ \text{eid}(e) = 1\ \land\ \text{guid}(e) = g_h\ \land\ \text{parent\_guid}(e) = g_p$$
+$$(g_p,\, g_h) \in R \iff \exists\, e \in E :\ \text{eid}(e) = 1\ \land\ \text{guid}(e) = g_h\ \land\ \text{parent_guid}(e) = g_p$$
 
 Propiedades: $R$ es una función parcial ($|{g_p : (g_p, g_h) \in R}| \leq 1$), sin ciclos — el grafo $(G, R)$ es un bosque. Consistencia temporal: $(g_p, g_h) \in R \Rightarrow t_{\text{birth}}(g_p) \leq t_{\text{birth}}(g_h)$.
 
@@ -797,11 +797,11 @@ La relación de ancestría $\rightarrow^*$ es el cierre transitivo de $R$: permi
 
 **Relación de acceso $A \subseteq G \times G$ (EID 8/10)**
 
-$$(g_s,\, g_t) \in A \iff \exists\, e \in E :\ \text{eid}(e) \in \{8, 10\}\ \land\ \text{source\_guid}(e) = g_s\ \land\ \text{target\_guid}(e) = g_t$$
+$$(g_s,\, g_t) \in A \iff \exists\, e \in E :\ \text{eid}(e) \in \{8, 10\}\ \land\ \text{source_guid}(e) = g_s\ \land\ \text{target_guid}(e) = g_t$$
 
 A diferencia de $R$, la relación $A$ es $n{:}m$, puede contener ciclos y sus nodos coexisten en el tiempo. Captura inyección de hilos (EID 8) y acceso a memoria (EID 10).
 
-Asimetría del centinela: $\text{source\_guid}$ es siempre conocido (Sysmon captura desde el lado del iniciador); $\text{target\_guid}$ puede ser $\emptyset$ — el proceso víctima puede estar fuera de visibilidad.
+Asimetría del centinela: $\text{source_guid}$ es siempre conocido (Sysmon captura desde el lado del iniciador); $\text{target_guid}$ puede ser $\emptyset$ — el proceso víctima puede estar fuera de visibilidad.
 
 ---
 
@@ -837,11 +837,11 @@ Ambas verificaciones excluyen el GUID nulo (`00000000-0000-0000-0000-00000000000
 ```{dropdown} Formalización
 El Invariante 1 se verifica sobre los cuatro pares GUID–PID. Para cada par $k$, definimos el conjunto de PIDs observados para un GUID $g$:
 
-$$\text{pid\_set}_k(g) = \{p_k(e) : e \in [g]_k,\ p_k(e) \neq \text{null}\}$$
+$$\text{pid_set}_k(g) = \{p_k(e) : e \in [g]_k,\ p_k(e) \neq \text{null}\}$$
 
 El conjunto de violaciones del par $k$:
 
-$$V_{1,k} = \{g \in G : |\text{pid\_set}_k(g)| > 1\}$$
+$$V_{1,k} = \{g \in G : |\text{pid_set}_k(g)| > 1\}$$
 
 Si $|V_{1,k}| = 0$ para todo $k$, entonces $p_k$ deja de ser una propiedad del evento individual y pasa a ser una propiedad del proceso:
 
