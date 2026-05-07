@@ -1,12 +1,12 @@
-# Limpieza de Calidad de Datos Sysmon (Script 4)
+# Limpieza de Calidad de Datos Sysmon (Script 9)
 
 **Duración**: 30 minutos
 
 ```{admonition} Script de trabajo
 :class: note
 
-**Orquestador**: `scripts/pipeline/4_sysmon_data_cleaner.py`
-**Sub-scripts**: `scripts/pipeline/quality/` (detección, normalización, extracción, aplicación)
+**Orquestador**: `sesion-2/9_sysmon_data_cleaner.py`
+**Sub-scripts**: `sesion-2/quality/` (detección, normalización, extracción, aplicación)
 ```
 
 ## Contexto: ¿Qué descubrimos en el análisis de calidad?
@@ -17,9 +17,9 @@ En la sección anterior, el análisis de consistencia semántica (Paso 8d) verif
 >
 > **Invariante 2**: Un ProcessGuid → exactamente 1 Image (ruta del ejecutable)
 
-Los resultados confirmaron **0 violaciones PID** (cada GUID mapea a un único PID), pero detectaron **28 violaciones de Image**: 28 ProcessGuids que aparecen con 2 o más rutas de ejecutable diferentes, afectando 7,518 eventos (2.07% del dataset).
+Los resultados del análisis de k=1 (par ProcessGuid) confirmaron que **ningún GUID real viola el Invariante 1** — el único "violador" es el GUID centinela ∅, que acumula eventos de procesos no identificados en el arranque. Para el Invariante 2 se detectaron **28 GUIDs con múltiples Images** (2.07% del dataset), clasificados en cuatro categorías: artefactos de boot (`<unknown process>`), prefijo de ruta `\\?\`, variantes de Elastic Agent, y 2 colisiones genuinas.
 
-Si no se corrigen, estas violaciones contaminarán los análisis de causalidad de los Scripts 7 y 8 (etiquetado). El Script 4 automatiza la detección y corrección de estas inconsistencias.
+Si no se corrigen, estas violaciones contaminarán los análisis de causalidad de los pasos de etiquetado. El Script 9 automatiza la detección y corrección de estas inconsistencias para el par k=1.
 
 ## El problema: Violaciones de ProcessGuid
 
@@ -270,20 +270,138 @@ El orquestador soporta múltiples modos que permiten ejecutar el pipeline comple
 
 ```bash
 # Flujo completo: detectar, normalizar, extraer, editar, aplicar
-python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05
+python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01
 
 # Solo detección (sin correcciones)
-python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --detect-only
+python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --detect-only
 
 # Solo aplicar correcciones (si ya se editó el archivo de violaciones)
-python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --apply-only
+python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --apply-only
 
 # Saltar normalización de rutas (para inspeccionar violaciones sin filtrar)
-python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --skip-normalization
+python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --skip-normalization
 
 # Vista previa de cambios sin aplicar
-python 4_sysmon_data_cleaner.py --apt-type apt-1 --run-id 05 --dry-run --verbose
+python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --dry-run --verbose
 ```
+
+---
+
+## Diseño interno: cómo extender los scripts a otros pares GUID
+
+Los scripts actuales cubren únicamente el par **k=1** (columna `ProcessGuid`). El análisis del Paso 8f demostró que k=2, k=3 y k=4 también tienen violaciones. Para extender los scripts es necesario entender su algoritmo central y qué cambia en cada par.
+
+### El algoritmo de detección (pasos 1-2)
+
+Ambos detectores — `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` — siguen el mismo algoritmo de tres fases:
+
+**Fase A — Construir el mapa GUID → conjunto**
+
+El CSV se lee en chunks de 100 000 filas para no agotar la memoria. Para cada chunk, se acumula un `defaultdict(set)` que guarda todas las combinaciones únicas de (PID o Image, Computer, RunID) vistas para cada GUID:
+
+```python
+from collections import defaultdict
+guid_to_info = defaultdict(set)
+
+for chunk in pd.read_csv(sysmon_file,
+        usecols=['ProcessGuid', 'ProcessId', 'Image', 'Computer'],
+        chunksize=100_000, low_memory=False):
+
+    chunk = chunk.dropna(subset=['ProcessGuid', 'ProcessId'])
+
+    for guid in chunk['ProcessGuid'].unique():
+        guid_rows = chunk[chunk['ProcessGuid'] == guid]
+        for _, row in guid_rows.iterrows():
+            guid_to_info[guid].add((
+                row['ProcessId'], row['Image'], row['Computer'], run_id
+            ))
+```
+
+El uso de `set` deduplica automáticamente: si el mismo (PID, Image, Computer) aparece en 10 000 filas, solo ocupa una entrada en el conjunto.
+
+**Fase B — Identificar violadores**
+
+Una vez procesado todo el archivo, se recorre el diccionario. Un GUID viola el invariante si su conjunto contiene más de un valor único del campo objetivo:
+
+```python
+# Invariante 1: el conjunto tiene más de 1 PID distinto
+unique_pids = set(pid for pid, _, _, _ in info_set)
+if len(unique_pids) > 1:
+    # → violación: este GUID se mapea a múltiples PIDs
+
+# Invariante 2: el conjunto tiene más de 1 Image distinta (case-insensitive)
+unique_images = set(img.lower() for img, _, _, _ in info_set if pd.notna(img))
+if len(unique_images) > 1:
+    # → violación: este GUID se mapea a múltiples Images
+```
+
+**Fase C — Escribir el CSV de salida**
+
+Por cada GUID violador se emite una fila por cada entrada de su conjunto — es decir, una fila por cada (GUID, PID/Image, Computer, RunID) distinto. Esto le da al analista la lista completa de valores contradictorios que debe resolver.
+
+### Por qué los scripts actuales cubren solo k=1
+
+Los scripts leen únicamente la columna `ProcessGuid` sin aplicar ningún filtro de EventID. Esto captura k=1 de forma implícita, pero ignora los otros tres pares porque sus GUIDs viven en columnas con nombres diferentes:
+
+| Par | Columna GUID | Columna PID | Columna Image | Dominio (filtro EventID) |
+|-----|-------------|-------------|---------------|--------------------------|
+| k=1 | `ProcessGuid` | `ProcessId` | `Image` | todos los EID (sin filtro) |
+| k=2 | `ParentProcessGuid` | `ParentProcessId` | `ParentImage` | solo EID = 1 |
+| k=3 | `SourceProcessGUID` | `SourceProcessId` | `SourceImage` | solo EID ∈ {8, 10} |
+| k=4 | `TargetProcessGUID` | `TargetProcessId` | `TargetImage` | solo EID ∈ {8, 10} |
+
+El filtro de EventID es necesario porque `ParentProcessGuid`, `SourceProcessGUID` y `TargetProcessGUID` solo están poblados en un subconjunto de eventos. Leer filas donde la columna es vacía (NaN) no produce falsos positivos gracias al `dropna`, pero sí desperdicia ciclos de CPU en cada chunk.
+
+### Qué cambiar para extender a k=2
+
+El cambio es mínimo: tres constantes en la parte superior del script y un filtro de chunk. Ejemplo para k=2:
+
+```python
+# Constantes a cambiar
+GUID_COL = 'ParentProcessGuid'   # antes: 'ProcessGuid'
+PID_COL  = 'ParentProcessId'     # antes: 'ProcessId'
+IMG_COL  = 'ParentImage'         # antes: 'Image'
+EID_FILTER = [1]                 # antes: ninguno
+
+# Lectura con filtro de dominio
+for chunk in pd.read_csv(sysmon_file,
+        usecols=['EventID', GUID_COL, PID_COL, IMG_COL, 'Computer'],
+        chunksize=100_000, low_memory=False):
+
+    chunk = chunk[chunk['EventID'].isin(EID_FILTER)]   # ← línea nueva
+    chunk = chunk.dropna(subset=[GUID_COL, PID_COL])
+    # ... resto igual, usando GUID_COL / PID_COL / IMG_COL
+```
+
+Para k=3 y k=4 el mismo patrón aplica cambiando las constantes y usando `EID_FILTER = [8, 10]`.
+
+### Qué cambiar en `extract_violation_events.py`
+
+El extractor une el archivo de violaciones con el CSV original mediante la clave `(Computer, ProcessId)`. Para los otros pares, la clave cambia según qué columna PID contiene el proceso violador:
+
+| Par | Clave de join actual | Clave de join necesaria |
+|-----|---------------------|------------------------|
+| k=1 | `(Computer, ProcessId)` | igual |
+| k=2 | `(Computer, ProcessId)` | `(Computer, ParentProcessId)` |
+| k=3 | `(Computer, ProcessId)` | `(Computer, SourceProcessId)` |
+| k=4 | `(Computer, ProcessId)` | `(Computer, TargetProcessId)` |
+
+Además, para k=2 solo interesan los eventos EID=1 (Process Create) — son los únicos que tienen `ParentProcessGuid`. Para k=3/k=4 solo interesan EID ∈ {8, 10}.
+
+El extractor actual no aplica ningún filtro de EventID al escanear el CSV, por lo que también habría que añadir un filtro de chunk antes del merge:
+
+```python
+# Para k=3 — solo EID ∈ {8, 10}
+chunk = chunk[chunk['EventID'].isin([8, 10])]
+chunk_matched = chunk.merge(
+    violation_keys,                      # (Computer, SourceProcessId)
+    left_on=['Computer', 'SourceProcessId'],
+    right_on=['Computer', 'SourceProcessId'],
+    how='inner'
+)
+```
+
+`apply_violation_fixes.py` no necesita cambios: trabaja sobre el archivo de violaciones ya editado y aplica cualquier columna que haya cambiado valor — es genérico por diseño.
 
 ---
 
