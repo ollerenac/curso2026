@@ -888,6 +888,24 @@ for k, guid_col, pid_col, domain_label in PAIRS:
             print(f"       {guid}: PIDs = {sorted([int(p) for p in pids])}")
 ```
 
+```
+  k=1  ProcessGuid / ProcessId  [EID ∉ {8,10}]
+       GUIDs reales verificados : 1,632
+       Resultado                : ✅ Sin violaciones
+
+  k=2  ParentProcessGuid / ParentProcessId  [EID = 1]
+       GUIDs reales verificados : 234
+       Resultado                : ✅ Sin violaciones
+
+  k=3  SourceProcessGUID / SourceProcessId  [EID ∈ {8,10}]
+       GUIDs reales verificados : 493
+       Resultado                : ✅ Sin violaciones
+
+  k=4  TargetProcessGUID / TargetProcessId  [EID ∈ {8,10}]
+       GUIDs reales verificados : 1,420
+       Resultado                : ✅ Sin violaciones
+```
+
 ✅ **Sin violaciones en ninguno de los cuatro pares.** El Invariante 1 se cumple para toda instancia de proceso observada en el dataset — $p_k : G \rightarrow \mathbb{N}$ es una función bien definida para cada $k$.
 
 **Verificación 2: GUID → Image**
