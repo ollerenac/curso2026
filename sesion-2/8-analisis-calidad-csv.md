@@ -12,7 +12,7 @@
 
 En la sección anterior convertimos los datos Sysmon de formato JSONL a un CSV tabular de 45 columnas usando `7_sysmon_csv_creator.py`. Ahora tenemos un archivo CSV con un esquema unión que abarca los 20 tipos de EventID registrados en la captura.
 
-Pero antes de usar estos datos para construir un sistema de detección de intrusiones, necesitamos responder: **¿los datos tienen la calidad suficiente para alimentar algoritmos de análisis causal?** Este análisis cubre distribución de eventos, patrones temporales, relaciones entre procesos, actividad de red/archivos, y una evaluación de "readiness" algorítmica.
+Pero antes de usar estos datos para construir un sistema de detección de intrusiones, necesitamos responder: **¿los datos tienen la calidad suficiente para alimentar algoritmos de análisis causal?** Este análisis cubre distribución de eventos, patrones temporales, relaciones entre procesos, actividad de red/archivos, e integridad semántica de los identificadores de proceso (GUIDs).
 
 ```{note}
 El código de esta sección se puede ejecutar paso a paso en el notebook `8_sysmon_csv_exploratory_analysis.ipynb`, que contiene el análisis completo con visualizaciones interactivas.
@@ -34,11 +34,11 @@ El código de esta sección se puede ejecutar paso a paso en el notebook `8_sysm
   └─────────────┘   └──────────────┘   └──────────────┘
         │
         ▼
-  ┌─────────────┐   ┌──────────────┐
-  │ Paso 8:     │   │ Paso 10:     │
-  │ Evaluación  │──►│ Reporte      │
-  │ de calidad  │   │ resumen      │
-  └─────────────┘   └──────────────┘
+  ┌─────────────┐
+  │ Paso 8:     │
+  │ Evaluación  │
+  │ de calidad  │
+  └─────────────┘
 ```
 
 **¿Por qué cada paso?**
@@ -51,7 +51,6 @@ El código de esta sección se puede ejecutar paso a paso en el notebook `8_sysm
 6. **Actividad de red** — Evaluar si los eventos de conexión (EventID 3) contienen IPs, puertos y protocolos suficientes para correlacionar con NetFlow.
 7. **Sistema de archivos** — Verificar la cobertura de eventos de creación/eliminación de archivos, que son indicadores clave de actividad maliciosa.
 8. **Evaluación de calidad** — Cuantificar problemas concretos: duplicados, campos críticos vacíos, inconsistencias en GUIDs.
-9. **Reporte resumen** — Consolidar todos los hallazgos en un diagnóstico accionable que guíe la limpieza posterior.
 
 :::{admonition} Dependencia nueva: matplotlib y seaborn
 :class: important
@@ -1135,21 +1134,6 @@ Este GUID aparece como violación en k=3 (origen, 292 eventos) y k=4 (destino, 1
 
 Los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/` verifican únicamente el par k=1. Las violaciones de k=3 y k=4 quedan **fuera de su alcance**. El Script 4 (`4_sysmon_data_cleaner.py`) también cubre solo k=1. Para resolver estas violaciones es necesario extender los scripts a los cuatro pares — una versión ampliada es el siguiente paso del pipeline.
 
-## Paso 10: Reporte resumen
-
-**Operaciones del código**: construye un diccionario Python con todas las métricas calculadas en los pasos anteriores (total de filas y columnas, distribución de EventIDs, rango temporal, estadísticas de GUIDs, puntuación de readiness) y lo serializa a JSON con `json.dump()` en el directorio del dataset.
-
-El notebook genera un reporte JSON (`sysmon_csv_analysis_summary.json`) en el directorio del dataset con todas las métricas consolidadas. Del reporte se extrae la **distribución por host** no mostrada en secciones anteriores:
-
-| Host | Registros | % |
-|------|-----------|---|
-| theblock.boombox.local | 149,254 | 41.0% |
-| waterfalls.boombox.local | 145,217 | 39.9% |
-| endofroad.boombox.local | 41,905 | 11.5% |
-| diskjockey.boombox.local | 27,281 | 7.5% |
-
-Los dos hosts principales (theblock y waterfalls) concentran el 81% de la actividad, mientras que diskjockey (controlador de dominio con DNS) genera solo el 7.5%.
-
 ## Conclusiones
 
 El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto para análisis de seguridad**, con las siguientes características clave:
@@ -1158,7 +1142,7 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
 
 2. **Consistencia temporal**: Ventana de 72 minutos (05:00-06:12 UTC) con tasa media de 84 eventos/segundo. Ráfagas significativas (pico de 30,563 eventos/minuto) sugieren períodos de actividad intensa.
 
-3. **Identificadores de proceso confiables**: Los GUIDs proporcionan identificación unívoca (1,632 GUIDs reales, 1,240 PIDs distintos). PID reuse confirmado (ratio 1.32), reforzando la necesidad de usar GUIDs para rastreo causal. Sin embargo, **28 GUIDs presentan violaciones de Image** (2.07% de eventos) que deben corregirse antes del análisis causal — la mayoría son artefactos (`<unknown process>`, prefijo `\\?\`, rutas versionadas), pero 2 son colisiones genuinas.
+3. **Identificadores de proceso fiables**: 1,632 GUIDs reales con 1,240 PIDs distintos. PID reuse confirmado (ratio 1.32), reforzando la necesidad de usar GUIDs para rastreo causal en lugar de PIDs.
 
 4. **Indicadores de actividad APT detectados**:
    - `SystemFailureReporter.exe` en `C:\Users\Public\` (implante sospechoso, 31 procesos hijos)
@@ -1166,13 +1150,19 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
    - PowerShell ExecutionPolicy Bypass, comandos de descarga
    - 44.5% de tráfico hacia IPs públicas
 
-5. **Integridad de identificadores (Invariantes 1 y 2)**: El Invariante 1 (GUID → PID) se verifica para todos los GUIDs reales — solo el centinela acumula múltiples PIDs (540 eventos inrastreables). El Invariante 2 (GUID → Image) revela 28 violaciones reales en k=1 (2.07% del dataset), tratables en su mayoría automáticamente, y **6 violaciones nuevas en k=3 y k=4** (671 eventos) no cubiertas por los scripts actuales del pipeline.
+5. **Invariante 1 (GUID → PID) verificado en los cuatro pares**: ningún GUID real viola el invariante. El único violador es el GUID centinela (∅ = `00000000-0000-0000-0000-000000000000`), que acumula 540 eventos inrastreables: 36 en k=1, 500 en k=3, 4 en k=4. Son artefactos de boot esperados, no errores de datos.
+
+6. **Invariante 2 (GUID → Image) requiere corrección selectiva**:
+   - **k=1** (ProcessGuid): 28 GUIDs con múltiples imágenes — 17 `<unknown process>` (boot), 7 rutas Elastic Agent (variantes de versión), 2 prefijo `\\?\` (normalizables), 2 colisiones genuinas (svchost/dxgiadaptercache; OneDriveSetup/DllHost).
+   - **k=2** (ParentProcessGuid): sin violaciones — datos limpios.
+   - **k=3** (SourceProcessGUID): 2 GUIDs violadores, ambos artefactos de boot (`<unknown process>` para csrss.exe) — no son colisiones genuinas.
+   - **k=4** (TargetProcessGUID): 5 GUIDs violadores — GUID centinela (∅), 1 artefacto de boot, y 3 colisiones genuinas (los mismos svchost/dxgiadaptercache de k=1 más OneDriveSetup/DllHost).
 
 **Puntos clave:**
-- El dataset es **apto para análisis causal** tras resolver las violaciones de Image detectadas: 28 en k=1 (Paso 8d) y 6 nuevas en k=3/k=4 (Paso 8f). Los scripts actuales del pipeline cubren solo k=1; se requiere extensión a los cuatro pares.
+- El dataset es **apto para análisis causal** tras resolver las violaciones de Image: 28 en k=1 (automatizable con Script 4) y 3 genuinas en k=4 (requiere extensión del pipeline a los cuatro pares GUID).
+- Los artefactos de boot (`<unknown process>`, GUID centinela ∅) son fenómenos inevitables de Sysmon — deben filtrarse, no corregirse.
 - Los indicadores de APT detectados (SystemFailureReporter.exe, puerto 444, PowerShell Bypass) confirman que la simulación generó artefactos realistas de ataque.
-- Las violaciones de ProcessGuid→Image (artefactos `<unknown process>`, prefijo `\\?\`, rutas versionadas, colisiones genuinas) deben corregirse antes del análisis causal — el Script 4 del pipeline automatiza la corrección de k=1, pero requiere extensión para los pares k=3 y k=4.
-- La combinación de GUIDs confiables + cobertura temporal completa + diversidad de EventIDs proporciona los tres pilares necesarios para el análisis de cadenas causales.
+- La combinación de GUIDs fiables + cobertura temporal completa + diversidad de EventIDs proporciona los tres pilares necesarios para el análisis de cadenas causales.
 
 ## Actividad Práctica
 
@@ -1180,7 +1170,7 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
 
 Responde las siguientes preguntas basándote en el análisis de calidad:
 
-1. **El GUID `4a85d404-cf08-67da-0900-000000005500` viola el Invariante 2 simultáneamente como proceso origen (k=3, 292 eventos) y proceso destino (k=4, 13 eventos).** Formula dos hipótesis que expliquen esta anomalía: una basada en artefactos de registro (similar a las categorías de k=1) y otra en un error genuino de datos. ¿Qué información del dataset (valores exactos de SourceImage / TargetImage, EventIDs afectados, timestamps) te permitiría distinguirlas?
+1. **Los scripts actuales del pipeline (`find_processguid_pid_violations.py` y `find_processguid_image_violations.py`) solo cubren k=1 (ProcessGuid).** El análisis del Paso 8f muestra que k=3 y k=4 también tienen violaciones. Diseña una estrategia para extender estos scripts a los cuatro pares: ¿qué columnas Image usarías para k=2 (ParentImage), k=3 (SourceImage) y k=4 (TargetImage)? ¿Qué filtros de EventID aplicarías a cada dominio? ¿Cómo manejarías el GUID centinela (∅): lo excluirías del análisis o lo reportarías por separado con etiqueta?
 
 2. **EventID 1 (Process Create) representa solo el 0.28% del dataset (1,023 eventos), pero es el EventID con más campos (23).** ¿Por qué es desproporcionadamente importante para el análisis de amenazas? Piensa en qué información exclusiva aporta (CommandLine, ParentImage, ParentProcessGuid).
 
