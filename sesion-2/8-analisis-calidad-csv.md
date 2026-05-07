@@ -941,7 +941,51 @@ for k, guid_col, img_col, domain_label in PAIRS_IMG:
         print(f"       {guid}  →  {n_imgs} imágenes distintas  ({n_events} eventos){label}")
 ```
 
-⚠️ **28 ProcessGuids (k=1) mapean a 2 o más rutas de ejecutable diferentes.** El notebook categoriza cada violación por su causa raíz:
+```
+  k=1  ProcessGuid / Image  [EID ∉ {8,10}]
+       GUIDs verificados        : 1,633
+       Resultado                : ⚠️  29 GUID(s) con múltiples imágenes
+       00000000-0000-0000-0000-000000000000  →  8 imágenes distintas  (36 eventos)  ← GUID centinela
+       [+ 28 GUIDs reales — detalle en análisis k=1 abajo]
+
+  k=2  ParentProcessGuid / ParentImage  [EID = 1]
+       GUIDs verificados        : 235
+       Resultado                : ✅ Sin violaciones
+
+  k=3  SourceProcessGUID / SourceImage  [EID ∈ {8,10}]
+       GUIDs verificados        : 493
+       Resultado                : ⚠️  2 GUID(s) con múltiples imágenes
+       3fc4fefd-cf0d-67da-0900-000000004800  →  2 imágenes distintas  (67 eventos)
+       4a85d404-cf08-67da-0900-000000005500  →  2 imágenes distintas  (292 eventos)
+
+  k=4  TargetProcessGUID / TargetImage  [EID ∈ {8,10}]
+       GUIDs verificados        : 1,421
+       Resultado                : ⚠️  5 GUID(s) con múltiples imágenes
+       00000000-0000-0000-0000-000000000000  →  2 imágenes distintas  (4 eventos)  ← GUID centinela
+       2d5a9c51-5053-67da-2000-000000009000  →  2 imágenes distintas  (5 eventos)
+       2d5a9c51-505c-67da-2500-000000009000  →  2 imágenes distintas  (288 eventos)
+       3fc4fefd-5e35-67da-ff01-000000004800  →  2 imágenes distintas  (8 eventos)
+       4a85d404-cf08-67da-0900-000000005500  →  2 imágenes distintas  (13 eventos)
+```
+
+**Resumen del escaneo:**
+
+| Par | Violaciones | GUIDs reales | Centinela |
+|-----|-------------|--------------|-----------|
+| k=1 ProcessGuid / Image | 29 | 28 | ✅ (8 imágenes) |
+| k=2 ParentProcessGuid / ParentImage | 0 | — | — |
+| k=3 SourceProcessGUID / SourceImage | 2 | 2 | — |
+| k=4 TargetProcessGUID / TargetImage | 5 | 4 | ✅ (2 imágenes) |
+
+**k=2 completamente limpio** — cada GUID padre mapea siempre a la misma imagen. Coherente con el axioma OS: el proceso padre existe antes de generar hijos y no cambia su ejecutable.
+
+**k=3 con 2 violaciones reales** — dos GUIDs de proceso *origen* en EID 8/10 aparecen con `SourceImage` distintas. A diferencia de k=1 (donde la mayoría de violaciones son artefactos de boot), aquí son GUIDs reales que deberían ser plenamente identificables. Requieren investigación: pueden ser variantes de ruta o, en el peor caso, colisiones genuinas en eventos de acceso inter-proceso.
+
+**k=4 con 4 violaciones reales** — cuatro GUIDs de proceso *destino* aparecen con `TargetImage` distintas. El GUID `4a85d404-cf08-67da-0900-000000005500` aparece tanto en k=3 como en k=4, lo que sugiere que el mismo proceso es tanto origen como destino en eventos de acceso con registros de imagen inconsistentes.
+
+**Análisis detallado k=1: ProcessGuid → Image**
+
+El notebook categoriza las 28 violaciones reales de k=1 por causa raíz:
 
 | Categoría | GUIDs | Eventos | Acción |
 |-----------|-------|---------|--------|
