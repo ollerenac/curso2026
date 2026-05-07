@@ -754,22 +754,34 @@ Sea $G$ el conjunto de GUIDs válidos (excluyendo el centinela $\emptyset$).
 
 ---
 
-**Identidad de proceso**
+**Los cuatro pares GUID–PID**
 
-La relación de equivalencia inducida por ProcessGuid:
+El esquema CSV registra cuatro columnas GUID, cada una con su PID asociado y su dominio de EventIDs:
 
-$$e_1 \sim e_2 \iff \text{guid}(e_1) = \text{guid}(e_2)\ \land\ \text{guid}(e_1) \in G$$
+| $k$ | $g_k$ (columna GUID) | $p_k$ (columna PID) | $D_k$ (EventIDs válidos) |
+|-----|----------------------|---------------------|--------------------------|
+| 1 | ProcessGuid | ProcessId | EID $\notin$ \{8, 10\} |
+| 2 | ParentProcessGuid | ParentProcessId | EID $= 1$ |
+| 3 | SourceProcessGUID | SourceProcessId | EID $\in$ \{8, 10\} |
+| 4 | TargetProcessGUID | TargetProcessId | EID $\in$ \{8, 10\} |
 
-Cada clase $[g] = \{e \in E : \text{guid}(e) = g\}$ es el conjunto de eventos atribuibles al proceso $g$.
+Para cada par $k$, la clase de equivalencia sobre los eventos de su dominio:
+
+$$[g]_k = \{e \in E : \text{eid}(e) \in D_k \land g_k(e) = g\}$$
 
 ---
 
 **Invariantes OS (restricciones sobre las clases)**
 
-$$\forall\, g \in G,\ \forall\, e_1, e_2 \in [g] :\quad \text{pid}(e_1) = \text{pid}(e_2) \qquad \text{(Invariante 1)}$$
-$$\forall\, g \in G,\ \forall\, e_1, e_2 \in [g] :\quad \text{image}(e_1) = \text{image}(e_2) \qquad \text{(Invariante 2)}$$
+El axioma OS se generaliza a los cuatro pares: cada GUID válido en cualquier columna identifica siempre al mismo proceso y, por tanto, al mismo PID:
 
-Una violación es encontrar $g \in G$ y $e_1, e_2 \in [g]$ que no cumplen alguna de estas restricciones.
+$$\forall\, k,\ \forall\, g \in G,\ \forall\, e_1, e_2 \in [g]_k :\quad p_k(e_1) = p_k(e_2) \qquad \text{(Invariante 1 — generalizado)}$$
+
+El Invariante 2 (GUID → Image) aplica solo al par $k=1$, donde Image es una columna del esquema con semántica definida:
+
+$$\forall\, g \in G,\ \forall\, e_1, e_2 \in [g]_1 :\quad \text{image}(e_1) = \text{image}(e_2) \qquad \text{(Invariante 2)}$$
+
+Una violación es encontrar $g \in G$ y $e_1, e_2 \in [g]_k$ que no cumplan alguna de estas restricciones.
 
 ---
 
@@ -823,19 +835,19 @@ Ambas verificaciones excluyen el GUID nulo (`00000000-0000-0000-0000-00000000000
 **Verificación 1: GUID → PID**
 
 ```{dropdown} Formalización
-Sea $E_1 = \{e \in E : \text{guid}(e) \in G \land \text{pid}(e) \neq \text{null}\}$ el subconjunto de eventos con GUID real y ProcessId válido.
+El Invariante 1 se verifica sobre los cuatro pares GUID–PID. Para cada par $k$, definimos el conjunto de PIDs observados para un GUID $g$:
 
-Definimos el conjunto de PIDs observados para cada GUID:
+$$\text{pid\_set}_k(g) = \{p_k(e) : e \in [g]_k,\ p_k(e) \neq \text{null}\}$$
 
-$$\text{pid\_set}(g) = \{\text{pid}(e) : e \in [g] \cap E_1\}$$
+El conjunto de violaciones del par $k$:
 
-El conjunto de violaciones del Invariante 1:
+$$V_{1,k} = \{g \in G : |\text{pid\_set}_k(g)| > 1\}$$
 
-$$V_1 = \{g \in G : |\text{pid\_set}(g)| > 1\}$$
+Si $|V_{1,k}| = 0$ para todo $k$, entonces $p_k$ deja de ser una propiedad del evento individual y pasa a ser una propiedad del proceso:
 
-Si $|V_1| = 0$, entonces $\text{pid\_set}(g)$ es un singleton para todo $g$ — lo que permite definir $\text{pid}$ como propiedad del proceso (no del evento individual):
+$$p_k : G \rightarrow \mathbb{N} \quad \text{(función bien definida para cada } k\text{)}$$
 
-$$\text{pid} : G \rightarrow \mathbb{N} \quad \text{(función bien definida)}
+**Cobertura en este dataset**: el código de esta verificación comprueba explícitamente el par $k=1$ (ProcessGuid/ProcessId). Los pares $k=2,3,4$ son confirmados en el análisis del Paso 8e, donde se establece que $|V_{1,k}| = 0$ en todos los pares y en todos los runs.
 ```
 
 ```python
