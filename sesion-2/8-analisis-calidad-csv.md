@@ -34,11 +34,11 @@ El código de esta sección se puede ejecutar paso a paso en el notebook `8_sysm
   └─────────────┘   └──────────────┘   └──────────────┘
         │
         ▼
-  ┌─────────────┐   ┌──────────────┐   ┌──────────────┐
-  │ Paso 8:     │   │ Paso 9:      │   │ Paso 10:     │
-  │ Evaluación  │──►│ Readiness    │──►│ Reporte      │
-  │ de calidad  │   │ algorítmica  │   │ resumen      │
-  └─────────────┘   └──────────────┘   └──────────────┘
+  ┌─────────────┐   ┌──────────────┐
+  │ Paso 8:     │   │ Paso 10:     │
+  │ Evaluación  │──►│ Reporte      │
+  │ de calidad  │   │ resumen      │
+  └─────────────┘   └──────────────┘
 ```
 
 **¿Por qué cada paso?**
@@ -51,8 +51,7 @@ El código de esta sección se puede ejecutar paso a paso en el notebook `8_sysm
 6. **Actividad de red** — Evaluar si los eventos de conexión (EventID 3) contienen IPs, puertos y protocolos suficientes para correlacionar con NetFlow.
 7. **Sistema de archivos** — Verificar la cobertura de eventos de creación/eliminación de archivos, que son indicadores clave de actividad maliciosa.
 8. **Evaluación de calidad** — Cuantificar problemas concretos: duplicados, campos críticos vacíos, inconsistencias en GUIDs.
-9. **Readiness algorítmica** — Determinar si el dataset cumple los requisitos mínimos para alimentar algoritmos de correlación causal.
-10. **Reporte resumen** — Consolidar todos los hallazgos en un diagnóstico accionable que guíe la limpieza posterior.
+9. **Reporte resumen** — Consolidar todos los hallazgos en un diagnóstico accionable que guíe la limpieza posterior.
 
 :::{admonition} Dependencia nueva: matplotlib y seaborn
 :class: important
@@ -1011,48 +1010,29 @@ C:\Program Files\Elastic\Agent\data\elastic-agent-8.17.0-96f2b9\elastic-agent.ex
 En total, **7,518 eventos** (2.07% del dataset) están afectados por estas 28 violaciones. Aunque las genuinas son solo 2 GUIDs (119 eventos), todas las categorías deben resolverse para garantizar la integridad del rastreo causal.
 
 ```{note}
-Esta detección utiliza la misma lógica de los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/`. En la **siguiente sección** aplicaremos el Script 4 (`4_sysmon_data_cleaner.py`), que orquesta estos scripts junto con la normalización y corrección de todas las categorías de violaciones.
+Los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/` cubren únicamente el par k=1 (`ProcessGuid`). El análisis anterior extiende la verificación a los cuatro pares e identifica violaciones del Invariante 2 en k=3 y k=4 que los scripts actuales no detectan — estos hallazgos se analizan en las secciones **8e** (Invariante 1) y **8f** (Invariante 2).
 ```
 
-### 8e. GUID centinela: procesos no identificables
+### 8e. Análisis de violaciones — Invariante 1 (GUID → PID)
 
-El GUID centinela `00000000-0000-0000-0000-000000000000` es el valor que Sysmon asigna cuando no puede identificar un proceso — por ejemplo, porque el proceso fue creado antes del inicio de la captura o porque está por debajo del nivel de visibilidad del driver. Su presencia indica un eslabón roto en el grafo de dependencias.
+El Invariante 1 establece que cada GUID (real o centinela) debe mapear a exactamente un PID dentro de su dominio de EventIDs. Los resultados del escaneo revelan un patrón claro: **ningún GUID real viola el invariante en ningún par**. La única fuente de violaciones es el GUID centinela, que acumula eventos de múltiples procesos no identificables.
 
-La investigación (Script auxiliar `8_aux_guid_pid_investigation.ipynb`) evalúa los cuatro pares GUID/PID del esquema verificando en cada uno si aparece el centinela y si algún GUID real mapea a más de un PID.
+**Resumen por par:**
 
-**Resultados en run-01 por par GUID/PID:**
+| Par | GUIDs verificados | Violaciones reales | Centinela | PIDs (centinela) | Eventos |
+|-----|-------------------|--------------------|-----------|-----------------|---------|
+| k=1 ProcessGuid / ProcessId | 1,633 | 0 | ✅ | 14 | 36 |
+| k=2 ParentProcessGuid / ParentProcessId | 235 | 0 | ✅ | 22 | 500 |
+| k=3 SourceProcessGUID / SourceProcessId | 493 | 0 | — | — | — |
+| k=4 TargetProcessGUID / TargetProcessId | 1,421 | 0 | ✅ | 2 | 4 |
 
-| Par | Centinela | Filas | PIDs distintos | EventIDs afectados |
-|-----|-----------|-------|----------------|--------------------|
-| `ProcessGuid` / `ProcessId` | SÍ | 36 | 14 | 3, 7, 13 |
-| `ParentProcessGuid` / `ParentProcessId` | SÍ | 500 | 22 | solo 1 |
-| `SourceProcessGUID` / `SourceProcessId` | no | 0 | — | — |
-| `TargetProcessGUID` / `TargetProcessId` | SÍ | 4 | 2 | solo 10 |
+**Centinela en k=1 (ProcessGuid, 36 eventos)**
 
-**`ProcessGuid`** (EIDs 3, 7, 13): Sysmon no pudo atribuir 36 eventos a ningún proceso — 36 eslabones rotos en el grafo de dependencias, uno por cada evento de red, carga de imagen o escritura en registro sin origen identificable.
+Los 36 eventos afectan a EIDs 3 (Network Connection), 7 (Image Load) y 13 (Registry Value Set) — procesos iniciados antes de la carga completa del driver Sysmon al inicio del sistema. Ninguno puede atribuirse a un proceso concreto; son 36 eslabones rotos en el grafo causal.
 
-**`ParentProcessGuid`** (solo EID 1): es el par más afectado en número de filas. Que el centinela aparezca 500 veces significa que 500 procesos nacieron con un padre que Sysmon no pudo identificar — su cadena causal está rota desde el primer eslabón. La nota en el Paso 5b señala que esto invalida la afirmación de "100% de pares padre-hijo válidos": `.notna()` no distingue el centinela de un GUID real, por lo que los 500 pasan el filtro aunque no sean trazables. Solo 523 de los 1,023 eventos EID 1 tienen un `ParentProcessGuid` real.
+**Centinela en k=2 (ParentProcessGuid, 500 eventos)**
 
-**`SourceProcessGUID`** (EIDs 8 y 10): completamente limpio. El proceso que *inicia* un acceso a otro proceso (inyección de hilo, lectura de memoria) siempre es identificable para Sysmon — es el proceso que genera el evento. Que Source sea siempre conocido refleja que Sysmon captura el evento desde la perspectiva del actor.
-
-**`TargetProcessGUID`** (solo EID 10): el proceso *al que se accede* puede ser desconocido. Solo 4 filas en run-01, pero el patrón es estructural: Source siempre limpio, Target ocasionalmente contaminado.
-
-**GUIDs reales con múltiples PIDs**: cero en todos los pares y en todos los runs. La anomalía de múltiples PIDs por GUID existe únicamente en el centinela, que no es un identificador real sino un placeholder de "desconocido".
-
-**Verificación cross-run** (38 APT runs):
-
-| Par | Runs afectados | Filas por run (rango) |
-|-----|---------------|-----------------------|
-| `ProcessGuid` | 38/38 (100%) | 12–439 |
-| `ParentProcessGuid` | 24/38 (63%) | 2–500 |
-| `TargetProcessGUID` | 22/38 (58%) | 4–71 |
-| `SourceProcessGUID` | 8/38 (21%) | 2–5 |
-
-`ProcessGuid` es el único par universalmente contaminado — aparece en todos los runs sin excepción. Los otros tres son intermitentes: `TargetProcessGUID` afecta a más de la mitad de los runs pero con volúmenes bajos; `SourceProcessGUID` es el más excepcional, aparece solo en los runs de mayor actividad con 2–5 filas. En todos los casos, `real_multi = 0` — ningún GUID real presenta la anomalía en ningún run ni en ningún par.
-
-**Outlier: run-01 y las 500 filas con ParentProcessGuid centinela**
-
-La mayoría de los runs afectados tienen 2–9 filas con centinela en `ParentProcessGuid`; run-01 tiene 500. El análisis temporal revela la causa: la captura de run-01 se inició a las 05:00 UTC, coincidiendo con el arranque del sistema.
+Es el par más afectado en número absoluto. Los 500 eventos EID 1 (Process Create) corresponden a procesos cuyos padres Sysmon no pudo identificar. La captura de run-01 se inició a las 05:00 UTC, coincidiendo con el arranque del sistema: los servicios Windows (svchost.exe, dllhost.exe, WmiPrvSE.exe) se lanzan en cascada durante el boot, antes de que el driver Sysmon alcance visibilidad completa del árbol de procesos.
 
 ```
 run-01 (captura iniciada a las 05:00 UTC — arranque del sistema)
@@ -1069,75 +1049,88 @@ run-02 (11:30 UTC, sistema estable): 8 filas — sin arranque en ventana de capt
 run-18 (20:30 UTC): 67 filas dominadas por WmiPrvSE.exe — actividad WMI alta, sin boot
 ```
 
-Este patrón es estructural: en cualquier run capturado cerca del arranque, los servicios Windows se inician en cascada con un padre que Sysmon no puede observar porque el driver aún no está completamente cargado. Es un artefacto de temporización de la captura, no un defecto del dataset.
+Esto resuelve la aparente anomalía del "padre con 500 hijos" identificada en el Paso 5b: el centinela agrupa los punteros de todos los padres no identificables, y los 500 registros EID 1 que apuntan a él son procesos legítimos del sistema lanzados durante el boot. De los 1,023 eventos EID 1, solo **523 tienen un `ParentProcessGuid` real y trazable**.
 
-**Impacto en machine learning**
+**k=3 completamente limpio**
 
-Aunque las proporciones parecen pequeñas (0.14% del total sumando los cuatro pares), el contexto de seguridad cambia el cálculo. El dataset tiene un desbalance severo: los 4 EventIDs dominantes (10, 12, 7, 13) concentran el 89.95% de los registros y corresponden a actividad de fondo benigna. Los EventIDs de alto valor para detección de amenazas representan menos del 9% del total. Dentro de esa fracción pequeña, cualquier registro con GUID centinela rompe la cadena causal: no puede correlacionarse con el proceso que lo originó, ni enlazarse con eventos anteriores o posteriores.
+El par SourceProcessGUID / SourceProcessId no registra ninguna violación. Esto es estructuralmente coherente: Sysmon captura los eventos EID 8 y 10 desde la perspectiva del proceso que inicia la acción, por lo que el proceso origen siempre es identificable.
 
-**Acción requerida**: los registros con GUID centinela en cualquiera de los cuatro pares deben marcarse o eliminarse antes del entrenamiento de modelos. Un evento sin GUID válido en su par de referencia no puede participar en la construcción del árbol de procesos ni en la correlación Sysmon–NetFlow.
+**Centinela en k=4 (TargetProcessGUID, 4 eventos)**
 
-## Paso 9: Evaluación de readiness algorítmica
+Solo 4 eventos EID 10 (Process Access) tienen el centinela como TargetProcessGUID — el proceso receptor del acceso no pudo ser identificado. El patrón Source limpio / Target ocasionalmente centinela es estructural: el iniciador siempre es conocido porque el evento se registra desde su perspectiva; el receptor puede estar fuera del campo de visibilidad.
 
-Esta evaluación mide si los datos son aptos para alimentar un algoritmo de búsqueda de cadenas causales, puntuando la presencia de columnas críticas.
+**Verificación cross-run (38 APT runs)**
 
-**Operaciones del código**: el código divide las columnas necesarias en categorías (Core, Process Tracking, Inter-Process, Command Analysis, File Operations) y para cada una calcula el porcentaje de no nulos en el dataset completo. Asigna 1 punto si el porcentaje ≥50%, 0.5 si está entre 10% y 50%, y 0 si es <10%. La puntuación total suma estos puntos y calcula el porcentaje sobre el máximo posible. Una segunda evaluación (Step 9b) repite el análisis filtrando cada columna *dentro del grupo de EventIDs que realmente la usa*, evitando la penalización artificial de columnas que por diseño son nulas en EventIDs que no las requieren.
+| Par | Runs afectados | Eventos centinela por run (rango) |
+|-----|----------------|----------------------------------|
+| ProcessGuid | 38/38 (100%) | 12–439 |
+| ParentProcessGuid | 24/38 (63%) | 2–500 |
+| TargetProcessGUID | 22/38 (58%) | 4–71 |
+| SourceProcessGUID | 8/38 (21%) | 2–5 |
 
-**Evaluación por categoría:**
+ProcessGuid es el único par universalmente afectado. En todos los runs, GUIDs reales con múltiples PIDs = 0 — el Invariante 1 se cumple estrictamente sobre los GUIDs reales en toda la colección.
 
-| Categoría | Columnas | Resultado |
-|-----------|----------|-----------|
-| **Core** | EventID (100% ✅), Computer (100% ✅), UtcTime (100% ✅) | 3/3 |
-| **Process Tracking** | ProcessGuid (68.4% ⚠️), ProcessId (68.4% ⚠️), ParentProcessGuid (0.3% ❌), ParentProcessId (0.3% ❌) | 1/4 |
-| **Inter-Process** | SourceProcessGUID (31.6% ❌), TargetProcessGUID (31.6% ❌), SourceProcessId (31.6% ❌), TargetProcessId (31.6% ❌) | 0/4 |
-| **Command Analysis** | CommandLine (0.3% ❌), Image (68.4% ⚠️) | 0.5/2 |
-| **File Operations** | TargetFilename (4.7% ❌) | 0/1 |
+**Conclusión**: El Invariante 1 se verifica para todos los GUIDs reales. Los 540 eventos con GUID centinela (36 + 500 + 4) representan procesos no identificables — consecuencia estructural de la ventana temporal de captura, no errores del dataset. Estos eventos deben marcarse o excluirse antes de construir el grafo causal.
 
-```
-Puntuación total:   4.5 / 14 (32.1%)
-Estado:             🔴 POOR - Major data quality issues
-```
+### 8f. Análisis de violaciones — Invariante 2 (GUID → Image)
 
-**¿Es realmente "POOR"?** No — esta puntuación es **engañosa** y revela una limitación del método de evaluación, no del dataset. El scoring asume que todas las columnas deberían estar pobladas globalmente, pero en un CSV unificado por diseño:
+El Invariante 2 establece que cada GUID debe mapear a exactamente una imagen ejecutable (comparación case-insensitive) dentro de su dominio. A diferencia del Invariante 1, este invariante revela **violaciones en GUIDs reales** en tres de los cuatro pares. El par k=2 es el único completamente limpio.
 
-- **ParentProcessGuid** (0.3%) solo existe en EID 1 — pero tiene 100% de cobertura *dentro* de EID 1.
-- **CommandLine** (0.3%) solo existe en EID 1 — con 100% de cobertura interna.
-- **SourceProcessGUID** (31.6%) solo existe en EID 8 y 10 — con 100% de cobertura interna.
+**Resumen por par:**
 
-El algoritmo de cadenas causales no necesita que *todos* los registros tengan CommandLine — solo necesita que *los registros de EID 1* lo tengan. Y lo tienen al 100%.
+| Par | GUIDs verificados | Violaciones totales | GUIDs reales | Centinela |
+|-----|-------------------|---------------------|--------------|-----------|
+| k=1 ProcessGuid / Image | 1,633 | 29 | 28 | ✅ (8 imágenes) |
+| k=2 ParentProcessGuid / ParentImage | 235 | 0 | 0 | — |
+| k=3 SourceProcessGUID / SourceImage | 493 | 2 | 2 | — |
+| k=4 TargetProcessGUID / TargetImage | 1,421 | 5 | 4 | ✅ (2 imágenes) |
 
-**Verificaciones positivas:**
+**k=1 — 28 GUIDs reales**
 
-```
-✅ CommandLine coverage en EID 1: 100.0%
-✅ GUID naming consistente (4 columnas)
-✅ Cobertura temporal: 100.0%
-✅ Diversidad de eventos: 20 EventIDs
-```
+Analizado en detalle en el Paso 8d. Las 28 violaciones se dividen en cuatro categorías:
 
-### Evaluación corregida: cobertura por grupo de eventos
+| Categoría | GUIDs | Eventos | Acción |
+|-----------|-------|---------|--------|
+| Artefacto `<unknown process>` | 17 | 6,812 | Filtrar |
+| Falso positivo `\\?\` | 2 | 173 | Filtrar |
+| Mismo binario, ruta diferente | 7 | 414 | Normalizar |
+| Genuina (ejecutables distintos) | 2 | 119 | Revisión manual |
 
-El notebook incluye una segunda evaluación que verifica la cobertura de cada columna *dentro de su grupo de eventos correspondiente*:
+7,518 eventos afectados (2.07% del dataset). Las categorías 1–3 son tratables automáticamente; las 2 violaciones genuinas requieren revisión manual.
 
-| Grupo | Eventos | Columnas verificadas | Cobertura |
-|-------|---------|---------------------|-----------|
-| **Core** (todos) | 363,657 | EventID, Computer, timestamp | 100% ✅ |
-| **Estándar** (excepto EID 8, 10) | 248,915 | ProcessGuid, ProcessId, Image | 100% ✅ |
-| **Inter-proceso** (EID 8, 10) | 114,742 | SourceProcessGUID, TargetProcessGUID, SourceProcessId, TargetProcessId | 100% ✅ |
-| **Ciclo de vida** (EID 1) | 1,023 | ParentProcessGuid, ParentProcessId, CommandLine, Image | 100% ✅ |
-| **Red** (EID 3) | 14,424 | SourceIp, DestinationIp, DestinationPort, Protocol | 100% ✅ |
-| **Archivos** (EID 11) | 6,782 | TargetFilename | 100% ✅ |
+**k=2 — Sin violaciones**
 
-```
-Puntuación corregida:  15 / 15 (100.0%)
-Estado:                🟢 EXCELLENT - Ready for causal chain analysis
-```
+Cada GUID padre mapea siempre a la misma imagen. Coherente con el axioma OS: un proceso no sustituye su ejecutable durante su vida, y EID 1 captura invariablemente el mismo ejecutable en todos los eventos donde aparece como padre.
 
-**La clave**: los eventos de EID 8 y 10 (Process Access, Create Remote Thread) no usan `ProcessGuid`/`ProcessId` como columna principal — usan `SourceProcessGUID`/`TargetProcessGUID` porque modelan *interacciones entre dos procesos*. La evaluación global trataba estas columnas como si debieran existir en todos los eventos, penalizando su ausencia en EIDs donde no aplican.
+**k=3 — 2 GUIDs reales [nuevo hallazgo]**
 
-Del mismo modo, `ParentProcessGuid` y `CommandLine` solo existen en EID 1 (Process Create) — pero con 100% de cobertura interna. Y `TargetFilename` solo existe en EID 11 (File Create) — también al 100%.
+Dos GUIDs de proceso origen en EID 8/10 aparecen con `SourceImage` distintas — el proceso que inicia el acceso inter-proceso aparece registrado con dos imágenes diferentes:
 
-**Lección metodológica**: Al trabajar con CSVs unificados (una tabla para múltiples tipos de evento), las métricas de calidad deben evaluarse **por tipo de evento**, no globalmente. Una cobertura global baja no indica datos de mala calidad — indica un esquema disperso por diseño.
+| GUID | Imágenes distintas | Eventos |
+|------|-------------------|---------|
+| `3fc4fefd-cf0d-67da-0900-000000004800` | 2 | 67 |
+| `4a85d404-cf08-67da-0900-000000005500` | 2 | 292 |
+
+A diferencia de las violaciones de k=1 (dominadas por artefactos de boot), estos GUIDs son plenamente identificables en eventos EID 8/10. Hipótesis posibles: (a) variante de ruta al mismo binario (análogo al falso positivo `\\?\`), o (b) colisión genuina de GUID en eventos de acceso inter-proceso. Requieren inspección directa de los valores de SourceImage.
+
+**k=4 — 4 GUIDs reales [nuevo hallazgo]**
+
+Cuatro GUIDs de proceso destino en EID 8/10 aparecen con `TargetImage` distintas:
+
+| GUID | Imágenes distintas | Eventos |
+|------|-------------------|---------|
+| `2d5a9c51-5053-67da-2000-000000009000` | 2 | 5 |
+| `2d5a9c51-505c-67da-2500-000000009000` | 2 | 288 |
+| `3fc4fefd-5e35-67da-ff01-000000004800` | 2 | 8 |
+| `4a85d404-cf08-67da-0900-000000005500` | 2 | 13 |
+
+**Anomalía cross-par: GUID `4a85d404-cf08-67da-0900-000000005500`**
+
+Este GUID viola el Invariante 2 simultáneamente como proceso origen (k=3, 292 eventos) y proceso destino (k=4, 13 eventos), con imágenes inconsistentes en ambos roles. Una colisión en ambos contextos es difícilmente atribuible a un artefacto de ruta — merece inspección directa de las imágenes registradas en los eventos afectados.
+
+**Cobertura de los scripts actuales del pipeline**
+
+Los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/` verifican únicamente el par k=1. Las 6 violaciones reales de k=3 y k=4 (671 eventos en total) quedan **fuera de su alcance**. El Script 4 (`4_sysmon_data_cleaner.py`) también cubre solo k=1. Para resolver estas violaciones es necesario extender los scripts a los cuatro pares — una versión ampliada es el siguiente paso del pipeline.
 
 ## Paso 10: Reporte resumen
 
@@ -1170,12 +1163,12 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
    - PowerShell ExecutionPolicy Bypass, comandos de descarga
    - 44.5% de tráfico hacia IPs públicas
 
-5. **Readiness para algoritmos causales**: La puntuación global de 32.1% (POOR) es un artefacto de evaluar cobertura globalmente en un CSV unificado. La evaluación corregida, que verifica cada columna *dentro de su grupo de eventos* (estándar, inter-proceso EID 8/10, ciclo de vida EID 1, red, archivos), obtiene **15/15 (100%) — EXCELLENT**. El dataset está completamente listo para análisis causal.
+5. **Integridad de identificadores (Invariantes 1 y 2)**: El Invariante 1 (GUID → PID) se verifica para todos los GUIDs reales — solo el centinela acumula múltiples PIDs (540 eventos inrastreables). El Invariante 2 (GUID → Image) revela 28 violaciones reales en k=1 (2.07% del dataset), tratables en su mayoría automáticamente, y **6 violaciones nuevas en k=3 y k=4** (671 eventos) no cubiertas por los scripts actuales del pipeline.
 
 **Puntos clave:**
-- El dataset es **apto para análisis causal** tras resolver las 28 violaciones de Image detectadas en el Paso 8d — la evaluación por grupo de eventos (Paso 9) confirma cobertura del 100% en las 15 columnas críticas.
+- El dataset es **apto para análisis causal** tras resolver las violaciones de Image detectadas: 28 en k=1 (Paso 8d) y 6 nuevas en k=3/k=4 (Paso 8f). Los scripts actuales del pipeline cubren solo k=1; se requiere extensión a los cuatro pares.
 - Los indicadores de APT detectados (SystemFailureReporter.exe, puerto 444, PowerShell Bypass) confirman que la simulación generó artefactos realistas de ataque.
-- Las violaciones de ProcessGuid→Image (artefactos `<unknown process>`, prefijo `\\?\`, rutas versionadas, colisiones genuinas) deben corregirse antes del análisis causal — el Script 4 del pipeline automatiza esta corrección.
+- Las violaciones de ProcessGuid→Image (artefactos `<unknown process>`, prefijo `\\?\`, rutas versionadas, colisiones genuinas) deben corregirse antes del análisis causal — el Script 4 del pipeline automatiza la corrección de k=1, pero requiere extensión para los pares k=3 y k=4.
 - La combinación de GUIDs confiables + cobertura temporal completa + diversidad de EventIDs proporciona los tres pilares necesarios para el análisis de cadenas causales.
 
 ## Actividad Práctica
@@ -1184,7 +1177,7 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
 
 Responde las siguientes preguntas basándote en el análisis de calidad:
 
-1. **¿Por qué la puntuación de readiness algorítmica de 32.1% es engañosa?** Diseña un método de scoring alternativo que evalúe la cobertura de campos *dentro de cada EventID* en lugar de globalmente. ¿Qué puntuación obtendría el dataset con tu método?
+1. **El GUID `4a85d404-cf08-67da-0900-000000005500` viola el Invariante 2 simultáneamente como proceso origen (k=3, 292 eventos) y proceso destino (k=4, 13 eventos).** Formula dos hipótesis que expliquen esta anomalía: una basada en artefactos de registro (similar a las categorías de k=1) y otra en un error genuino de datos. ¿Qué información del dataset (valores exactos de SourceImage / TargetImage, EventIDs afectados, timestamps) te permitiría distinguirlas?
 
 2. **EventID 1 (Process Create) representa solo el 0.28% del dataset (1,023 eventos), pero es el EventID con más campos (23).** ¿Por qué es desproporcionadamente importante para el análisis de amenazas? Piensa en qué información exclusiva aporta (CommandLine, ParentImage, ParentProcessGuid).
 
@@ -1198,9 +1191,8 @@ Responde las siguientes preguntas basándote en el análisis de calidad:
 
 Al finalizar esta sección, deberías comprender:
 - Cómo evaluar la calidad de un dataset de seguridad distinguiendo artefactos de diseño de problemas reales.
-- La importancia de la evaluación *por EventID* frente a la evaluación global en un CSV unificado.
 - Los indicadores de actividad APT presentes en los datos y su significancia para la detección.
 - Por qué los GUIDs son esenciales para el rastreo causal y los PIDs son insuficientes.
-- Cómo detectar violaciones semánticas de ProcessGuid (GUID→PID, GUID→Image) y clasificarlas por causa raíz.
+- Cómo detectar violaciones semánticas de ProcessGuid (GUID→PID, GUID→Image) y clasificarlas por causa raíz, extendiendo el análisis a los cuatro pares GUID del esquema.
 
 En la **Sesión 3**, usaremos este dataset validado para la **correlación cruzada entre dominios** (Sysmon y NetFlow), aplicando los Scripts 5 y 6 del pipeline para vincular actividad de procesos con flujos de red.
