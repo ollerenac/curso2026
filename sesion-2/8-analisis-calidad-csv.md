@@ -6,6 +6,8 @@
 :class: note
 
 **Notebook**: `8_sysmon_csv_exploratory_analysis.ipynb`
+
+**Dataset**: Los archivos CSV de Sysmon están disponibles en [Google Drive](https://drive.google.com/drive/folders/1bLbcxM_mRAaeHIGTIy3PnAEOz0EcUMhA?usp=sharing).
 ```
 
 ## Contexto: ¿Por qué analizar la calidad del CSV?
