@@ -434,3 +434,14 @@ Al finalizar esta sección, deberías comprender:
 - La importancia de los mecanismos de seguridad (backup automático, verificación de hash) y las columnas de trazabilidad (`_original_row_index`, `_row_hash`) para auditar las correcciones.
 
 En la **siguiente sección** aplicamos la misma conversión JSONL → CSV al dominio NetFlow, donde el reto no es parsear XML sino aplanar una jerarquía JSON de múltiples niveles en 39 columnas fijas.
+
+### Entrega
+
+Sube tu notebook completado (`8_sysmon_csv_exploratory_analysis.ipynb`) y los scripts modificados al siguiente Google Drive:
+
+📁 [Carpeta de entregas — Sección 9](https://drive.google.com/drive/folders/1BqPQo_xX1Ud7Vib37roVwyx7JuCk3uhw?usp=sharing)
+
+Instrucciones:
+1. Entra al Drive con tu cuenta institucional.
+2. Crea una carpeta con tu nombre completo usando guiones bajos como separador (ej. `Juan_Garcia_Lopez`).
+3. Deposita tus archivos dentro de esa carpeta.

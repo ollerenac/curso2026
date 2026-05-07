@@ -1255,3 +1255,14 @@ Al finalizar esta sección, deberías comprender:
 - Cómo detectar violaciones semánticas de ProcessGuid (GUID→PID, GUID→Image), clasificarlas por causa raíz y diseñar estrategias de corrección — automáticas para artefactos de ruta y boot, con revisión humana para colisiones genuinas.
 
 En la **Sesión 2 / Sección 9**, aplicaremos las correcciones identificadas aquí usando el script `9_sysmon_data_cleaner.py` en modo interactivo completo.
+
+### Entrega
+
+Sube tu notebook completado (`8_sysmon_csv_exploratory_analysis.ipynb`) al siguiente Google Drive:
+
+📁 [Carpeta de entregas — Sección 8](https://drive.google.com/drive/folders/1BqPQo_xX1Ud7Vib37roVwyx7JuCk3uhw?usp=sharing)
+
+Instrucciones:
+1. Entra al Drive con tu cuenta institucional.
+2. Crea una carpeta con tu nombre completo usando guiones bajos como separador (ej. `Juan_Garcia_Lopez`).
+3. Deposita tu notebook dentro de esa carpeta.
