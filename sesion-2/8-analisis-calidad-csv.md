@@ -742,13 +742,19 @@ Antes de verificar la consistencia semántica, es necesario entender los dos mec
 
 #### Verificación de invariantes
 
-Las verificaciones anteriores comprueban la validez *formal* de los datos (formatos, rangos). Pero para análisis causal necesitamos **consistencia semántica**: que un ProcessGuid identifique siempre al mismo proceso. Esto requiere dos invariantes:
+Las verificaciones anteriores comprueban la validez *formal* de los datos (formatos, rangos). Las siguientes comprueban algo más profundo: **consistencia semántica**.
+
+El punto de partida es una propiedad axiomática del sistema operativo: un proceso, durante toda su vida, tiene exactamente un PID (asignado en su creación, mantenido hasta su terminación) y exactamente una imagen ejecutable (el binario cargado en el `CreateProcess`). Ambos son inmutables mientras el proceso existe — no hay ningún mecanismo en Windows que permita a un proceso cambiar su PID o sustituir su ejecutable en tiempo de ejecución.
+
+Si esto es cierto a nivel OS, debe reflejarse en el dataset: dado que el ProcessGuid identifica unívocamente una instancia de proceso, cada GUID real debería aparecer siempre asociado al mismo PID y al mismo ejecutable. Podemos verificarlo empíricamente buscando GUIDs que rompan esa propiedad. Cualquier violación no indica que el proceso se comportó de forma anómala — indica que el dato está mal registrado.
+
+Esto requiere dos invariantes:
 
 > **Invariante 1**: Un ProcessGuid → exactamente 1 ProcessId
 >
 > **Invariante 2**: Un ProcessGuid → exactamente 1 Image (ruta de ejecutable)
 
-Ambas verificaciones excluyen el GUID nulo (`00000000-0000-0000-0000-000000000000`), que es un centinela de Sysmon para eventos que no puede atribuir a un proceso específico (36 eventos, 14 PIDs diferentes en nuestro dataset).
+Ambas verificaciones excluyen el GUID nulo (`00000000-0000-0000-0000-000000000000`), que es un centinela de Sysmon para eventos que no puede atribuir a un proceso específico (36 eventos, 14 PIDs diferentes en nuestro dataset) — su análisis se aborda en el Paso 8e.
 
 **Verificación 1: GUID → PID**
 
