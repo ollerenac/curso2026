@@ -912,24 +912,36 @@ El único GUID que viola el Invariante 1 es el **centinela** (`00000000-0000-000
 
 **Verificación 2: GUID → Image**
 
+**Operaciones del código**: ídem a Verificación 1 pero sobre los pares GUID–Image. Normaliza las rutas a minúsculas antes de comparar (los paths Windows son case-insensitive). El escaneo rápido cubre los cuatro pares; el análisis detallado categoriza las violaciones de k=1.
+
 ```python
-import ntpath  # Para manejar rutas Windows correctamente en Linux
+PAIRS_IMG = [
+    (1, 'ProcessGuid',       'Image',       'EID ∉ {8,10}'),
+    (2, 'ParentProcessGuid', 'ParentImage', 'EID = 1'),
+    (3, 'SourceProcessGUID', 'SourceImage', 'EID ∈ {8,10}'),
+    (4, 'TargetProcessGUID', 'TargetImage', 'EID ∈ {8,10}'),
+]
 
-guid_image = df[['ProcessGuid', 'Image']].dropna().copy()
-guid_image = guid_image[guid_image['ProcessGuid'] != NULL_GUID]
-guid_image['Image_lower'] = guid_image['Image'].str.lower()
-guid_image_unique = guid_image[['ProcessGuid', 'Image_lower']].drop_duplicates()
-images_per_guid = guid_image_unique.groupby('ProcessGuid')['Image_lower'].nunique()
-image_violations = images_per_guid[images_per_guid > 1]
-print(f"GUIDs con múltiples Images: {len(image_violations)}")
+for k, guid_col, img_col, domain_label in PAIRS_IMG:
+    subset = DOMAIN[guid_col](df)
+    valid  = subset[[guid_col, img_col]].dropna().copy()
+    valid['img_norm'] = valid[img_col].str.lower()
+
+    images_per_guid_k = valid.groupby(guid_col)['img_norm'].nunique()
+    violations_k      = images_per_guid_k[images_per_guid_k > 1].sort_values(ascending=False)
+
+    status = "✅ Sin violaciones" if len(violations_k) == 0 else f"⚠️  {len(violations_k)} GUID(s) con múltiples imágenes"
+    print(f"\n  k={k}  {guid_col} / {img_col}  [{domain_label}]")
+    print(f"       GUIDs verificados        : {len(images_per_guid_k):,}")
+    print(f"       Resultado                : {status}")
+
+    for guid, n_imgs in violations_k.items():
+        n_events = (valid[guid_col] == guid).sum()
+        label = "  ← GUID centinela" if guid == NULL_GUID else ""
+        print(f"       {guid}  →  {n_imgs} imágenes distintas  ({n_events} eventos){label}")
 ```
 
-```
-Unique ProcessGuids checked: 1,632
-GUIDs con múltiples Images:  28
-```
-
-⚠️ **28 ProcessGuids mapean a 2 o más rutas de ejecutable diferentes.** El notebook categoriza cada violación por su causa raíz:
+⚠️ **28 ProcessGuids (k=1) mapean a 2 o más rutas de ejecutable diferentes.** El notebook categoriza cada violación por su causa raíz:
 
 | Categoría | GUIDs | Eventos | Acción |
 |-----------|-------|---------|--------|
