@@ -1166,19 +1166,83 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
 
 ## Actividad Práctica
 
-### Ejercicio: Interpretación Crítica de la Calidad de Datos
+### Ejercicio: Exploración profunda y corrección de violaciones
 
-Responde las siguientes preguntas basándote en el análisis de calidad:
+Los ejercicios siguientes se ejecutan en el notebook `8_sysmon_csv_exploratory_analysis.ipynb` usando el DataFrame `df` ya cargado, y en la terminal usando el script `9_sysmon_data_cleaner.py` desde la carpeta `sesion-2/`.
 
-1. **Los scripts actuales del pipeline (`find_processguid_pid_violations.py` y `find_processguid_image_violations.py`) solo cubren k=1 (ProcessGuid).** El análisis del Paso 8f muestra que k=3 y k=4 también tienen violaciones. Diseña una estrategia para extender estos scripts a los cuatro pares: ¿qué columnas Image usarías para k=2 (ParentImage), k=3 (SourceImage) y k=4 (TargetImage)? ¿Qué filtros de EventID aplicarías a cada dominio? ¿Cómo manejarías el GUID centinela (∅): lo excluirías del análisis o lo reportarías por separado con etiqueta?
+**Parte A: Anatomía del GUID centinela (Invariante 1)**
 
-2. **EventID 1 (Process Create) representa solo el 0.28% del dataset (1,023 eventos), pero es el EventID con más campos (23).** ¿Por qué es desproporcionadamente importante para el análisis de amenazas? Piensa en qué información exclusiva aporta (CommandLine, ParentImage, ParentProcessGuid).
+El GUID centinela ∅ (`00000000-0000-0000-0000-000000000000`) viola el Invariante 1 en k=1 (36 eventos, 14 PIDs) y en k=3 (500 eventos). Ejecuta el siguiente código y responde las preguntas:
 
-3. **El análisis de red muestra 1,378 conexiones al puerto 444, que no es un servicio estándar.** Formula una hipótesis de seguridad: ¿qué tipo de actividad APT podría explicar este tráfico? Considera la proximidad al puerto 443 (HTTPS) y el contexto de la simulación de ataque.
+```python
+NULL_GUID = '00000000-0000-0000-0000-000000000000'
 
-4. **El PID reuse ratio es 1.32 para ProcessGuid/ProcessId.** Diseña una prueba de validación que demuestre por qué usar PIDs (en lugar de GUIDs) para rastreo causal produciría falsos positivos. Describe los datos de entrada y el resultado esperado.
+# Eventos del centinela en k=1 (dominio: EID ∉ {8, 10})
+s_k1 = df[~df['EventID'].isin([8, 10]) & (df['ProcessGuid'] == NULL_GUID)]
+print(f"k=1 → {len(s_k1)} eventos, {s_k1['ProcessId'].nunique()} PIDs, "
+      f"{s_k1['Image'].nunique()} Images, "
+      f"Computers: {s_k1['Computer'].unique()}")
+print(s_k1['EventID'].value_counts())
 
-5. **Si tuvieras que elegir solo 5 columnas como "mínimo viable" para entrenar un modelo IDS**, ¿cuáles elegirías y por qué? Considera: identificación del evento, contexto temporal, identificación de proceso, y actividad observable.
+# Eventos del centinela en k=3 (dominio: EID ∈ {8, 10})
+s_k3 = df[df['EventID'].isin([8, 10]) & (df['SourceProcessGUID'] == NULL_GUID)]
+print(f"\nk=3 → {len(s_k3)} eventos, {s_k3['SourceProcessId'].nunique()} PIDs, "
+      f"{s_k3['SourceImage'].nunique()} Images")
+print(s_k3['SourceImage'].value_counts().head(5))
+```
+
+- ¿El centinela tiene una `Image` consistente en k=1? ¿Y en k=3?
+- ¿Por qué k=3 acumula ~14× más eventos que k=1 para el mismo GUID centinela?
+
+**Parte B: Reglas de corrección por categoría (Invariante 2, k=1)**
+
+Los 28 GUIDs violadores de k=1 se agrupan en 4 categorías. Para cada una, analiza su corrección:
+
+1. **`<unknown process>` (17 GUIDs)**: Escoge uno de los GUIDs con esta violación y examina todos sus eventos. ¿El GUID tiene una Image "real" dominante? ¿Cuántos eventos tienen `<unknown process>` vs la Image real?
+
+   ```python
+   # Ejemplo: primer GUID con <unknown process>
+   guid = '<uno de los 17 GUIDs del Paso 8f>'
+   eventos = df[~df['EventID'].isin([8,10]) & (df['ProcessGuid'] == guid)]
+   print(eventos['Image'].value_counts())
+   ```
+
+2. **Prefijo `\\?\` (2 GUIDs)**: La corrección es automática — eliminar el prefijo. Escribe la expresión pandas que aplicarías sobre la columna `Image`.
+
+3. **Elastic Agent (7 GUIDs)**: Los 7 GUIDs aparecen con rutas de instalación distintas (versión real vs symlink). ¿La diferencia de ruta implica una diferencia funcional (distinto binario)? ¿Cuál ruta elegirías como canónica y por qué?
+
+4. **Colisiones genuinas (2 GUIDs)**: svchost/dxgiadaptercache y OneDriveSetup/DllHost comparten GUID. Estas no tienen corrección automática — requieren decisión del analista. En el archivo de violaciones (`04_sysmon-run-01-violations.csv`), ¿qué columnas adicionales examinarías para decidir qué Image y qué ProcessGuid asignar?
+
+**Parte C: Verificación con el script de limpieza**
+
+Desde la carpeta `sesion-2/`, ejecuta la fase de detección:
+
+```bash
+python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --detect-only
+```
+
+Luego verifica que los archivos generados coinciden con los hallazgos del notebook:
+
+```python
+import pandas as pd
+
+pid_v = pd.read_csv('../../fullapt2025/dataset/run-01-apt-1/'
+                    '04_processguid-pid-violations-run-01.csv')
+img_v = pd.read_csv('../../fullapt2025/dataset/run-01-apt-1/'
+                    '04_processguid-image-violations-run-01.csv')
+
+print(f"Violaciones PID:   {pid_v['ProcessGuid'].nunique()} GUIDs únicos "
+      f"({len(pid_v)} filas)")
+print(f"Violaciones Image: {img_v['ProcessGuid'].nunique()} GUIDs únicos "
+      f"({len(img_v)} filas)")
+
+# ¿Aparece el GUID centinela en img_v?
+NULL_GUID = '00000000-0000-0000-0000-000000000000'
+print(f"\nCentinela en PID violations:   {NULL_GUID in pid_v['ProcessGuid'].values}")
+print(f"Centinela en Image violations: {NULL_GUID in img_v['ProcessGuid'].values}")
+```
+
+¿Por qué el GUID centinela aparece en `img_v` si el Invariante 2 "no aplica" a él? (Pista: el script de detección no excluye ningún GUID — reporta todos los que violan la regla de unicidad, incluido ∅.)
 
 ### Resultado esperado
 
@@ -1186,6 +1250,6 @@ Al finalizar esta sección, deberías comprender:
 - Cómo evaluar la calidad de un dataset de seguridad distinguiendo artefactos de diseño de problemas reales.
 - Los indicadores de actividad APT presentes en los datos y su significancia para la detección.
 - Por qué los GUIDs son esenciales para el rastreo causal y los PIDs son insuficientes.
-- Cómo detectar violaciones semánticas de ProcessGuid (GUID→PID, GUID→Image) y clasificarlas por causa raíz, extendiendo el análisis a los cuatro pares GUID del esquema.
+- Cómo detectar violaciones semánticas de ProcessGuid (GUID→PID, GUID→Image), clasificarlas por causa raíz y diseñar estrategias de corrección — automáticas para artefactos de ruta y boot, con revisión humana para colisiones genuinas.
 
-En la **Sesión 3**, usaremos este dataset validado para la **correlación cruzada entre dominios** (Sysmon y NetFlow), aplicando los Scripts 5 y 6 del pipeline para vincular actividad de procesos con flujos de red.
+En la **Sesión 2 / Sección 9**, aplicaremos las correcciones identificadas aquí usando el script `9_sysmon_data_cleaner.py` en modo interactivo completo.
