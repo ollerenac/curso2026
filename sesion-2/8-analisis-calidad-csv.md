@@ -1102,7 +1102,7 @@ Analizado en detalle en el Paso 8d. Las 28 violaciones se dividen en cuatro cate
 
 Cada GUID padre mapea siempre a la misma imagen. Coherente con el axioma OS: un proceso no sustituye su ejecutable durante su vida, y EID 1 captura invariablemente el mismo ejecutable en todos los eventos donde aparece como padre.
 
-**k=3 — 2 GUIDs reales [nuevo hallazgo]**
+**k=3 — 2 GUIDs con múltiples imágenes [nuevo hallazgo]**
 
 Dos GUIDs de proceso origen en EID 8/10 aparecen con `SourceImage` distintas — el proceso que inicia el acceso inter-proceso aparece registrado con dos imágenes diferentes:
 
@@ -1111,14 +1111,15 @@ Dos GUIDs de proceso origen en EID 8/10 aparecen con `SourceImage` distintas —
 | `3fc4fefd-cf0d-67da-0900-000000004800` | 2 | 67 |
 | `4a85d404-cf08-67da-0900-000000005500` | 2 | 292 |
 
-A diferencia de las violaciones de k=1 (dominadas por artefactos de boot), estos GUIDs son plenamente identificables en eventos EID 8/10. Hipótesis posibles: (a) variante de ruta al mismo binario (análogo al falso positivo `\\?\`), o (b) colisión genuina de GUID en eventos de acceso inter-proceso. Requieren inspección directa de los valores de SourceImage.
+No hay centinela en k=3 — el proceso que *inicia* un acceso siempre es identificable para Sysmon. A diferencia de las violaciones de k=1 (dominadas por artefactos de boot), estos GUIDs son plenamente identificables. Hipótesis posibles: (a) variante de ruta al mismo binario (análogo al falso positivo `\\?\`), o (b) colisión genuina de GUID en eventos de acceso inter-proceso. Requieren inspección directa de los valores de SourceImage.
 
-**k=4 — 4 GUIDs reales [nuevo hallazgo]**
+**k=4 — 5 GUIDs con múltiples imágenes [nuevo hallazgo]**
 
-Cuatro GUIDs de proceso destino en EID 8/10 aparecen con `TargetImage` distintas:
+Cinco GUIDs de proceso destino en EID 8/10 aparecen con `TargetImage` distintas — incluyendo el centinela:
 
 | GUID | Imágenes distintas | Eventos |
 |------|-------------------|---------|
+| `00000000-0000-0000-0000-000000000000` | 2 | 4 | ← GUID centinela |
 | `2d5a9c51-5053-67da-2000-000000009000` | 2 | 5 |
 | `2d5a9c51-505c-67da-2500-000000009000` | 2 | 288 |
 | `3fc4fefd-5e35-67da-ff01-000000004800` | 2 | 8 |
