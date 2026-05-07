@@ -979,9 +979,9 @@ for k, guid_col, img_col, domain_label in PAIRS_IMG:
 
 **k=2 completamente limpio** — cada GUID padre mapea siempre a la misma imagen. Coherente con el axioma OS: el proceso padre existe antes de generar hijos y no cambia su ejecutable.
 
-**k=3 con 2 violaciones reales** — dos GUIDs de proceso *origen* en EID 8/10 aparecen con `SourceImage` distintas. A diferencia de k=1 (donde la mayoría de violaciones son artefactos de boot), aquí son GUIDs reales que deberían ser plenamente identificables. Requieren investigación: pueden ser variantes de ruta o, en el peor caso, colisiones genuinas en eventos de acceso inter-proceso.
+**k=3 con 2 violaciones** — ambas son artefactos de boot: `csrss.exe` aparece con `<unknown process>` en 1–4 eventos de arranque. El mismo patrón que domina k=1.
 
-**k=4 con 4 violaciones reales** — cuatro GUIDs de proceso *destino* aparecen con `TargetImage` distintas. El GUID `4a85d404-cf08-67da-0900-000000005500` aparece tanto en k=3 como en k=4, lo que sugiere que el mismo proceso es tanto origen como destino en eventos de acceso con registros de imagen inconsistentes.
+**k=4 con 5 violaciones** (1 centinela + 1 artefacto boot + 3 genuinas) — las violaciones genuinas son `svchost.exe` vs `dxgiadaptercache.exe` (2 GUIDs, también presentes en k=1) y `OneDriveSetup.exe` vs `DllHost.exe` (1 GUID).
 
 **Análisis detallado k=1: ProcessGuid → Image**
 
@@ -1104,34 +1104,36 @@ Cada GUID padre mapea siempre a la misma imagen. Coherente con el axioma OS: un 
 
 **k=3 — 2 GUIDs con múltiples imágenes [nuevo hallazgo]**
 
-Dos GUIDs de proceso origen en EID 8/10 aparecen con `SourceImage` distintas — el proceso que inicia el acceso inter-proceso aparece registrado con dos imágenes diferentes:
+Dos GUIDs de proceso origen en EID 8/10 aparecen con `SourceImage` distintas:
 
-| GUID | Imágenes distintas | Eventos |
-|------|-------------------|---------|
-| `3fc4fefd-cf0d-67da-0900-000000004800` | 2 | 67 |
-| `4a85d404-cf08-67da-0900-000000005500` | 2 | 292 |
+| GUID | `<unknown process>` | Imagen real | Eventos |
+|------|---------------------|-------------|---------|
+| `3fc4fefd-cf0d-67da-0900-000000004800` | 1 | `csrss.exe` (66) | 67 |
+| `4a85d404-cf08-67da-0900-000000005500` | 4 | `csrss.exe` (288) | 292 |
 
-No hay centinela en k=3 — el proceso que *inicia* un acceso siempre es identificable para Sysmon. A diferencia de las violaciones de k=1 (dominadas por artefactos de boot), estos GUIDs son plenamente identificables. Hipótesis posibles: (a) variante de ruta al mismo binario (análogo al falso positivo `\\?\`), o (b) colisión genuina de GUID en eventos de acceso inter-proceso. Requieren inspección directa de los valores de SourceImage.
+La inspección de las imágenes revela el patrón: en ambos GUIDs, la mayoría de eventos registran correctamente `csrss.exe` como `SourceImage`, pero 1–4 eventos de arranque registran `<unknown process>`. Es el mismo artefacto de boot que domina k=1 — el proceso no estaba completamente inicializado cuando Sysmon capturó esos primeros eventos. No hay variantes de ruta ni colisión genuina de ejecutables.
 
 **k=4 — 5 GUIDs con múltiples imágenes [nuevo hallazgo]**
 
-Cinco GUIDs de proceso destino en EID 8/10 aparecen con `TargetImage` distintas — incluyendo el centinela:
+Cinco GUIDs de proceso destino en EID 8/10 aparecen con `TargetImage` distintas. La inspección permite categorizarlos:
 
-| GUID | Imágenes distintas | Eventos |
-|------|-------------------|---------|
-| `00000000-0000-0000-0000-000000000000` | 2 | 4 | ← GUID centinela |
-| `2d5a9c51-5053-67da-2000-000000009000` | 2 | 5 |
-| `2d5a9c51-505c-67da-2500-000000009000` | 2 | 288 |
-| `3fc4fefd-5e35-67da-ff01-000000004800` | 2 | 8 |
-| `4a85d404-cf08-67da-0900-000000005500` | 2 | 13 |
+| GUID | Imágenes | Eventos | Categoría |
+|------|----------|---------|-----------|
+| `00000000-0000-0000-0000-000000000000` | `taskhostw.exe` / `wermgr.exe` | 4 | Centinela (esperado) |
+| `4a85d404-cf08-67da-0900-000000005500` | `<unknown process>` (1) / `csrss.exe` (12) | 13 | Artefacto boot |
+| `2d5a9c51-5053-67da-2000-000000009000` | `svchost.exe` (7) / `dxgiadaptercache.exe` (47) | 54 | **Genuina** |
+| `2d5a9c51-505c-67da-2500-000000009000` | `svchost.exe` (286) / `dxgiadaptercache.exe` (2) | 288 | **Genuina** |
+| `3fc4fefd-5e35-67da-ff01-000000004800` | `OneDriveSetup.exe` (1) / `DllHost.exe` (7) | 8 | **Genuina** |
+
+Los dos GUIDs de `svchost.exe` / `dxgiadaptercache.exe` aparecen también en k=1 con la misma inconsistencia — el mismo proceso es destino de accesos inter-proceso con imagen inconsistente en el CSV, y también genera eventos EID ∉ {8,10} con la misma imagen inconsistente. Son las únicas 2 violaciones genuinas de k=1 que se propagan a k=4.
 
 **Anomalía cross-par: GUID `4a85d404-cf08-67da-0900-000000005500`**
 
-Este GUID viola el Invariante 2 simultáneamente como proceso origen (k=3, 292 eventos) y proceso destino (k=4, 13 eventos), con imágenes inconsistentes en ambos roles. Una colisión en ambos contextos es difícilmente atribuible a un artefacto de ruta — merece inspección directa de las imágenes registradas en los eventos afectados.
+Este GUID aparece como violación en k=3 (origen, 292 eventos) y k=4 (destino, 13 eventos). En ambos roles la violación es el mismo artefacto: `<unknown process>` en los primeros eventos de boot del proceso `csrss.exe`. No es una colisión genuina — es el mismo patrón de arranque documentado en k=1.
 
 **Cobertura de los scripts actuales del pipeline**
 
-Los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/` verifican únicamente el par k=1. Las 6 violaciones reales de k=3 y k=4 (671 eventos en total) quedan **fuera de su alcance**. El Script 4 (`4_sysmon_data_cleaner.py`) también cubre solo k=1. Para resolver estas violaciones es necesario extender los scripts a los cuatro pares — una versión ampliada es el siguiente paso del pipeline.
+Los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/` verifican únicamente el par k=1. Las violaciones de k=3 y k=4 quedan **fuera de su alcance**. El Script 4 (`4_sysmon_data_cleaner.py`) también cubre solo k=1. Para resolver estas violaciones es necesario extender los scripts a los cuatro pares — una versión ampliada es el siguiente paso del pipeline.
 
 ## Paso 10: Reporte resumen
 
