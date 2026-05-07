@@ -1258,7 +1258,7 @@ En la **Sesión 2 / Sección 9**, aplicaremos las correcciones identificadas aqu
 
 ### Entrega
 
-Sube tu notebook completado (`8_sysmon_csv_exploratory_analysis.ipynb`) al siguiente Google Drive:
+Sube tu notebook o scripts completados al siguiente Google Drive:
 
 📁 [Carpeta de entregas — Sección 8](https://drive.google.com/drive/folders/1BqPQo_xX1Ud7Vib37roVwyx7JuCk3uhw?usp=sharing)
 

@@ -437,7 +437,7 @@ En la **siguiente sección** aplicamos la misma conversión JSONL → CSV al dom
 
 ### Entrega
 
-Sube tu notebook completado (`8_sysmon_csv_exploratory_analysis.ipynb`) y los scripts modificados al siguiente Google Drive:
+Sube tus notebooks o scripts completados al siguiente Google Drive:
 
 📁 [Carpeta de entregas — Sección 9](https://drive.google.com/drive/folders/1BqPQo_xX1Ud7Vib37roVwyx7JuCk3uhw?usp=sharing)
 
