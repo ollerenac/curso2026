@@ -887,6 +887,29 @@ for k, guid_col, pid_col, domain_label in PAIRS:
         print(f"       {guid}  →  {n_pids} PIDs distintos  ({n_events} eventos){label}")
 ```
 
+```
+  k=1  ProcessGuid / ProcessId  [EID ∉ {8,10}]
+       GUIDs verificados        : 1,633
+       Resultado                : ⚠️  1 GUID(s) con múltiples PIDs
+       00000000-0000-0000-0000-000000000000  →  14 PIDs distintos  (36 eventos)  ← GUID centinela
+
+  k=2  ParentProcessGuid / ParentProcessId  [EID = 1]
+       GUIDs verificados        : 235
+       Resultado                : ⚠️  1 GUID(s) con múltiples PIDs
+       00000000-0000-0000-0000-000000000000  →  22 PIDs distintos  (500 eventos)  ← GUID centinela
+
+  k=3  SourceProcessGUID / SourceProcessId  [EID ∈ {8,10}]
+       GUIDs verificados        : 493
+       Resultado                : ✅ Sin violaciones
+
+  k=4  TargetProcessGUID / TargetProcessId  [EID ∈ {8,10}]
+       GUIDs verificados        : 1,421
+       Resultado                : ⚠️  1 GUID(s) con múltiples PIDs
+       00000000-0000-0000-0000-000000000000  →  2 PIDs distintos  (4 eventos)  ← GUID centinela
+```
+
+El único GUID que viola el Invariante 1 es el **centinela** (`00000000-0000-0000-0000-000000000000`) — presente en k=1, k=2 y k=4. Ningún GUID real mapea a más de un PID. El centinela acumula **540 eventos** (36 + 500 + 4) que no pueden atribuirse a ningún proceso específico y quedan fuera del grafo causal. El par k=3 (`SourceProcessGUID`) es el único completamente limpio: el proceso que *inicia* un acceso siempre es identificable para Sysmon.
+
 **Verificación 2: GUID → Image**
 
 ```python
