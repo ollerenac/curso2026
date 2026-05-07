@@ -1037,6 +1037,8 @@ El archivo resultante `02_sysmon-run-01.csv` ocupa **105 MB** en disco (363,657 
 **Entorno**: ejecuta el notebook desde el directorio `sesion-2/` con el entorno virtual del curso activo (`source .venv/bin/activate`). Usa rutas relativas para acceder al JSONL: `"../dataset/run-01-apt-1/ds-logs-windows-sysmon_operational-default-run-01.jsonl"`.
 
 **Nombre del archivo**: `apellido_nombre_sesion2_ej3.ipynb` — por ejemplo, `garcia_ana_sesion2_ej3.ipynb`.
+
+**Entrega**: sube tu notebook o scripts al siguiente Google Drive: [Carpeta de entregas](https://drive.google.com/drive/folders/1BqPQo_xX1Ud7Vib37roVwyx7JuCk3uhw?usp=sharing). Crea una carpeta con tu nombre completo usando guiones bajos (ej. `Juan_Garcia_Lopez`) y deposita tus archivos dentro.
 ```
 
 ### Ejercicio 1: Decisiones de Diseño del Conversor Sysmon
