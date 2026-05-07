@@ -850,7 +850,7 @@ $$p_k : G \rightarrow \mathbb{N} \quad \text{(función bien definida para cada }
 **Cobertura en este dataset**: el código de esta verificación comprueba explícitamente el par $k=1$ (ProcessGuid/ProcessId). Los pares $k=2,3,4$ son confirmados en el análisis del Paso 8e, donde se establece que $|V_{1,k}| = 0$ en todos los pares y en todos los runs.
 ```
 
-**Operaciones del código**: para cada uno de los cuatro pares $(g_k, p_k)$, filtra el dataframe al dominio $D_k$, descarta filas con nulos en ambas columnas, excluye el centinela, y cuenta cuántos PIDs distintos aparecen para cada GUID real. Un par con 0 violaciones confirma que $p_k : G \rightarrow \mathbb{N}$ es una función bien definida.
+**Operaciones del código**: para cada uno de los cuatro pares $(g_k, p_k)$, filtra el dataframe al dominio $D_k$, descarta filas con nulos en ambas columnas, y cuenta cuántos PIDs distintos aparecen para cada GUID — incluyendo el centinela. Cualquier GUID (real o centinela) que mapee a más de un PID es un evento problemático: no puede atribuirse unívocamente a un proceso.
 
 ```python
 NULL_GUID = '00000000-0000-0000-0000-000000000000'
@@ -871,42 +871,21 @@ DOMAIN = {
 
 for k, guid_col, pid_col, domain_label in PAIRS:
     subset = DOMAIN[guid_col](df)
-    valid  = subset[[guid_col, pid_col]].dropna().drop_duplicates()
-    real   = valid[valid[guid_col] != NULL_GUID]
+    valid  = subset[[guid_col, pid_col]].dropna()
 
-    pids_per_guid = real.groupby(guid_col)[pid_col].nunique()
-    violations    = pids_per_guid[pids_per_guid > 1]
+    pids_per_guid = valid.groupby(guid_col)[pid_col].nunique()
+    violations    = pids_per_guid[pids_per_guid > 1].sort_values(ascending=False)
 
-    status = "✅ Sin violaciones" if len(violations) == 0 else f"⚠️  {len(violations)} GUIDs con múltiples PIDs"
+    status = "✅ Sin violaciones" if len(violations) == 0 else f"⚠️  {len(violations)} GUID(s) con múltiples PIDs"
     print(f"\n  k={k}  {guid_col} / {pid_col}  [{domain_label}]")
-    print(f"       GUIDs reales verificados : {len(pids_per_guid):,}")
+    print(f"       GUIDs verificados        : {len(pids_per_guid):,}")
     print(f"       Resultado                : {status}")
 
-    if len(violations) > 0:
-        for guid in violations.index[:3]:
-            pids = real[real[guid_col] == guid][pid_col].unique()
-            print(f"       {guid}: PIDs = {sorted([int(p) for p in pids])}")
+    for guid, n_pids in violations.items():
+        n_events = (valid[guid_col] == guid).sum()
+        label = "  ← GUID centinela" if guid == NULL_GUID else ""
+        print(f"       {guid}  →  {n_pids} PIDs distintos  ({n_events} eventos){label}")
 ```
-
-```
-  k=1  ProcessGuid / ProcessId  [EID ∉ {8,10}]
-       GUIDs reales verificados : 1,632
-       Resultado                : ✅ Sin violaciones
-
-  k=2  ParentProcessGuid / ParentProcessId  [EID = 1]
-       GUIDs reales verificados : 234
-       Resultado                : ✅ Sin violaciones
-
-  k=3  SourceProcessGUID / SourceProcessId  [EID ∈ {8,10}]
-       GUIDs reales verificados : 493
-       Resultado                : ✅ Sin violaciones
-
-  k=4  TargetProcessGUID / TargetProcessId  [EID ∈ {8,10}]
-       GUIDs reales verificados : 1,420
-       Resultado                : ✅ Sin violaciones
-```
-
-✅ **Sin violaciones en ninguno de los cuatro pares.** El Invariante 1 se cumple para toda instancia de proceso observada en el dataset — $p_k : G \rightarrow \mathbb{N}$ es una función bien definida para cada $k$.
 
 **Verificación 2: GUID → Image**
 
