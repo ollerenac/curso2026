@@ -40,7 +40,7 @@ from pathlib import Path
 # Directorios — rutas relativas a sesion-2/
 SESION_DIR = Path(__file__).parent
 QUALITY_DIR = SESION_DIR / "quality"
-DATASET_DIR = SESION_DIR.parent.parent / "fullapt2025" / "dataset"
+DATASET_DIR = SESION_DIR.parent / "dataset"
 
 # Scripts de calidad (en sesion-2/quality/)
 DETECT_PID_SCRIPT   = QUALITY_DIR / "find_processguid_pid_violations.py"

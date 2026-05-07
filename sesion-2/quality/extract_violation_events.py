@@ -27,7 +27,7 @@ import re
 
 # Ruta al dataset — relativa a sesion-2/quality/
 _SCRIPT_DIR = Path(__file__).resolve().parent
-DATASET_DIR = _SCRIPT_DIR.parent.parent.parent / "fullapt2025" / "dataset"
+DATASET_DIR = _SCRIPT_DIR.parent.parent / "dataset"
 
 
 def discover_run_dir(run_number):

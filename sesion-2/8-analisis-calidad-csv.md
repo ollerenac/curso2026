@@ -1226,9 +1226,9 @@ Luego verifica que los archivos generados coinciden con los hallazgos del notebo
 ```python
 import pandas as pd
 
-pid_v = pd.read_csv('../../fullapt2025/dataset/run-01-apt-1/'
+pid_v = pd.read_csv('../dataset/run-01-apt-1/'
                     '04_processguid-pid-violations-run-01.csv')
-img_v = pd.read_csv('../../fullapt2025/dataset/run-01-apt-1/'
+img_v = pd.read_csv('../dataset/run-01-apt-1/'
                     '04_processguid-image-violations-run-01.csv')
 
 print(f"Violaciones PID:   {pid_v['ProcessGuid'].nunique()} GUIDs únicos "
