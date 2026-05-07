@@ -822,6 +822,22 @@ Ambas verificaciones excluyen el GUID nulo (`00000000-0000-0000-0000-00000000000
 
 **Verificación 1: GUID → PID**
 
+```{dropdown} Formalización
+Sea $E_1 = \{e \in E : \text{guid}(e) \in G \land \text{pid}(e) \neq \text{null}\}$ el subconjunto de eventos con GUID real y ProcessId válido.
+
+Definimos el conjunto de PIDs observados para cada GUID:
+
+$$\text{pid\_set}(g) = \{\text{pid}(e) : e \in [g] \cap E_1\}$$
+
+El conjunto de violaciones del Invariante 1:
+
+$$V_1 = \{g \in G : |\text{pid\_set}(g)| > 1\}$$
+
+Si $|V_1| = 0$, entonces $\text{pid\_set}(g)$ es un singleton para todo $g$ — lo que permite definir $\text{pid}$ como propiedad del proceso (no del evento individual):
+
+$$\text{pid} : G \rightarrow \mathbb{N} \quad \text{(función bien definida)}
+```
+
 ```python
 NULL_GUID = '00000000-0000-0000-0000-000000000000'
 
