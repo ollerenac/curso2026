@@ -750,38 +750,39 @@ $$\text{guid}(e),\ \text{pid}(e),\ \text{image}(e) \quad \text{— ProcessGuid, 
 $$\text{parent_guid}(e) \quad \text{— ParentProcessGuid}$$
 $$\text{source_guid}(e),\ \text{target_guid}(e) \quad \text{— SourceProcessGUID, TargetProcessGUID}$$
 
-Sea $G$ el conjunto de GUIDs válidos (excluyendo el centinela $\emptyset$).
+Sea $G$ el conjunto de GUIDs reales (no centinela) y $G^* = G \cup \{\emptyset\}$ el conjunto de todos los GUIDs observados, donde $\emptyset$ denota el GUID centinela `00000000-0000-0000-0000-000000000000`.
 
 ---
 
-**Los cuatro pares GUID–PID**
+**Los cuatro pares GUID–PID–Image**
 
-El esquema CSV registra cuatro columnas GUID, cada una con su PID asociado y su dominio de EventIDs:
+El esquema CSV registra cuatro columnas GUID, cada una con su PID e Image asociados y su dominio de EventIDs:
 
-| $k$ | $g_k$ (columna GUID) | $p_k$ (columna PID) | $D_k$ (EventIDs válidos) |
-|-----|----------------------|---------------------|--------------------------|
-| 1 | ProcessGuid | ProcessId | EID $\notin$ \{8, 10\} |
-| 2 | ParentProcessGuid | ParentProcessId | EID $= 1$ |
-| 3 | SourceProcessGUID | SourceProcessId | EID $\in$ \{8, 10\} |
-| 4 | TargetProcessGUID | TargetProcessId | EID $\in$ \{8, 10\} |
+| $k$ | $g_k$ (GUID) | $p_k$ (PID) | $\text{img}_k$ (Image) | $D_k$ (EventIDs) |
+|-----|--------------|-------------|------------------------|------------------|
+| 1 | ProcessGuid | ProcessId | Image | EID $\notin$ \{8, 10\} |
+| 2 | ParentProcessGuid | ParentProcessId | ParentImage | EID $= 1$ |
+| 3 | SourceProcessGUID | SourceProcessId | SourceImage | EID $\in$ \{8, 10\} |
+| 4 | TargetProcessGUID | TargetProcessId | TargetImage | EID $\in$ \{8, 10\} |
 
 Para cada par $k$, la clase de equivalencia sobre los eventos de su dominio:
 
-$$[g]_k = \{e \in E : \text{eid}(e) \in D_k \land g_k(e) = g\}$$
+$$[g]_k = \{e \in E : \text{eid}(e) \in D_k \land g_k(e) = g\}, \quad g \in G^*$$
 
 ---
 
 **Invariantes OS (restricciones sobre las clases)**
 
-El axioma OS se generaliza a los cuatro pares: cada GUID válido en cualquier columna identifica siempre al mismo proceso y, por tanto, al mismo PID:
+El axioma OS se generaliza a los cuatro pares y a todos los GUIDs observados — incluyendo el centinela:
 
-$$\forall\, k,\ \forall\, g \in G,\ \forall\, e_1, e_2 \in [g]_k :\quad p_k(e_1) = p_k(e_2) \qquad \text{(Invariante 1 — generalizado)}$$
+$$\forall\, k,\ \forall\, g \in G^*,\ \forall\, e_1, e_2 \in [g]_k :\quad p_k(e_1) = p_k(e_2) \qquad \text{(Invariante 1)}$$
 
-El Invariante 2 (GUID → Image) aplica solo al par $k=1$, donde Image es una columna del esquema con semántica definida:
+$$\forall\, k,\ \forall\, g \in G^*,\ \forall\, e_1, e_2 \in [g]_k :\quad \text{img}_k(e_1) = \text{img}_k(e_2) \qquad \text{(Invariante 2)}$$
 
-$$\forall\, g \in G,\ \forall\, e_1, e_2 \in [g]_1 :\quad \text{image}(e_1) = \text{image}(e_2) \qquad \text{(Invariante 2)}$$
+Una violación $g \in V_{i,k}$ tiene distinto significado según el tipo de GUID:
 
-Una violación es encontrar $g \in G$ y $e_1, e_2 \in [g]_k$ que no cumplan alguna de estas restricciones.
+- $g \in G$: error de registro — un proceso real aparece con PID o Image inconsistentes
+- $g = \emptyset$: comportamiento esperado del centinela — múltiples procesos desconocidos comparten el placeholder, sus eventos son inrastreables
 
 ---
 
@@ -824,30 +825,30 @@ El punto de partida es una propiedad axiomática del sistema operativo: un proce
 
 Si esto es cierto a nivel OS, debe reflejarse en el dataset: dado que el ProcessGuid identifica unívocamente una instancia de proceso, cada GUID real debería aparecer siempre asociado al mismo PID y al mismo ejecutable. Podemos verificarlo empíricamente buscando GUIDs que rompan esa propiedad. Cualquier violación no indica que el proceso se comportó de forma anómala — indica que el dato está mal registrado.
 
-Esto requiere dos invariantes:
+Esto requiere dos invariantes, aplicables a los cuatro pares GUID–PID e GUID–Image del esquema:
 
-> **Invariante 1**: Un ProcessGuid → exactamente 1 ProcessId
+> **Invariante 1**: Un GUID → exactamente 1 PID (para su par correspondiente)
 >
-> **Invariante 2**: Un ProcessGuid → exactamente 1 Image (ruta de ejecutable)
+> **Invariante 2**: Un GUID → exactamente 1 Image (para su par correspondiente)
 
-Ambas verificaciones excluyen el GUID nulo (`00000000-0000-0000-0000-000000000000`), que es un centinela de Sysmon para eventos que no puede atribuir a un proceso específico (36 eventos, 14 PIDs diferentes en nuestro dataset) — su análisis se aborda en el Paso 8e.
+Las verificaciones incluyen el GUID centinela (`00000000-0000-0000-0000-000000000000`) — cualquier GUID que aparezca con múltiples PIDs o imágenes representa eventos problemáticos, sea real o centinela. El análisis detallado del centinela se aborda en el Paso 8e.
 
 **Verificación 1: GUID → PID**
 
 ```{dropdown} Formalización
-El Invariante 1 se verifica sobre los cuatro pares GUID–PID. Para cada par $k$, definimos el conjunto de PIDs observados para un GUID $g$:
+El Invariante 1 se verifica sobre los cuatro pares GUID–PID y sobre todos los GUIDs observados $G^*$. Para cada par $k$ y cada $g \in G^*$:
 
 $$\text{pid_set}_k(g) = \{p_k(e) : e \in [g]_k,\ p_k(e) \neq \text{null}\}$$
 
 El conjunto de violaciones del par $k$:
 
-$$V_{1,k} = \{g \in G : |\text{pid_set}_k(g)| > 1\}$$
+$$V_{1,k} = \{g \in G^* : |\text{pid_set}_k(g)| > 1\}$$
 
-Si $|V_{1,k}| = 0$ para todo $k$, entonces $p_k$ deja de ser una propiedad del evento individual y pasa a ser una propiedad del proceso:
+En este dataset, $V_{1,k} \cap G = \emptyset$ para todo $k$ — ningún GUID real viola el invariante. Solo el centinela $\emptyset$ aparece en $V_{1,k}$ (en $k=1,2,4$), lo que confirma que $p_k$ es una función bien definida sobre los GUIDs reales:
 
-$$p_k : G \rightarrow \mathbb{N} \quad \text{(función bien definida para cada } k\text{)}$$
+$$p_k : G \rightarrow \mathbb{N} \quad \text{(función bien definida para } g \in G\text{)}$$
 
-**Cobertura en este dataset**: el código de esta verificación comprueba explícitamente el par $k=1$ (ProcessGuid/ProcessId). Los pares $k=2,3,4$ son confirmados en el análisis del Paso 8e, donde se establece que $|V_{1,k}| = 0$ en todos los pares y en todos los runs.
+Las violaciones del centinela no son errores de registro sino la consecuencia esperada de que múltiples procesos no identificables comparten el mismo placeholder.
 ```
 
 **Operaciones del código**: para cada uno de los cuatro pares $(g_k, p_k)$, filtra el dataframe al dominio $D_k$, descarta filas con nulos en ambas columnas, y cuenta cuántos PIDs distintos aparecen para cada GUID — incluyendo el centinela. Cualquier GUID (real o centinela) que mapee a más de un PID es un evento problemático: no puede atribuirse unívocamente a un proceso.
