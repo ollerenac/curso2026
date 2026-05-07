@@ -740,6 +740,70 @@ Antes de verificar la consistencia semántica, es necesario entender los dos mec
 
 **Por qué importa para análisis causal.** Si un ProcessGuid mapea a más de un PID o más de un ejecutable, la cadena causal se rompe: no podemos saber qué proceso generó qué evento. Las verificaciones siguientes comprueban exactamente esto.
 
+```{dropdown} Modelo formal: eventos, procesos y relaciones causales
+**Objetos fundamentales**
+
+Sea $E$ el conjunto de todos los eventos (filas del CSV). Cada evento $e \in E$ expone los siguientes campos (posiblemente nulos según el EventID):
+
+$$\text{computer}(e),\ \text{eid}(e),\ t(e) \quad \text{— siempre definidos}$$
+$$\text{guid}(e),\ \text{pid}(e),\ \text{image}(e) \quad \text{— ProcessGuid, ProcessId, Image}$$
+$$\text{parent\_guid}(e) \quad \text{— ParentProcessGuid}$$
+$$\text{source\_guid}(e),\ \text{target\_guid}(e) \quad \text{— SourceProcessGUID, TargetProcessGUID}$$
+
+Sea $G$ el conjunto de GUIDs válidos (excluyendo el centinela $\emptyset$).
+
+---
+
+**Identidad de proceso**
+
+La relación de equivalencia inducida por ProcessGuid:
+
+$$e_1 \sim e_2 \iff \text{guid}(e_1) = \text{guid}(e_2)\ \land\ \text{guid}(e_1) \in G$$
+
+Cada clase $[g] = \{e \in E : \text{guid}(e) = g\}$ es el conjunto de eventos atribuibles al proceso $g$.
+
+---
+
+**Invariantes OS (restricciones sobre las clases)**
+
+$$\forall\, g \in G,\ \forall\, e_1, e_2 \in [g] :\quad \text{pid}(e_1) = \text{pid}(e_2) \qquad \text{(Invariante 1)}$$
+$$\forall\, g \in G,\ \forall\, e_1, e_2 \in [g] :\quad \text{image}(e_1) = \text{image}(e_2) \qquad \text{(Invariante 2)}$$
+
+Una violación es encontrar $g \in G$ y $e_1, e_2 \in [g]$ que no cumplen alguna de estas restricciones.
+
+---
+
+**Relación padre-hijo $R \subseteq G \times G$ (EID 1)**
+
+$$(g_p,\, g_h) \in R \iff \exists\, e \in E :\ \text{eid}(e) = 1\ \land\ \text{guid}(e) = g_h\ \land\ \text{parent\_guid}(e) = g_p$$
+
+Propiedades: $R$ es una función parcial ($|{g_p : (g_p, g_h) \in R}| \leq 1$), sin ciclos — el grafo $(G, R)$ es un bosque. Consistencia temporal: $(g_p, g_h) \in R \Rightarrow t_{\text{birth}}(g_p) \leq t_{\text{birth}}(g_h)$.
+
+La relación de ancestría $\rightarrow^*$ es el cierre transitivo de $R$: permite rastrear cadenas completas de spawning.
+
+---
+
+**Relación de acceso $A \subseteq G \times G$ (EID 8/10)**
+
+$$(g_s,\, g_t) \in A \iff \exists\, e \in E :\ \text{eid}(e) \in \{8, 10\}\ \land\ \text{source\_guid}(e) = g_s\ \land\ \text{target\_guid}(e) = g_t$$
+
+A diferencia de $R$, la relación $A$ es $n{:}m$, puede contener ciclos y sus nodos coexisten en el tiempo. Captura inyección de hilos (EID 8) y acceso a memoria (EID 10).
+
+Asimetría del centinela: $\text{source\_guid}$ es siempre conocido (Sysmon captura desde el lado del iniciador); $\text{target\_guid}$ puede ser $\emptyset$ — el proceso víctima puede estar fuera de visibilidad.
+
+---
+
+**Grafo causal completo**
+
+$$\mathcal{C} = (P,\ R \cup A)$$
+
+donde $P = \{g \in G : \exists\, e \in E\ \text{con}\ \text{guid}(e) = g\}$ es el conjunto de instancias de proceso observadas.
+
+$R$ aporta aristas de linaje (spawning); $A$ aporta aristas de acceso en runtime. Juntas describen la trayectoria completa de un ataque:
+
+$$\text{cmd.exe} \xrightarrow{R} \text{powershell.exe} \xrightarrow{A} \text{lsass.exe}$$
+```
+
 #### Verificación de invariantes
 
 Las verificaciones anteriores comprueban la validez *formal* de los datos (formatos, rangos). Las siguientes comprueban algo más profundo: **consistencia semántica**.
