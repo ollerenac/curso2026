@@ -672,13 +672,15 @@ Estos porcentajes de nulos **no son un problema de calidad** — son consecuenci
 
 ### 8b. Campos críticos para análisis causal
 
+El código evalúa cada campo filtrando por valores no nulos (`dropna()`), calcula el porcentaje de nulos sobre el total del dataset y asigna un estado descriptivo basado en lo que representan esos nulos.
+
 | Campo | Nulos | % | Estado |
 |-------|-------|---|--------|
-| EventID | 0 | 0.00% | ✅ GOOD |
-| Computer | 0 | 0.00% | ✅ GOOD |
-| UtcTime | 2 | 0.00% | ⚠️ ISSUE |
-| ProcessGuid | 114,811 | 31.57% | ❌ CRITICAL |
-| ProcessId | 114,811 | 31.57% | ❌ CRITICAL |
+| EventID | 0 | 0.00% | Sin nulos |
+| Computer | 0 | 0.00% | Sin nulos |
+| UtcTime | 2 | 0.00% | 2 nulos — EID 4/255 |
+| ProcessGuid | 114,811 | 31.57% | Nulos por diseño — EID 8/10 |
+| ProcessId | 114,811 | 31.57% | Nulos por diseño — EID 8/10 |
 
 **Interpretación:** El marcado "CRITICAL" para ProcessGuid/ProcessId es un **falso positivo**. Los 114,811 registros sin ProcessGuid corresponden a EventIDs que usan nomenclatura diferente: EID 10 y 8 usan `SourceProcessGUID`/`TargetProcessGUID` en lugar de `ProcessGuid`, y EID 4 no tiene campos de proceso. La información de proceso sí está presente — solo con nombres de columna diferentes.
 
