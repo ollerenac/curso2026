@@ -84,8 +84,8 @@ La colisión genuina de k=1 identificada en 8f involucra dos GUIDs donde `svchos
 ```python
 # GUIDs con colisión genuina (identificados en 8f)
 # Ajusta estos valores con los GUIDs reales encontrados en tu análisis
-genuine_guid_1 = '<GUID_svchost_dxgiadaptercache_1>'
-genuine_guid_2 = '<GUID_svchost_dxgiadaptercache_2>'
+genuine_guid_1 = '2d5a9c51-5053-67da-2000-000000009000'
+genuine_guid_2 = '2d5a9c51-505c-67da-2500-000000009000'
 
 # Todos los eventos de ese GUID, ordenados por timestamp
 guid_events = (df[~df['EventID'].isin([8, 10]) & df['ProcessGuid'].isin([genuine_guid_1])]
