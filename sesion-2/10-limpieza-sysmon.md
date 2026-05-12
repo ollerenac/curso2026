@@ -1,11 +1,11 @@
-# Limpieza de Calidad de Datos Sysmon (Script 9)
+# Limpieza de Calidad de Datos Sysmon (Script 10)
 
 **Duración**: 30 minutos
 
 ```{admonition} Script de trabajo
 :class: note
 
-**Orquestador**: `sesion-2/9_sysmon_data_cleaner.py`
+**Orquestador**: `sesion-2/10_sysmon_data_cleaner.py`
 **Sub-scripts**: `sesion-2/quality/` (detección, normalización, extracción, aplicación)
 ```
 
@@ -19,7 +19,7 @@ En la sección anterior, el análisis de consistencia semántica (Paso 8d) verif
 
 Los resultados del análisis de k=1 (par ProcessGuid) confirmaron que **ningún GUID real viola el Invariante 1** — el único "violador" es el GUID centinela ∅, que acumula eventos de procesos no identificados en el arranque. Para el Invariante 2 se detectaron **28 GUIDs con múltiples Images** (2.07% del dataset), clasificados en cuatro categorías: artefactos de boot (`<unknown process>`), prefijo de ruta `\\?\`, variantes de Elastic Agent, y 2 colisiones genuinas.
 
-Si no se corrigen, estas violaciones contaminarán los análisis de causalidad de los pasos de etiquetado. El Script 9 automatiza la detección y corrección de estas inconsistencias para el par k=1.
+Si no se corrigen, estas violaciones contaminarán los análisis de causalidad de los pasos de etiquetado. El Script 10 automatiza la detección y corrección de estas inconsistencias para el par k=1.
 
 ## El problema: Violaciones de ProcessGuid
 
@@ -270,19 +270,19 @@ El orquestador soporta múltiples modos que permiten ejecutar el pipeline comple
 
 ```bash
 # Flujo completo: detectar, normalizar, extraer, editar, aplicar
-python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01
+python 10_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01
 
 # Solo detección (sin correcciones)
-python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --detect-only
+python 10_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --detect-only
 
 # Solo aplicar correcciones (si ya se editó el archivo de violaciones)
-python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --apply-only
+python 10_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --apply-only
 
 # Saltar normalización de rutas (para inspeccionar violaciones sin filtrar)
-python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --skip-normalization
+python 10_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --skip-normalization
 
 # Vista previa de cambios sin aplicar
-python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --dry-run --verbose
+python 10_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --dry-run --verbose
 ```
 
 ---

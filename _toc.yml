@@ -20,8 +20,9 @@ parts:
         sections:
           - file: sesion-2/7-preprocesamiento-sysmon
           - file: sesion-2/8-analisis-calidad-csv
-          - file: sesion-2/9-limpieza-sysmon
-          - file: sesion-2/10-preprocesamiento-netflow
+          - file: sesion-2/9-violaciones-en-contexto
+          - file: sesion-2/10-limpieza-sysmon
+          - file: sesion-2/11-preprocesamiento-netflow
 
   - caption: "Sesión 3: Calidad de Datos y Marco Teórico"
     chapters:

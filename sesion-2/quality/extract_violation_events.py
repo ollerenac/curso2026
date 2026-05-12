@@ -6,10 +6,17 @@ Lee AMBOS archivos de violaciones del directorio del run:
 - 04_processguid-pid-violations-run-XX.csv  (violaciones ProcessGuid → PID)
 - 04_processguid-image-violations-run-XX.csv (violaciones ProcessGuid → Image)
 
-Extrae todos los eventos coincidentes del 02_sysmon-run-XX.csv usando
-(Computer, ProcessId) como clave de join.
+Para cada par k presente en el CSV de violaciones PID, usa la columna pid_col
+original como clave de join (no siempre ProcessId):
+  k=1  → join sobre (Computer, ProcessId)
+  k=2  → join sobre (Computer, ParentProcessId)
+  k=3  → join sobre (Computer, SourceProcessId)
+  k=4  → join sobre (Computer, TargetProcessId)
 
-El subconjunto se guarda como 04_sysmon-run-XX-violations.csv en el directorio del run.
+Esto garantiza que los eventos EID=1 (k=2) y EID∈{8,10} (k=3, k=4) que
+causaron la violación queden incluidos en la extracción.
+
+El subconjunto se guarda como 04_sysmon-run-XX-violations.csv.
 
 Copia de trabajo de fullapt2025/scripts/pipeline/quality/extract_violation_events.py
 adaptada para ejecutarse desde curso2026/sesion-2/quality/.
@@ -32,16 +39,40 @@ DATASET_DIR = _SCRIPT_DIR.parent.parent / "dataset"
 
 def discover_run_dir(run_number):
     pattern = re.compile(r'^run-(\d+)-(apt-\d+)$')
-
     for item in sorted(DATASET_DIR.iterdir()):
         if item.is_dir():
             match = pattern.match(item.name)
-            if match:
-                run_num = int(match.group(1))
-                if run_num == run_number:
-                    return item
-
+            if match and int(match.group(1)) == run_number:
+                return item
     return None
+
+
+def _build_merge_specs_from_pid(df_pid):
+    """
+    Construye especificaciones de merge a partir del CSV de violaciones PID.
+
+    Si el CSV tiene columna k_pair (formato nuevo): usa pid_col de cada par k
+    como columna de join — así se capturan los eventos que causaron la violación.
+
+    Si no tiene k_pair (formato legacy k=1): join sobre ProcessId.
+
+    Retorna lista de (col_name, keys_df).
+    """
+    specs = []
+    if 'k_pair' in df_pid.columns:
+        for k_pair in sorted(df_pid['k_pair'].unique()):
+            group        = df_pid[df_pid['k_pair'] == k_pair]
+            pid_col_orig = group['pid_col'].iloc[0]
+            keys = (group[['Computer', 'ProcessId']]
+                    .rename(columns={'ProcessId': pid_col_orig})
+                    .drop_duplicates())
+            specs.append((pid_col_orig, keys))
+            print(f"  k={k_pair}  join sobre (Computer, {pid_col_orig}): {len(keys):,} claves únicas")
+    else:
+        keys = df_pid[['Computer', 'ProcessId']].drop_duplicates()
+        specs.append(('ProcessId', keys))
+        print(f"  (formato legacy k=1) join sobre (Computer, ProcessId): {len(keys):,} claves únicas")
+    return specs
 
 
 def extract_violation_events(run_number):
@@ -57,18 +88,17 @@ def extract_violation_events(run_number):
     if not sysmon_file.exists():
         return False, f"Archivo Sysmon no encontrado: {sysmon_file}", {}
 
-    all_violation_keys = []
+    # merge_specs: lista de (col_name, keys_df)
+    # Cada entrada indica sobre qué columna del sysmon CSV hacer el join
+    merge_specs = []
 
     if pid_violation_file.exists():
         print(f"Cargando violaciones PID: {pid_violation_file}")
         try:
-            df_pid_violations = pd.read_csv(pid_violation_file)
-            print(f"  Encontradas {len(df_pid_violations):,} filas de violaciones PID")
-            print(f"  ProcessGuids únicos: {df_pid_violations['ProcessGuid'].nunique():,}")
-
-            pid_keys = df_pid_violations[['Computer', 'ProcessId']].drop_duplicates()
-            all_violation_keys.append(pid_keys)
-            print(f"  Combinaciones únicas (Computer, ProcessId): {len(pid_keys):,}")
+            df_pid = pd.read_csv(pid_violation_file)
+            print(f"  Encontradas {len(df_pid):,} filas de violaciones PID")
+            specs = _build_merge_specs_from_pid(df_pid)
+            merge_specs.extend(specs)
         except Exception as e:
             print(f"  Advertencia: error cargando violaciones PID: {e}")
     else:
@@ -77,30 +107,36 @@ def extract_violation_events(run_number):
     if image_violation_file.exists():
         print(f"\nCargando violaciones Image: {image_violation_file}")
         try:
-            df_image_violations = pd.read_csv(image_violation_file)
-            print(f"  Encontradas {len(df_image_violations):,} filas de violaciones Image")
-            print(f"  ProcessGuids únicos: {df_image_violations['ProcessGuid'].nunique():,}")
-
-            image_keys = df_image_violations[['Computer', 'ProcessId']].drop_duplicates()
-            all_violation_keys.append(image_keys)
-            print(f"  Combinaciones únicas (Computer, ProcessId): {len(image_keys):,}")
+            df_img = pd.read_csv(image_violation_file)
+            print(f"  Encontradas {len(df_img):,} filas de violaciones Image")
+            keys = df_img[['Computer', 'ProcessId']].drop_duplicates()
+            merge_specs.append(('ProcessId', keys))
+            print(f"  join sobre (Computer, ProcessId): {len(keys):,} claves únicas")
         except Exception as e:
             print(f"  Advertencia: error cargando violaciones Image: {e}")
     else:
         print(f"Archivo de violaciones Image no encontrado (saltando): {image_violation_file}")
 
-    if len(all_violation_keys) == 0:
+    if not merge_specs:
         return False, f"No se encontraron archivos de violaciones para run-{run_number:02d}", {}
 
-    print(f"\nCombinando claves de violación de todas las fuentes...")
-    violation_keys = pd.concat(all_violation_keys, ignore_index=True).drop_duplicates()
-    print(f"  Total combinaciones únicas (Computer, ProcessId): {len(violation_keys):,}")
+    # Consolidar: si dos fuentes usan la misma columna, unir sus claves
+    consolidated = {}
+    for col_name, keys in merge_specs:
+        if col_name in consolidated:
+            consolidated[col_name] = pd.concat([consolidated[col_name], keys]).drop_duplicates()
+        else:
+            consolidated[col_name] = keys
+
+    merge_specs_final = list(consolidated.items())
+    print(f"\nMerge final: {len(merge_specs_final)} columna(s) de join: "
+          f"{[col for col, _ in merge_specs_final]}")
 
     print(f"\nCargando archivo Sysmon: {sysmon_file}")
     print("  (Procesando en chunks para archivos grandes...)")
 
     try:
-        chunk_size = 100000
+        chunk_size = 100_000
         matched_chunks = []
         total_sysmon_events = 0
         chunk_num = 0
@@ -115,14 +151,18 @@ def extract_violation_events(run_number):
                 total_sysmon_events
             )
 
-            chunk_matched = chunk.merge(
-                violation_keys,
-                on=['Computer', 'ProcessId'],
-                how='inner'
-            )
+            # Recolectar índices de filas coincidentes (deduplicados por índice)
+            matched_indices = set()
+            for col_name, keys in merge_specs_final:
+                if col_name not in chunk.columns:
+                    continue
+                sub = chunk.merge(keys, on=['Computer', col_name], how='inner')
+                matched_indices.update(sub['_original_row_index'].tolist())
 
-            if len(chunk_matched) > 0:
-                matched_chunks.append(chunk_matched)
+            if matched_indices:
+                matched_chunks.append(
+                    chunk[chunk['_original_row_index'].isin(matched_indices)].copy()
+                )
 
             if chunk_num % 10 == 0:
                 print(f"    Procesados {total_sysmon_events:,} eventos...", end='\r')
@@ -135,7 +175,7 @@ def extract_violation_events(run_number):
             df_matched = pd.DataFrame()
 
         matched_count = len(df_matched)
-        matched_pct = (matched_count / total_sysmon_events * 100) if total_sysmon_events > 0 else 0
+        matched_pct   = (matched_count / total_sysmon_events * 100) if total_sysmon_events > 0 else 0
 
         print(f"\n  Coincidencias: {matched_count:,} eventos ({matched_pct:.2f}% del total)")
 
@@ -170,24 +210,25 @@ def extract_violation_events(run_number):
     unique_violation_processguids = set()
     if pid_violation_file.exists():
         try:
-            df_pid = pd.read_csv(pid_violation_file)
-            unique_violation_processguids.update(df_pid['ProcessGuid'].unique())
-        except:
+            df_pid2 = pd.read_csv(pid_violation_file)
+            unique_violation_processguids.update(df_pid2['ProcessGuid'].unique())
+        except Exception:
             pass
     if image_violation_file.exists():
         try:
-            df_img = pd.read_csv(image_violation_file)
-            unique_violation_processguids.update(df_img['ProcessGuid'].unique())
-        except:
+            df_img2 = pd.read_csv(image_violation_file)
+            unique_violation_processguids.update(df_img2['ProcessGuid'].unique())
+        except Exception:
             pass
 
     stats = {
-        'total_sysmon_events':           total_sysmon_events,
-        'matched_events':                matched_count,
-        'matched_percentage':            matched_pct,
-        'unique_violations':             len(unique_violation_processguids),
-        'unique_processguids_matched':   df_matched['ProcessGuid'].nunique() if 'ProcessGuid' in df_matched.columns else 'N/A',
-        'output_file':                   str(output_file),
+        'total_sysmon_events':         total_sysmon_events,
+        'matched_events':              matched_count,
+        'matched_percentage':          matched_pct,
+        'unique_violations':           len(unique_violation_processguids),
+        'unique_processguids_matched': (df_matched['ProcessGuid'].nunique()
+                                        if 'ProcessGuid' in df_matched.columns else 'N/A'),
+        'output_file':                 str(output_file),
     }
 
     return True, "Éxito", stats
@@ -229,12 +270,10 @@ Prerequisitos:
             match = re.search(r'run-(\d+)\.csv$', vf.name)
             if match:
                 run_numbers.append(int(match.group(1)))
-
         if not run_numbers:
             print("❌ No se encontraron archivos de violaciones!")
             sys.exit(1)
-
-        print(f"Encontrados {len(run_numbers)} runs con archivos de violaciones: {run_numbers}")
+        print(f"Encontrados {len(run_numbers)} runs: {run_numbers}")
     else:
         print(f"MODO: Run único (run-{args.run:02d})")
         run_numbers = [args.run]
@@ -247,7 +286,6 @@ Prerequisitos:
         if len(run_numbers) > 1:
             print(f"\n[{idx}/{len(run_numbers)}] Procesando run-{run_num:02d}")
             print("-" * 80)
-
         success, message, stats = extract_violation_events(run_num)
         results.append({'run': run_num, 'success': success, 'message': message, 'stats': stats})
 
@@ -256,21 +294,19 @@ Prerequisitos:
     print("RESULTADOS")
     print("=" * 80)
 
-    result = results[0]
-    if result['success']:
-        stats = result['stats']
-        print("✅ ÉXITO")
-        print()
-        print(f"Total eventos Sysmon:          {stats['total_sysmon_events']:,}")
-        print(f"Eventos con violaciones:       {stats['matched_events']:,} ({stats['matched_percentage']:.2f}%)")
-        print(f"ProcessGuids únicos (violac.): {stats['unique_violations']:,}")
-        print()
-        print(f"Archivo de salida: {stats['output_file']}")
-    else:
-        print("❌ FALLIDO")
-        print()
-        print(f"Error: {result['message']}")
-        sys.exit(1)
+    for result in results:
+        run_label = f"run-{result['run']:02d}"
+        if result['success']:
+            stats = result['stats']
+            print(f"✅ {run_label}")
+            print(f"   Total eventos Sysmon:          {stats['total_sysmon_events']:,}")
+            print(f"   Eventos con violaciones:       {stats['matched_events']:,} ({stats['matched_percentage']:.2f}%)")
+            print(f"   ProcessGuids únicos (violac.): {stats['unique_violations']:,}")
+            print(f"   Archivo de salida: {stats['output_file']}")
+        else:
+            print(f"❌ {run_label}: {result['message']}")
+            if len(run_numbers) == 1:
+                sys.exit(1)
 
     print()
     print("=" * 80)

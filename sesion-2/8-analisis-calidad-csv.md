@@ -1286,7 +1286,7 @@ El análisis de calidad del CSV Sysmon de run-01-apt-1 revela un dataset **apto 
 
 ### Ejercicio: Exploración profunda y corrección de violaciones
 
-Los ejercicios siguientes se ejecutan en el notebook `8_sysmon_csv_exploratory_analysis.ipynb` usando el DataFrame `df` ya cargado, y en la terminal usando el script `9_sysmon_data_cleaner.py` desde la carpeta `sesion-2/`.
+Los ejercicios siguientes se ejecutan en el notebook `8_sysmon_csv_exploratory_analysis.ipynb` usando el DataFrame `df` ya cargado, y en la terminal usando el script `10_sysmon_data_cleaner.py` desde la carpeta `sesion-2/`.
 
 **Parte A: Anatomía del GUID centinela (Invariante 1)**
 
@@ -1362,7 +1362,7 @@ Al finalizar esta sección, deberías comprender:
 - Por qué los GUIDs son esenciales para el rastreo causal y los PIDs son insuficientes.
 - Cómo detectar violaciones semánticas de ProcessGuid (GUID→PID, GUID→Image), clasificarlas por causa raíz y diseñar estrategias de corrección — automáticas para artefactos de ruta y boot, con revisión humana para colisiones genuinas.
 
-En la **Sesión 2 / Sección 9**, aplicaremos las correcciones identificadas aquí usando el script `9_sysmon_data_cleaner.py` en modo interactivo completo.
+En la **Sesión 2 / Sección 10**, aplicaremos las correcciones identificadas aquí usando el script `10_sysmon_data_cleaner.py` en modo interactivo completo.
 
 ### Entrega
 
