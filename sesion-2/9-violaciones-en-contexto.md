@@ -167,7 +167,7 @@ La sección 10 implementa el pipeline completo que aplica las correcciones autom
 
 ### Ejercicio: Inspección de violaciones reales
 
-Completa las siguientes exploraciones en el notebook `8_sysmon_csv_exploratory_analysis.ipynb` con `df` ya cargado y `viol` cargado desde `04_sysmon-run-01-violations.csv`.
+Completa las siguientes exploraciones en el notebook `9_violaciones_en_contexto.ipynb`. El notebook ya carga `df` y `viol` con el parseo de timestamps correcto.
 
 **Parte A: Centinela en k=2**
 
