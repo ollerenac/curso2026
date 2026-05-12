@@ -26,6 +26,9 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Backups
+*.bak
+
 # Claude Code
 CLAUDE.md
 .claude/

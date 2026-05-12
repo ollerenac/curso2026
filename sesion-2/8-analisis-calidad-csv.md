@@ -1134,7 +1134,123 @@ Este GUID aparece como violación en k=3 (origen, 292 eventos) y k=4 (destino, 1
 
 **Cobertura de los scripts actuales del pipeline**
 
-Los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/` verifican únicamente el par k=1. Las violaciones de k=3 y k=4 quedan **fuera de su alcance**. El Script 4 (`4_sysmon_data_cleaner.py`) también cubre solo k=1. Para resolver estas violaciones es necesario extender los scripts a los cuatro pares — una versión ampliada es el siguiente paso del pipeline.
+Los scripts `find_processguid_pid_violations.py` y `find_processguid_image_violations.py` del directorio `pipeline/quality/` verifican únicamente el par k=1. Las violaciones de k=3 y k=4 quedan **fuera de su alcance**. El Script 4 (`4_sysmon_data_cleaner.py`) también cubre solo k=1. El paso **8g** extiende la detección de violaciones PID a los cuatro pares directamente en el notebook y genera la versión completa del archivo `04_processguid-pid-violations-run-01.csv`.
+
+### 8g. Volcado de violaciones PID — extensión a todos los pares k
+
+Los pasos 8d y 8e mostraron que el Invariante 1 (GUID → PID) solo presenta violaciones en el GUID centinela, distribuidas en tres de los cuatro pares k. El archivo `04_processguid-pid-violations-run-01.csv` generado por el script del pipeline recoge únicamente k=1 (14 filas). Este paso extiende la detección a los cuatro pares y genera la versión completa del archivo.
+
+**Violaciones esperadas:**
+
+| Par | GUID(s) violadores | Filas en CSV |
+|-----|-------------------|--------------|
+| k=1 `ProcessGuid` / `ProcessId` | centinela (14 PIDs) | 14 |
+| k=2 `ParentProcessGuid` / `ParentProcessId` | centinela (22 PIDs) | 22 |
+| k=3 `SourceProcessGUID` / `SourceProcessId` | — | 0 |
+| k=4 `TargetProcessGUID` / `TargetProcessId` | centinela (2 PIDs) | 2 |
+| **Total** | | **38** |
+
+**Algoritmo en tres fases**
+
+*Fase 1 — Definición de pares y dominios de EventID*
+
+La lista `PAIRS` codifica las cuatro triplas `(guid_col, pid_col, img_col)` y `DOMAIN_FN` define el filtro de EventID para cada par:
+
+```python
+PAIRS = [
+    (1, 'ProcessGuid',       'ProcessId',       'Image'),
+    (2, 'ParentProcessGuid', 'ParentProcessId', 'ParentImage'),
+    (3, 'SourceProcessGUID', 'SourceProcessId', 'SourceImage'),
+    (4, 'TargetProcessGUID', 'TargetProcessId', 'TargetImage'),
+]
+
+DOMAIN_FN = {
+    'ProcessGuid':       lambda d: d[~d['EventID'].isin([8, 10])],
+    'ParentProcessGuid': lambda d: d[d['EventID'] == 1],
+    'SourceProcessGUID': lambda d: d[d['EventID'].isin([8, 10])],
+    'TargetProcessGUID': lambda d: d[d['EventID'].isin([8, 10])],
+}
+```
+
+*Fase 2 — Detección de GUIDs con múltiples PIDs*
+
+Para cada par, se filtra `df` al dominio del par, se cuentan los PIDs únicos por GUID y se identifican los violadores. `.drop_duplicates()` garantiza una fila por combinación única `(GUID, PID, Image, Computer)` — no una fila por evento:
+
+```python
+pids_per_guid   = valid.groupby(guid_col)[pid_col].nunique()
+violating_guids = pids_per_guid[pids_per_guid > 1].index
+
+viol_rows = (valid[valid[guid_col].isin(violating_guids)]
+             [[guid_col, pid_col, img_col, 'Computer']]
+             .drop_duplicates()
+             .rename(columns={guid_col: 'ProcessGuid', pid_col: 'ProcessId', img_col: 'Image'}))
+```
+
+*Fase 3 — Ensamblado con metadatos y volcado*
+
+Las filas de los cuatro pares se apilan en un único DataFrame. Las columnas `k_pair`, `guid_col` y `pid_col` permiten al paso de extracción posterior saber sobre qué columna del CSV Sysmon aplicar el join para cada grupo de violaciones:
+
+```python
+viol_rows = viol_rows.assign(k_pair=k, guid_col=guid_col, pid_col=pid_col)
+
+df_pid_viol = pd.concat(violations).sort_values(['k_pair', 'ProcessGuid', 'ProcessId'])
+df_pid_viol.to_csv(output_path, index=False)
+```
+
+**Código completo (celda 8g del notebook):**
+
+```python
+from pathlib import Path
+
+PAIRS = [
+    (1, 'ProcessGuid',       'ProcessId',       'Image'),
+    (2, 'ParentProcessGuid', 'ParentProcessId', 'ParentImage'),
+    (3, 'SourceProcessGUID', 'SourceProcessId', 'SourceImage'),
+    (4, 'TargetProcessGUID', 'TargetProcessId', 'TargetImage'),
+]
+
+DOMAIN_FN = {
+    'ProcessGuid':       lambda d: d[~d['EventID'].isin([8, 10])],
+    'ParentProcessGuid': lambda d: d[d['EventID'] == 1],
+    'SourceProcessGUID': lambda d: d[d['EventID'].isin([8, 10])],
+    'TargetProcessGUID': lambda d: d[d['EventID'].isin([8, 10])],
+}
+
+violations = []
+
+for k, guid_col, pid_col, img_col in PAIRS:
+    subset = DOMAIN_FN[guid_col](df)
+    valid  = subset[[guid_col, pid_col, img_col, 'Computer']].dropna(subset=[guid_col, pid_col])
+
+    pids_per_guid   = valid.groupby(guid_col)[pid_col].nunique()
+    violating_guids = pids_per_guid[pids_per_guid > 1].index
+
+    if len(violating_guids) == 0:
+        print(f'k={k}  {guid_col} / {pid_col}: ✅ sin violaciones')
+        continue
+
+    viol_rows = (valid[valid[guid_col].isin(violating_guids)]
+                 [[guid_col, pid_col, img_col, 'Computer']]
+                 .drop_duplicates()
+                 .rename(columns={guid_col: 'ProcessGuid', pid_col: 'ProcessId', img_col: 'Image'})
+                 .assign(k_pair=k, guid_col=guid_col, pid_col=pid_col))
+
+    violations.append(viol_rows)
+    print(f'k={k}  {guid_col} / {pid_col}: ⚠️  {len(violating_guids)} GUID(s) → {len(viol_rows)} filas')
+
+if violations:
+    df_pid_viol = (pd.concat(violations, ignore_index=True)
+                   .sort_values(['k_pair', 'ProcessGuid', 'ProcessId'])
+                   .reset_index(drop=True))
+
+    output_path = Path('../dataset/run-01-apt-1/04_processguid-pid-violations-run-01.csv')
+    df_pid_viol.to_csv(output_path, index=False)
+
+    print(f'\n✅ Guardado: {output_path}  ({len(df_pid_viol)} filas totales)')
+    display(df_pid_viol)
+else:
+    print('\n✅ Sin violaciones PID en ningún par k')
+```
 
 ## Conclusiones
 
@@ -1215,36 +1331,28 @@ Los 28 GUIDs violadores de k=1 se agrupan en 4 categorías. Para cada una, anali
 
 4. **Colisiones genuinas (2 GUIDs)**: svchost/dxgiadaptercache y OneDriveSetup/DllHost comparten GUID. Estas no tienen corrección automática — requieren decisión del analista. En el archivo de violaciones (`04_sysmon-run-01-violations.csv`), ¿qué columnas adicionales examinarías para decidir qué Image y qué ProcessGuid asignar?
 
-**Parte C: Verificación con el script de limpieza**
+**Parte C: Verificación del archivo de violaciones PID extendido**
 
-Desde la carpeta `sesion-2/`, ejecuta la fase de detección:
-
-```bash
-python 9_sysmon_data_cleaner.py --apt-type apt-1 --run-id 01 --detect-only
-```
-
-Luego verifica que los archivos generados coinciden con los hallazgos del notebook:
+Tras ejecutar la celda 8g del notebook, verifica que el archivo generado coincide con los hallazgos del paso 8e:
 
 ```python
 import pandas as pd
 
 pid_v = pd.read_csv('../dataset/run-01-apt-1/'
                     '04_processguid-pid-violations-run-01.csv')
-img_v = pd.read_csv('../dataset/run-01-apt-1/'
-                    '04_processguid-image-violations-run-01.csv')
 
-print(f"Violaciones PID:   {pid_v['ProcessGuid'].nunique()} GUIDs únicos "
-      f"({len(pid_v)} filas)")
-print(f"Violaciones Image: {img_v['ProcessGuid'].nunique()} GUIDs únicos "
-      f"({len(img_v)} filas)")
+print("Violaciones PID por par k:")
+print(pid_v.groupby(['k_pair', 'guid_col', 'pid_col'])
+      .agg(GUIDs=('ProcessGuid', 'nunique'), filas=('ProcessGuid', 'count'))
+      .to_string())
 
-# ¿Aparece el GUID centinela en img_v?
 NULL_GUID = '00000000-0000-0000-0000-000000000000'
-print(f"\nCentinela en PID violations:   {NULL_GUID in pid_v['ProcessGuid'].values}")
-print(f"Centinela en Image violations: {NULL_GUID in img_v['ProcessGuid'].values}")
+print(f"\nTotal filas: {len(pid_v)}")
+print(f"GUID centinela presente: {NULL_GUID in pid_v['ProcessGuid'].values}")
 ```
 
-¿Por qué el GUID centinela aparece en `img_v` si el Invariante 2 "no aplica" a él? (Pista: el script de detección no excluye ningún GUID — reporta todos los que violan la regla de unicidad, incluido ∅.)
+- ¿Los totales de GUIDs y filas por par k coinciden con lo esperado según el paso 8e?
+- El par k=3 no tiene filas en el CSV. ¿Qué propiedad del dominio de k=3 (`SourceProcessGUID`) explica que no haya violaciones del Invariante 1?
 
 ### Resultado esperado
 
