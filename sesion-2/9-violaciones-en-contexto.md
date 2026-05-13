@@ -2394,3 +2394,47 @@ $$
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 3$ — Padre PID 504, `waterfalls.boombox.local` *(REVIEW)*
+
+**PID 504 (padre) · `waterfalls.boombox.local` · 1 hijo**  
+`svchost.exe` (RDP) — |G|=3 nominal, sin ambigüedad real: dos GUIDs satélite
+(`4f23`, `de08`) sin centinelas; el único centinela es unívocamente de `cf0d`.
+
+| GUID | $t_{\min}$ | $t_{\max}$ | span | k1/k3/k4 | Imagen | centinelas |
+|------|-----------|-----------|------|----------|--------|------------|
+| `4f23` | 05:00:40 | 05:00:52 | 12.1 s | 0/0/13 | — | 0 |
+| `cf0d` | 05:05:03 | 06:06:00 | 3657.1 s | 33/4/1078 | `svchost.exe` | 1 |
+| `de08` | 06:09:25 | 06:09:25 | 0.0 s | 0/1/0 | `csrss.exe` | 0 |
+
+- **`4f23`** — 13 eventos k4 aislados (EID=10), span=12.1 s, sin k1/k3/centinelas.
+  Instancia previa de PID 504 activa antes de Sysmon.
+- **`cf0d`** — `svchost.exe`, confirmado por SourceImage en k3. k1 incluye EID=3
+  (NetworkConnection), EID=17/18 (NamedPipe) — svchost de infraestructura RDP.
+  k4=1078: uno de los procesos más accedidos del host. Único centinela:
+  `rdpclip.exe` (RDP Clipboard Monitor) lanzado al establecer la sesión RDP.
+- **`de08`** — `csrss.exe` (Client Server Runtime), 1 evento k3, span=0.0 s a las
+  06:09:25 (~205 s tras t\_max de `cf0d`). Tercera instancia de PID 504, brevísima,
+  al final de la captura. Sin centinelas.
+
+```{figure} img/ev_k2_wf504_timeline.png
+:name: ev-k2-wf504-timeline
+:width: 100%
+
+**k=2 · Padre PID 504 · `svchost.exe` RDP · `waterfalls` — `PARENT\_PREDATES\_SYSMON`.**
+`4f23` (azul, k4×13 en 12 s), `cf0d` (naranja, barra ~61 min + k1 punteados),
+`de08` (verde ×, k3×1 al final). GAP 1 (rojo, ~252 s), GAP 2 (morado, ~205 s).
+Único centinela `rdpclip.exe` (crimson) a 05:38:58.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(504,\,\texttt{waterfalls}) = \{g_{\texttt{4f23}},\,g_{\texttt{cf0d}},\,g_{\texttt{de08}}\},
+\quad \text{1 centinela} \in [t_{\min}(g_{\texttt{cf0d}}),\,t_{\max}(g_{\texttt{cf0d}})]
+\;\implies\;
+\texttt{ParentProcessGuid} \leftarrow g_{\texttt{cf0d}} \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
