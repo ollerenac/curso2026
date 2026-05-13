@@ -1285,3 +1285,84 @@ t_{\min}(g_{\mathrm{correct}}) < t^* < t_{\max}(g_{\mathrm{correct}}),\;
 $$
 
 ---
+
+# Invariante 1, k=2: `ParentProcessGuid` / `ParentProcessId`
+
+En el par k=2 la invariante aplica sobre EID=1 (ProcessCreate): `ParentProcessGuid`
+debe identificar unívocamente al proceso padre en un mismo `Computer`.
+Buscamos los EID=1 donde `ParentProcessGuid = ∅`.
+
+## Panorama general — k=2
+
+El dataset `run-01-apt-1` contiene **500 eventos centinela k=2**: EID=1 con
+`ParentProcessGuid = ∅`, distribuidos en **24 pares `(ParentProcessId, Computer)`**
+distintos y `ParentImage = '-'` en todos los casos (Sysmon no puede resolver el
+nombre del padre porque su GUID no está en la tabla interna).
+
+A diferencia de k=1 — donde cada evento centinela es una unidad de análisis
+independiente — en k=2 la **unidad de corrección es el proceso padre**: una vez
+identificado su GUID real, la corrección se propaga a todos sus hijos de una vez.
+
+| Acción | Padres | Hijos (eventos a corregir) |
+|--------|--------|---------------------------|
+| `REPLACE_GUID` ($\|\mathcal{G}\| = 1$) | 19 | 481 |
+| `REVIEW` ($\|\mathcal{G}\| > 1$) | 5 | 19 |
+| `BOOT_ARTIFACT` ($\|\mathcal{G}\| = 0$) | 0 | 0 |
+
+El mecanismo subyacente es estructuralmente distinto a los de k=1: no hay
+race condition de timing. El padre simplemente **arrancó antes de que el
+driver de Sysmon estuviera activo**, por lo que nunca se generó un EID=1 para
+él y su GUID no entró en la tabla interna de resolución PID→GUID.
+Cuando un hijo es creado, Sysmon busca el GUID del padre (por PID), no lo
+encuentra, y escribe `∅`. Lo llamamos **`PARENT_PREDATES_SYSMON`**.
+
+---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 340, `diskjockey.boombox.local`
+
+**PID 340 (padre) · `diskjockey.boombox.local` · 1 hijo**  
+Hijo: `ctfmon.exe` (PID 2880) · EID=1 (ProcessCreate) · fila 360993
+
+### `PARENT_PREDATES_SYSMON` — padre sin EID=1
+
+`svchost.exe` (PID 340) estaba activo durante toda la captura (~67 min) pero
+nunca generó un EID=1: arrancó antes de que el driver de Sysmon comenzara
+a registrar eventos. Su GUID real se recupera cruzando los k-pairs en los que
+PID 340 aparece como actor propio:
+
+$$
+\mathcal{G}_1(340) = \{g_0\},\quad
+\mathcal{G}_3(340) = \{g_0\},\quad
+\mathcal{G}_4(340) = \{g_0\}
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `2d5a9c51-cee0-67da-1200-000000009000` (326 eventos propios,
+`Image = svchost.exe` consistente en EID=7,9,11,12,13,23).
+
+**Verificación temporal:** $t_{\min}(g_0) < t^* < t_{\max}(g_0)$
+(t* a 4058.8 s de t_min, 0.44 s antes de t_max) — el padre estaba activo
+en el momento de crear `ctfmon.exe`. No hay carrera de timing ni reuso de PID.
+
+```{figure} img/ev_k2_340_timeline.png
+:name: ev-k2-340-timeline
+:width: 100%
+
+**k=2 · Padre PID 340 · `svchost.exe` · `diskjockey` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: ciclo de vida observado de g0 (~67 min, sin EID=1 ni EID=5);
+actividad concentrada en los primeros 700 s y en el último segundo.
+t* (línea roja) coincide con la ráfaga final — el padre creó `ctfmon.exe`
+0.44 s antes de su último evento registrado.
+Panel inferior: zoom de los últimos 5 s mostrando la proximidad de t* a t_max.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(340,\,\texttt{diskjockey}) = \{g_0\},\quad
+t_{\min}(g_0) < t^* < t_{\max}(g_0)
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
