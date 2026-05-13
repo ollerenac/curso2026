@@ -2128,3 +2128,58 @@ t_{\min}(g_0) \leq t^*_i \leq t_{\max}(g_0)\;\forall\,i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 796, `waterfalls.boombox.local`
+
+**PID 796 (padre) · `waterfalls.boombox.local` · 62 hijos**  
+`svchost.exe` — el svchost de mayor actividad cruzada del dataset: 22467 eventos k3
+(EID=10), 530 k1, span ~62 min. Burst de sesión interactiva a +2027 s.
+
+PID 796 = `svchost.exe` en `waterfalls` — proceso de largo ciclo de vida (05:05 → 06:07,
+~62 min), presente durante casi toda la captura. g0 recuperado vía k1, k3 y k4.
+El rasgo más llamativo es el volumen de eventos k3: **22467 EID=10** (otros procesos
+abriendo handles sobre este svchost), frente a solo 530 eventos k1 propios
+(EID=13×314, EID=12×214, EID=7×2 — dominado por accesos a registry).
+
+$$
+\mathcal{G}_1(796) = \{g_0\},\quad
+\mathcal{G}_3(796) = \{g_0\}\;(22467\text{ ev.}),\quad
+\mathcal{G}_4(796) = \{g_0\}\;(161\text{ ev.})
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `3fc4fefd-cf0d-67da-0e00-000000004800`.
+
+62 hijos a lo largo del ciclo reflejan el rol orquestador de este svchost:
+- `WmiPrvSE.exe` (×20) — proveedores WMI lanzados periódicamente
+- `dllhost.exe` (×13) — servidores COM out-of-process
+- `backgroundTaskHost.exe` (×9) — tareas en segundo plano
+- `RuntimeBroker.exe` (×5), `SearchUI.exe` (×3), `TiWorker.exe` (×3),
+  `TSTheme.exe` (×2), `SDXHelper.exe` (×2) — mantenimiento y plataforma
+- **Burst a Δ ≈ +2027 s** (05:38–05:39): `ShellExperienceHost`, `SearchUI`,
+  `RuntimeBroker`, `TSTheme`, `mobsync`, `smartscreen`, `FileCoAuth` —
+  inicio de sesión interactiva en `waterfalls`
+- `FSCConfigurationServer.exe` (×1, Δ = +1.9 s) — herramienta de configuración
+  del entorno simulado
+
+```{figure} img/ev_k2_wf796_timeline.png
+:name: ev-k2-wf796-timeline
+:width: 100%
+
+**k=2 · Padre PID 796 · `svchost.exe` · `waterfalls` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: 530 eventos k1 (EID=12 morado, EID=13 teal) a lo largo de ~62 min;
+62 centinelas; zona dorada marca el burst de sesión a +2027 s.
+Panel inferior: zoom sobre el burst — `ShellExperienceHost`, `SearchUI`, `RuntimeBroker`,
+`TSTheme`, `mobsync`, `smartscreen`, `FileCoAuth`.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(796,\,\texttt{waterfalls}) = \{g_0\}\;(\text{vía k1, k3, k4}),\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\,i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
