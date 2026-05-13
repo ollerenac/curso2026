@@ -430,7 +430,7 @@ frente al `conhost.exe` que es un proceso de consola liviano.
 
 $$
 t_{\min}(g_0) - \delta \;\leq\; t^* \quad (\delta = 0\,\text{ms})
-\;\implies\; \texttt{REPLACE\_GUID} \quad [\texttt{PRE\_GUID\_INIT}]
+\;\implies\; \texttt{REPLACE_GUID} \quad [\texttt{PRE_GUID_INIT}]
 $$
 
 $g_0$ es el GUID correcto para los 19 eventos centinela.
