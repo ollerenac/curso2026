@@ -1188,3 +1188,40 @@ $$
 $$
 
 ---
+
+## Caso de estudio — Evento 29: PID 5548, `theblock.boombox.local`
+
+**Datos de partida:** 1 evento EID=13 (RegistryEvent SetValue) con `ProcessGuid = ∅`,
+`ProcessId = 5548`, `Computer = theblock.boombox.local`, `Image = backgroundTaskHost.exe`,
+`ts = 05:37:00.686`. `compute_G(5548, theblock)` devuelve $|\mathcal{G}| = 2$ → caso `REVIEW`.
+
+### POST_GUID_TERMINATE con EID=13 (registry write)
+
+Segunda aparición del mecanismo POST_GUID_TERMINATE (cf. Evento 30, EID=3).
+El proceso terminó con EID=5 a las 05:37:00.674; el driver de registro capturó
+un SetValue **12 ms después**, cuando el contexto del proceso ya estaba siendo liberado.
+
+| GUID | Proceso | $t_{\min}$ / $t_{\max}$ | $\Delta(t^* - t_{\max})$ | Veredicto |
+|------|---------|--------------------------|--------------------------|-----------|
+| gOld | `<sin EID=1>` | 05:03:16 / 05:03:16 | +2024 s | PID reuse pasado |
+| gCorrect | `backgroundTaskHost.exe` | 05:35:54 / **05:37:00.674** | **+12 ms** | **POST_GUID_TERMINATE** ← correcto |
+
+```{figure} img/ev29_timeline.png
+:name: ev29-timeline
+:width: 100%
+
+**Evento 29 — POST_GUID_TERMINATE en `backgroundTaskHost.exe` (PID 5548, `theblock`) con |G|=2.**
+Panel superior: barra azul = ciclo de vida de 66 s; línea punteada roja = EID=5 (terminate);
+línea discontinua roja = centinela $t^*$ a +12 ms; gOld (×) a −34 min.
+Panel inferior: zoom POST_GUID_TERMINATE. EID=5 en $x=0$, EID=13 centinela a +12 ms.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\Delta(t^*, t_{\max}(g_{\mathrm{correct}})) = +12\,\text{ms}
+\;\implies\; \texttt{REPLACE\_GUID} \leftarrow g_{\mathrm{correct}} \quad
+[\texttt{POST\_GUID\_TERMINATE}]
+$$
+
+---
