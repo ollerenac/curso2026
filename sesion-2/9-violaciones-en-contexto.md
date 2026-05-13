@@ -1508,3 +1508,54 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\, i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 800, `diskjockey.boombox.local`
+
+**PID 800 (padre) · `diskjockey.boombox.local` · 10 hijos**  
+`svchost.exe` — Service Host; instancia del contenedor genérico de servicios de Windows.
+
+PID 800 = `svchost.exe` — segunda instancia del Service Host en `diskjockey`,
+lanzada por `services.exe` antes que el driver de Sysmon (t_min = 05:04:18.848,
+coincidente con `services.exe` PID 592). g0 se recupera por k1, k3 y k4
+(74 eventos k1: EID=7×30, EID=12×22, EID=13×22). Sin EID=1 ni EID=5.
+
+$$
+\mathcal{G}_1(800) = \{g_0\},\quad
+\mathcal{G}_3(800) = \{g_0\},\quad
+\mathcal{G}_4(800) = \{g_0\}
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `2d5a9c51-cee0-67da-0d00-000000009000`.
+
+**10 hijos en tres fases del ciclo de vida:**
+
+| Fase | $\Delta(t^*, t_{\min})$ | Hijos |
+|------|--------------------------|-------|
+| Arranque | +13–19 s | `unsecapp.exe`, `vdsldr.exe`, `WmiPrvSE.exe`, `dllhost.exe` |
+| Mid-capture | +137.5 s | `WmiPrvSE.exe` (actividad WMI) |
+| Cierre de sesión | +4058–4063 s | `dllhost.exe`, `ShellExperienceHost.exe`, `SearchUI.exe`, `RuntimeBroker.exe` ×2 |
+
+La presencia de `unsecapp.exe`, `WmiPrvSE.exe` y `vdsldr.exe` indica que PID 800
+es la instancia de `svchost.exe` que aloja el servicio WMI (Winmgmt).
+
+```{figure} img/ev_k2_800_timeline.png
+:name: ev-k2-800-timeline
+:width: 100%
+
+**k=2 · Padre PID 800 · `svchost.exe` (WMI) · `diskjockey` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: 74 eventos k1 (EID=7/12/13) distribuidos a lo largo de ~67 min;
+centinelas en dos extremos del ciclo de vida (arranque y cierre de sesión).
+Panel inferior: zoom primeros 30 s — cuatro hijos WMI/COM creados en ráfaga entre +13 y +19 s.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(800,\,\texttt{diskjockey}) = \{g_0\},\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\, i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
