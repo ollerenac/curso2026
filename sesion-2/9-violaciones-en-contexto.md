@@ -437,3 +437,116 @@ $g_0$ es el GUID correcto para los 19 eventos centinela.
 El caso confirma que $\delta$ puede ser 0 — no se requiere tolerancia
 cuando el centinela y el primer evento con GUID real caen en el mismo
 milisegundo.
+
+---
+
+## Caso de estudio — Evento 24: PID 3088, `diskjockey.boombox.local`
+
+**Datos del evento centinela $e^*$:**
+
+| Campo | Valor |
+|-------|-------|
+| Fila CSV | 26579 |
+| EventID | 7 (ImageLoad) |
+| `Image` | `C:\Windows\System32\cmd.exe` |
+| `ImageLoaded` | `C:\Windows\System32\cmd.exe` |
+| `ts` ($t^*$) | 2025-03-19 05:04:35.485 UTC |
+| `User` | `NT AUTHORITY\SYSTEM` |
+
+**Resultado de $\mathcal{G}(3088,\, \texttt{diskjockey})$:**
+
+$$
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \{g_0\}, \quad
+\mathcal{G}_3 = \{g_0\}, \quad \mathcal{G}_4 = \{g_0\}
+\quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `2d5a9c51-5063-67da-4e00-000000009000`.
+
+A diferencia de los casos anteriores, **los cuatro k-pairs concurren en $g_0$**:
+$\mathcal{G}_2 \neq \emptyset$ porque `cmd.exe` generó un proceso hijo cuyo EID=1
+registra `ParentProcessGuid = g_0`; $\mathcal{G}_3$ y $\mathcal{G}_4$ son no vacíos
+por eventos EID=10 (ProcessAccess) en los que `cmd.exe` actúa como origen
+y como objetivo respectivamente.
+
+**Ciclo de vida $\mathcal{L}(g_0)$:**
+
+$$
+\lvert\mathcal{L}(g_0)\rvert = 16 \text{ eventos}
+\quad (k_1 = 11,\; k_2 = 1,\; k_3 = 1,\; k_4 = 3)
+\quad \text{span} = 18\,\text{ms}
+$$
+
+Desglose por k-pair y EventID:
+
+| k-pair | EID | Cantidad | Interpretación |
+|--------|-----|----------|----------------|
+| k1 | 7 | 9 | DLLs cargadas por `cmd.exe` (con $g_0$ ya asignado) |
+| k1 | 1 | 1 | EID=1 ProcessCreate de `cmd.exe` |
+| k1 | 5 | 1 | EID=5 ProcessTerminate de `cmd.exe` |
+| k2 | 1 | 1 | EID=1 del proceso hijo (`sc.exe`): `ParentProcessGuid = g_0` |
+| k3 | 10 | 1 | EID=10: `cmd.exe` (origen) abre handle a otro proceso |
+| k4 | 10 | 3 | EID=10: 3 procesos del sistema abren handle a `cmd.exe` |
+
+**Verificación temporal:**
+
+$$
+t_{\min}(g_0) = \texttt{05:04:35.485} \qquad t^* = \texttt{05:04:35.485}
+\qquad t_{\max}(g_0) = \texttt{05:04:35.503}
+$$
+
+$$
+t^* = t_{\min}(g_0) \quad \Rightarrow \quad
+t_{\min}(g_0) - \delta \;\leq\; t^* \;\leq\; t_{\max}(g_0)
+\;\text{ para cualquier } \delta \geq 0
+$$
+
+Gap = **0 ms**: el centinela EID=7 (auto-carga de `cmd.exe`) y el primer evento
+con GUID real caen en el mismo milisegundo — patrón `PRE_GUID_INIT` idéntico
+al grupo 05–23.
+
+**Proceso creador (EID=1):**
+
+| Campo | Valor |
+|-------|-------|
+| `ProcessGuid` | `2d5a9c51-5063-67da-4e00-000000009000` ($g_0$) |
+| `ParentProcessId` | 1620 |
+| `ParentImage` | `C:\Windows\System32\cmd.exe` |
+| `ParentProcessGuid` | `2d5a9c51-5053-67da-1d00-000000009000` |
+| `CommandLine` | `C:\Windows\system32\cmd.exe /c sc.exe qc npcap` |
+| `User` | `NT AUTHORITY\SYSTEM` |
+
+El proceso es un `cmd.exe` lanzado por otro `cmd.exe` (PID 1620) con la
+instrucción `/c sc.exe qc npcap` — consulta de la configuración del servicio
+`npcap` (driver de captura de red). Ambos tienen GUID real válido:
+el padre `ParentProcessGuid` es real y $\mathcal{G}_2 = \{g_0\}$ confirma
+que el hijo (`sc.exe`) fue registrado correctamente.
+
+La figura siguiente muestra el ciclo de vida completo y el zoom sobre la
+brecha pre-GUID:
+
+```{figure} img/ev24_timeline.png
+:name: ev24-timeline
+:width: 100%
+
+**Evento 24 — inicialización de `cmd.exe` (PID 3088, `diskjockey`).**
+Panel superior: ciclo de vida de $g_0$ (16 eventos, span = 18 ms).
+Puntos azules (k1): proceso activo. Cuadrado verde (k2): hijo `sc.exe` (EID=1, +3 ms).
+Triángulo morado (k3): `cmd.exe` como origen de ProcessAccess (EID=10).
+Triángulos naranja (k4): 3 procesos del sistema accediendo a `cmd.exe` (EID=10).
+Línea roja discontinua: centinela $t^*$, coincidente con $t_{\min}(g_0)$.
+Línea verde: EID=1 ProcessCreate (+3 ms). Línea rojo oscuro: EID=5 ProcessTerminate.
+Panel inferior (zoom): $t^* = t_{\min}(g_0)$ — gap = 0 ms.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+t_{\min}(g_0) - \delta \;\leq\; t^* \quad (\delta = 0\,\text{ms})
+\;\implies\; \texttt{REPLACE_GUID} \quad [\texttt{PRE_GUID_INIT}]
+$$
+
+$g_0$ es el GUID correcto para el evento centinela.
+El patrón `PRE_GUID_INIT` se confirma por tercera vez: EID=7 auto-carga
+(`Image == ImageLoaded`), gap = 0 ms, y los cuatro k-pairs apuntan al
+mismo $g_0$.
