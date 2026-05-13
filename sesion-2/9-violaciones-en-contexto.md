@@ -204,3 +204,56 @@ El Enfoque B (unión de los cuatro k-pairs) encuentra candidato de GUID para los
 para 2 de 36 (6 %). La búsqueda cruzada por k-pairs es esencial.
 
 El análisis caso por caso avanza en el notebook `9_enfoque_B.ipynb`.
+
+---
+
+## Caso de estudio — Evento 04: PID 2968, `endofroad.boombox.local`
+
+**Datos del evento centinela $e^*$:**
+
+| Campo | Valor |
+|-------|-------|
+| Fila CSV (`_original_row_index`) | 19619 |
+| EventID | 3 (NetworkConnect) — pero EID=3 ∉ {8,10}, válido en $\mathcal{E}_1$ |
+| Image | `C:\Windows\System32\conhost.exe` |
+| `ts` ($t^*$) | 2025-03-19 05:04:05.550 UTC |
+
+**Resultado de $\mathcal{G}(2968,\, \texttt{endofroad})$:**
+
+$$
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \{g_0\}, \quad \mathcal{G}_3 = \emptyset, \quad \mathcal{G}_4 = \emptyset
+\quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `44d66c27-5045-67da-3600-000000007100`.
+
+**Verificación temporal:**
+
+$$
+t_{\min}(g_0) = \texttt{05:04:05.552} \qquad t^* = \texttt{05:04:05.550} \qquad t_{\max}(g_0) = \texttt{05:04:06.014}
+$$
+
+$$
+t^* < t_{\min}(g_0) \quad \Rightarrow \quad t^* \notin [t_{\min}(g_0),\, t_{\max}(g_0)]
+$$
+
+El evento centinela ocurre **2 ms antes** del primer evento registrado con GUID real.
+La figura siguiente muestra esta situación:
+
+```{figure} img/ev04_timeline.png
+:name: ev04-timeline
+:width: 100%
+
+**Evento 04 — brecha pre-GUID de 2 ms.**
+Panel superior: ciclo de vida completo de $g_0$ (30 eventos, span = 462 ms).
+La línea roja discontinua marca $t^*$; los puntos azules son los eventos con GUID real.
+Panel inferior: zoom sobre la brecha — $t^*$ ocurre 2 ms antes de $t_{\min}(g_0)$.
+```
+
+**Interpretación:** Sysmon capturó el evento de red (EID=3) cuando el proceso
+`conhost.exe` aún no tenía su GUID asignado en el driver — de ahí el centinela.
+2 ms después el driver completó la inicialización y todos los eventos subsiguientes
+quedaron registrados con $g_0$. No es reuso de PID; es **latencia de asignación de GUID**.
+
+Este caso es el que motivó la introducción del parámetro $\delta$ en la regla de
+recuperación. La cota inferior observada hasta ahora es $\delta \geq 2\,\text{ms}$.
