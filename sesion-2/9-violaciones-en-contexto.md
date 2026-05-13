@@ -356,10 +356,22 @@ $$
 \quad (k_1 = 37,\; k_2 = 0,\; k_3 = 0,\; k_4 = 8)
 $$
 
-Los 8 eventos k=4 son EID=10 (ProcessAccess): procesos del sistema
-(`svchost.exe`, `csrss.exe`, `lsass.exe`) abrieron handle a `taskhostw.exe`
-inmediatamente después de su creación — comportamiento estándar de Windows
-para auditoría de tokens y escaneo de seguridad.
+Los 8 eventos k=4 son EID=10 (ProcessAccess): procesos del sistema abrieron
+handle a `taskhostw.exe` inmediatamente después de su creación — comportamiento
+estándar de Windows para auditoría de tokens y escaneo de seguridad.
+
+| `ts` | EID | `SourceProcessId` | `SourceImage` | `SourceProcessGUID` |
+|------|-----|-------------------|---------------|---------------------|
+| 05:04:29.691 | 10 | 992 | `svchost.exe` | `2d5a9c51-cee0-67da-1100-000000009000` |
+| 05:04:29.691 | 10 | 992 | `svchost.exe` | `2d5a9c51-cee0-67da-1100-000000009000` |
+| 05:04:29.691 | 10 | 852 | `svchost.exe` | `2d5a9c51-cee0-67da-0e00-000000009000` |
+| 05:04:29.691 | 10 | 800 | `svchost.exe` | `2d5a9c51-cee0-67da-0d00-000000009000` |
+| 05:04:29.691 | 10 | 376 | `csrss.exe`   | `2d5a9c51-cede-67da-0600-000000009000` |
+| 05:04:29.691 | 10 | 992 | `svchost.exe` | `2d5a9c51-cee0-67da-1100-000000009000` |
+| 05:04:29.723 | 10 | 600 | `lsass.exe`   | `2d5a9c51-cede-67da-0c00-000000009000` |
+| 05:04:29.723 | 10 | 600 | `lsass.exe`   | `2d5a9c51-cede-67da-0c00-000000009000` |
+
+`TargetProcessId = 1972`, `TargetProcessGUID = g_0`, `TargetImage = taskhostw.exe` en todos.
 
 **Verificación temporal:**
 
