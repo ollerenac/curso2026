@@ -1366,3 +1366,53 @@ t_{\min}(g_0) < t^* < t_{\max}(g_0)
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 452, `diskjockey.boombox.local`
+
+**PID 452 (padre) · `diskjockey.boombox.local` · 1 hijo**  
+Hijo: `fontdrvhost.exe` (PID 2096) · EID=1 (ProcessCreate) · fila 23080
+
+### `PARENT_PREDATES_SYSMON` — GUID recuperado únicamente vía k3/k4
+
+PID 452 = `wininit.exe` — proceso de inicialización de Windows, arranca antes
+que el driver de Sysmon. A diferencia de PID 340, **no existe ningún evento k1**
+para este proceso (EID≠{8,10}): su GUID se recupera exclusivamente a través de
+k3 y k4 (3 eventos EID=10 ProcessAccess), donde `SourceImage`/`TargetImage`
+confirman `wininit.exe`.
+
+$$
+\mathcal{G}_1(452) = \emptyset,\quad
+\mathcal{G}_3(452) = \{g_0\},\quad
+\mathcal{G}_4(452) = \{g_0\}
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `2d5a9c51-cede-67da-0800-000000009000`.
+
+**Particularidad — secuencia EID=10 → EID=1 en 5 ms:**
+el único evento k3 es un EID=10 en el que `wininit.exe` abre un handle sobre
+`fontdrvhost.exe` (05:04:31.285); 5 ms después Sysmon registra el EID=1 de
+creación del hijo con `ParentProcessGuid = ∅` (05:04:31.290).
+El $\Delta(t^*, t_{\min}) = +5\,\text{ms}$ es el menor observado hasta ahora.
+
+```{figure} img/ev_k2_452_timeline.png
+:name: ev-k2-452-timeline
+:width: 100%
+
+**k=2 · Padre PID 452 · `wininit.exe` · `diskjockey` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: solo 3 eventos (k3=1, k4=2) en 647 s; t* se superpone visualmente
+con t_min en la escala macro.
+Panel inferior: zoom en los primeros 20 ms — EID=10 (k3) en $x=0$ ms,
+EID=1 centinela a $x=+5$ ms.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(452,\,\texttt{diskjockey}) = \{g_0\}\;(\text{vía k3, k4}),\quad
+t_{\min}(g_0) < t^* < t_{\max}(g_0)
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
