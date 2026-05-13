@@ -1225,3 +1225,63 @@ $$
 $$
 
 ---
+
+## Caso de estudio — Evento 35: PID 932, `diskjockey.boombox.local`
+
+**Datos de partida:** 1 evento EID=7 (ImageLoad) con `ProcessGuid = ∅`,
+`ProcessId = 932`, `Computer = diskjockey.boombox.local`, `Image = LogonUI.exe`,
+`ts = 06:11:57.331`. `compute_G(932, diskjockey)` devuelve $|\mathcal{G}| = 2$ → caso `REVIEW`.
+
+### PRE_GUID_TERMINATE — tercer mecanismo de race condition
+
+`LogonUI.exe` llevaba 67 minutos en ejecución cuando Sysmon registró el
+EID=7 centinela. El proceso terminó **47 ms después** ($t_{\max}$ = 06:11:57.378),
+lo que coloca a $t^*$ **dentro** del ciclo de vida: $t_{\min} < t^* < t_{\max}$.
+
+El driver de carga de imágenes capturó el evento durante la secuencia de
+terminación del proceso — el contexto del GUID estaba siendo liberado en memoria,
+pero Sysmon aún no había generado el EID=5. A diferencia del POST\_GUID\_TERMINATE
+(donde EID=5 ya está logueado antes de $t^*$), aquí el EID=5 es **posterior** al
+centinela.
+
+La resolución requiere dos criterios concurrentes:
+
+| Criterio | gOld | gCorrect |
+|----------|------|----------|
+| **Temporal** | $t^* \gg t_{\max}$ (+70 min desde terminate) | $t_{\min} < t^* < t_{\max}$ (47 ms antes de EID=5) |
+| **Image** | solo EID=3; Image $\neq$ `LogonUI.exe` | EID=7 con Image = `LogonUI.exe` ✓ |
+
+Ambos criterios señalan unívocamente a gCorrect. La Image se verifica a través
+de los propios eventos EID=7 de gCorrect — no es necesario disponer de un EID=1.
+
+```{figure} img/ev35_timeline.png
+:name: ev35-timeline
+:width: 100%
+
+**Evento 35 — PRE\_GUID\_TERMINATE en `LogonUI.exe` (PID 932, `diskjockey`) con |G|=2.**
+Panel superior: barra azul = 67 min de ciclo de vida de `LogonUI.exe`; × gris = gOld
+(solo EID=3, terminado hace 70 min); línea punteada azul = EID=5 en $t_{\max}$;
+línea roja discontinua = centinela $t^*$ a −47 ms del EID=5.
+Panel inferior: zoom alrededor de EID=5. El centinela aparece a $x = -47$ ms;
+EID=5 en $x = 0$; bracket muestra la brecha PRE\_GUID\_TERMINATE.
+```
+
+**Simetría completa de mecanismos de race condition:**
+
+| Mecanismo | Posición de $t^*$ | Causa raíz |
+|-----------|-------------------|------------|
+| PRE\_GUID\_INIT | $t^* < t_{\min}$ | GUID aún no asignado (proceso arrancando) |
+| PRE\_GUID\_TERMINATE | $t_{\min} < t^* < t_{\max}$ | GUID liberándose (EID=5 pendiente) |
+| POST\_GUID\_TERMINATE | $t^* > t_{\max}$ | GUID ya liberado (EID=5 ya logueado) |
+
+**Aplicación de la regla de recuperación:**
+
+$$
+t_{\min}(g_{\mathrm{correct}}) < t^* < t_{\max}(g_{\mathrm{correct}}),\;
+\Delta(t^*, t_{\max}) = -47\,\text{ms},\;
+\mathrm{Image}(g_{\mathrm{correct}}) = \texttt{LogonUI.exe}\;\checkmark
+\;\implies\; \texttt{REPLACE\_GUID} \leftarrow g_{\mathrm{correct}} \quad
+[\texttt{PRE\_GUID\_TERMINATE}]
+$$
+
+---
