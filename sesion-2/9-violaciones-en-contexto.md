@@ -1943,3 +1943,49 @@ t_{\min}(g_0) < t^* < t_{\max}(g_0)
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 1464, `theblock.boombox.local`
+
+**PID 1464 (padre) · `theblock.boombox.local` · 21 hijos**  
+`svchost.exe` — g0 vía k1+k3+k4; 523 eventos k1 (EID=13 dominante, EID=23×9 file deletes).
+
+PID 1464 = `svchost.exe` en `theblock` — arranca antes que Sysmon
+(t_min = 05:07:15.998). g0 recuperado vía k1, k3 y k4 (523 eventos k1:
+EID=13×375, EID=12×139, EID=23×9). La presencia de EID=23 (FileDelete, 9 eventos)
+distingue esta instancia. Todos los 21 centinelas tienen $t^* \geq t_{\min}(g_0)$.
+
+$$
+\mathcal{G}_1(1464) = \{g_0\},\quad
+\mathcal{G}_3(1464) = \{g_0\},\quad
+\mathcal{G}_4(1464) = \{g_0\}
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `4a85d404-cf0a-67da-1e00-000000005500`.
+
+21 hijos distribuidos durante toda la captura (~58 min): `taskhostw.exe` (×9),
+`sc.exe` (×2), `MicrosoftEdgeUpdate.exe` (×2 — rutas sistema y usuario `gosta`),
+y procesos singulares: `wermgr.exe`, `OneDriveLauncher.exe`, `UsoClient.exe`,
+`msoia.exe` (Office telemetry), `AppHostRegistrationVerifier.exe` (IIS),
+`dsregcmd.exe`, `updater.exe`, `wsqmcons.exe`.
+
+```{figure} img/ev_k2_tb1464_timeline.png
+:name: ev-k2-tb1464-timeline
+:width: 100%
+
+**k=2 · Padre PID 1464 · `svchost.exe` · `theblock` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: 523 eventos k1 (k1+k3+k4); EID=13/12 dominan (registry), EID=23 (red)
+visible. 21 centinelas distribuidos a lo largo de ~58 min.
+Panel inferior: zoom primeros 250 s — primeros 6 hijos del ciclo.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(1464,\,\texttt{theblock}) = \{g_0\}\;(\text{vía k1, k3, k4}),\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\,i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
