@@ -1108,3 +1108,46 @@ $$
 $$
 
 ---
+
+## Caso de estudio — Evento 26: PID 5096, `theblock.boombox.local`
+
+**Datos de partida:** 1 evento EID=7 con `ProcessGuid = ∅`, `ProcessId = 5096`,
+`Computer = theblock.boombox.local`, `Image = conhost.exe`, `ImageLoaded = ucrtbase.dll`.
+`compute_G(5096, theblock)` devuelve $|\mathcal{G}| = 3$ → caso `REVIEW`.
+
+### Reuso de PID pasado, presente y futuro
+
+Este es el primer caso con **tres procesos distintos** asignados al mismo PID, incluyendo
+reuso tanto en el pasado como en el futuro respecto al centinela:
+
+| GUID | Proceso | $t_{\min}$ | $\Delta(t^* - t_{\min})$ | Veredicto |
+|------|---------|-----------|--------------------------|-----------|
+| gA | `<sin EID=1>` (solo EID=5) | 05:03:58 | +65 s | PID reuse **pasado** — ya terminado |
+| gB | `conhost.exe` (EID=7) | 05:05:03.082 | **−16 ms** | **PRE_GUID_INIT** ← correcto |
+| gC | `powershell.exe` | 05:07:35 | −153 s | PID reuse **futuro** — aún no arranca |
+
+**Criterio de selección:** mínimo $|\Delta|$. Con $|\Delta(g_B)| = 16\,\text{ms}$ frente a
+$65\,000\,\text{ms}$ (gA) y $152\,835\,\text{ms}$ (gC), gB es el único candidato
+consistente con un gap de milisegundos.
+
+```{figure} img/ev26_timeline.png
+:name: ev26-timeline
+:width: 100%
+
+**Evento 26 — PRE_GUID_INIT en `conhost.exe` (PID 5096, `theblock`) con |G|=3.**
+Panel superior: gA (×, gris) terminó 65 s antes del centinela; gB (◆, azul) aparece
+16 ms después — escala de milisegundos; gC (◆, naranja, `powershell.exe`) arranca
+153 s después — reuso futuro. La escala temporal separa los tres casos.
+Panel inferior: zoom PRE_GUID_INIT. El centinela carga `ucrtbase.dll` (sin GUID),
+16 ms después gB carga `bcrypt.dll` (con GUID real) en el mismo proceso.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+|\Delta(t^*, g_B)| = 16\,\text{ms} \ll |\Delta(t^*, g_A)| = 65\,\text{s},\;
+|\Delta(t^*, g_C)| = 153\,\text{s}
+\;\implies\; \texttt{REPLACE\_GUID} \leftarrow g_B \quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+---
