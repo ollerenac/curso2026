@@ -2347,3 +2347,50 @@ g_{\texttt{dd8c}} & \text{1 fila, } t^* = 06{:}06{:}58
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 2$ — Padre PID 324, `waterfalls.boombox.local` *(REVIEW)*
+
+**PID 324 (padre) · `waterfalls.boombox.local` · 1 hijo**  
+`smss.exe` — |G|=2 nominal sin ambigüedad real: `4f21` tiene un solo k4 aislado
+y ningún centinela; el único centinela es unívocamente de `cf0b`.
+
+PID 324 = `smss.exe` en `waterfalls`, identificado por `SourceImage=smss.exe`
+en los 3 eventos k3 (k1=∅).
+
+| GUID | $t_{\min}$ | $t_{\max}$ | span | k1/k3/k4 | centinelas |
+|------|-----------|-----------|------|----------|------------|
+| `4f21` | 05:00:52 | 05:00:52 | 0.0 s | 0/0/1 | 0 |
+| `cf0b` | 05:06:25 | 05:38:54 | 1949.0 s | 0/3/9 | 1 |
+
+**`4f21`** — un único evento k4 (EID=10, span=0.0 s): evidencia de una instancia
+anterior de `smss.exe` con PID 324 que corrió antes de que Sysmon comenzara a
+registrar, sin dejar ningún hijo en la captura.
+
+**`cf0b`** — `smss.exe` identificado vía k3; 1 centinela (`smss.exe`) en el límite
+de `t_max(cf0b)`. Comportamiento normal: el proceso master de `smss.exe` crea
+instancias hijas para inicializar cada sesión de usuario.
+
+Como `4f21` no tiene ningún centinela, la asignación es unívoca:
+
+```{figure} img/ev_k2_wf324_timeline.png
+:name: ev-k2-wf324-timeline
+:width: 100%
+
+**k=2 · Padre PID 324 · `smss.exe` · `waterfalls` — `PARENT\_PREDATES\_SYSMON`.**
+`4f21` (azul ×): 1 evento k4 aislado en 05:00:52, sin centinelas.
+`cf0b` (naranja): span~32 min, k3=3 (naranja), k4=9 (teal). Único centinela
+`smss.exe` (crimson) al final del ciclo a 05:38:54.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(324,\,\texttt{waterfalls}) = \{g_{\texttt{4f21}},\,g_{\texttt{cf0b}}\},
+\quad \text{pero} \quad
+\nexists\,t^* \in [t_{\min}(g_{\texttt{4f21}}),\,t_{\max}(g_{\texttt{4f21}})]
+\;\implies\;
+\texttt{ParentProcessGuid} \leftarrow g_{\texttt{cf0b}} \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
