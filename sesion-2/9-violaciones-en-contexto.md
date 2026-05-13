@@ -550,3 +550,92 @@ $g_0$ es el GUID correcto para el evento centinela.
 El patrón `PRE_GUID_INIT` se confirma por tercera vez: EID=7 auto-carga
 (`Image == ImageLoaded`), gap = 0 ms, y los cuatro k-pairs apuntan al
 mismo $g_0$.
+
+---
+
+## Caso de estudio — Evento 25: PID 3684, `diskjockey.boombox.local`
+
+**Datos del evento centinela $e^*$:**
+
+| Campo | Valor |
+|-------|-------|
+| Fila CSV | 26597 |
+| EventID | 7 (ImageLoad) |
+| `Image` | `C:\Windows\System32\sc.exe` |
+| `ImageLoaded` | `C:\Windows\System32\sc.exe` |
+| `ts` ($t^*$) | 2025-03-19 05:04:35.501 UTC |
+
+Este evento es el hijo directo del evento 24: el `sc.exe` (PID 3684) identificado
+en $\mathcal{G}_2$ de `cmd.exe` (PID 3088). Su `ParentProcessGuid` en el EID=1
+es $g_0^{(24)}$, confirmando la cadena de ejecución:
+
+$$
+\texttt{cmd.exe}\;(\text{PID 1620})
+\;\to\; \texttt{cmd.exe}\;(\text{PID 3088})
+\;\to\; \texttt{sc.exe}\;(\text{PID 3684})
+\quad [\texttt{sc.exe qc npcap}]
+$$
+
+**Resultado de $\mathcal{G}(3684,\, \texttt{diskjockey})$:**
+
+$$
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \emptyset, \quad
+\mathcal{G}_3 = \emptyset, \quad \mathcal{G}_4 = \{g_0\}
+\quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `2d5a9c51-5063-67da-4f00-000000009000`.
+`sc.exe` no crea procesos hijos ($\mathcal{G}_2 = \emptyset$) ni accede
+a otros procesos ($\mathcal{G}_3 = \emptyset$).
+
+**Ciclo de vida $\mathcal{L}(g_0)$:**
+
+$$
+\lvert\mathcal{L}(g_0)\rvert = 11 \text{ eventos}
+\quad (k_1 = 8,\; k_4 = 3)
+\quad \text{span} = 2\,\text{ms}
+$$
+
+| k-pair | EID | Cantidad | Interpretación |
+|--------|-----|----------|----------------|
+| k1 | 7 | 6 | DLLs cargadas con $g_0$ ya asignado |
+| k1 | 1 | 1 | EID=1 ProcessCreate de `sc.exe` |
+| k1 | 5 | 1 | EID=5 ProcessTerminate de `sc.exe` |
+| k4 | 10 | 3 | Procesos del sistema accediendo a `sc.exe` |
+
+**Nota sobre el orden de eventos:** el EID=5 (ProcessTerminate) tiene timestamp
+`05:04:35.501` y el EID=1 (ProcessCreate) tiene `05:04:35.503` — orden inverso
+al esperado. Es un artefacto de buffering ETW: `sc.exe qc npcap` completa
+su ejecución en menos de 2 ms y los eventos del batch se flushan con timestamps
+que no preservan el orden intra-milisegundo exacto.
+
+**Verificación temporal:**
+
+$$
+t_{\min}(g_0) = \texttt{05:04:35.501} \qquad t^* = \texttt{05:04:35.501}
+\qquad t_{\max}(g_0) = \texttt{05:04:35.503}
+$$
+
+Gap = **0 ms** — mismo patrón `PRE_GUID_INIT` que los casos anteriores.
+
+```{figure} img/ev25_timeline.png
+:name: ev25-timeline
+:width: 100%
+
+**Evento 25 — inicialización de `sc.exe` (PID 3684, `diskjockey`).**
+Panel superior: ciclo de vida de $g_0$ (11 eventos, span = 2 ms).
+Puntos azules (k1): proceso activo. Triángulos naranja (k4): 3 procesos
+del sistema accediendo a `sc.exe` (EID=10).
+Línea roja discontinua: centinela $t^*$, coincidente con $t_{\min}(g_0)$.
+Línea verde: EID=1 ProcessCreate (+2 ms). Línea rojo oscuro: EID=5 ProcessTerminate (+0 ms).
+Panel inferior: EID=5 precede a EID=1 en 2 ms — artefacto de buffering ETW.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+t_{\min}(g_0) - \delta \;\leq\; t^* \quad (\delta = 0\,\text{ms})
+\;\implies\; \texttt{REPLACE_GUID} \quad [\texttt{PRE_GUID_INIT}]
+$$
+
+$g_0$ es el GUID correcto para el evento centinela.
