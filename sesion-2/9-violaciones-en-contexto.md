@@ -53,6 +53,7 @@ Las variables principales son:
 | $g$ | Identificador de instancia de proceso — UUID de 36 caracteres de una columna `*ProcessGuid` |
 | $\emptyset$ | GUID centinela: `00000000-0000-0000-0000-000000000000` |
 | $\text{EID}(e)$ | EventID del evento $e$ — entero que identifica el tipo de evento Sysmon |
+| $t(e)$ | Timestamp del evento $e$ — milisegundos Unix, columna `timestamp` |
 
 ### Los cuatro dominios de observación (k-pairs)
 
@@ -120,124 +121,59 @@ $$
 El operador $\bigcup$ es la **unión de conjuntos**: $\mathcal{G}(p,c)$ contiene todos
 los GUIDs reales que aparecen en cualquiera de los cuatro k-pairs para ese proceso.
 El operador $\setminus \{\emptyset\}$ es la **diferencia de conjuntos**: elimina el
-centinela del resultado para que no "recuperemos" un evento centinela con otro centinela.
+centinela del resultado para que no se recupere un evento centinela con otro centinela.
 
 ### Regla de recuperación
 
-El cardinal $|\mathcal{G}(p,c)|$ — el número de GUIDs reales distintos observados
+El cardinal $\lvert\mathcal{G}(p,c)\rvert$ — el número de GUIDs reales distintos observados
 para el proceso $(p,c)$ — determina la acción de corrección:
 
 | Cardinalidad $\lvert\mathcal{G}(p,c)\rvert$ | Interpretación | Acción |
 |----------------------------------------------|----------------|--------|
-| $= 1$ | $\mathcal{G}(p,c) = \{g_0\}$: un único GUID real observado | `REPLACE_GUID`: asignar $g_0$ al evento centinela |
-| $> 1$ | Múltiples GUIDs reales: probable **reuso de PID** entre instancias distintas del mismo número de proceso | `REVIEW`: ordenar por tiempo y desambiguar manualmente |
+| $= 1$ | $\mathcal{G}(p,c) = \{g_0\}$: un único GUID real observado | `REPLACE_GUID` (ver nota de ambigüedad) |
+| $> 1$ | Múltiples GUIDs reales: probable **reuso de PID** entre instancias distintas del mismo número de proceso | `REVIEW`: ordenar por tiempo y desambiguar |
 | $= 0$ | Ningún GUID real en ningún k-pair: el proceso nunca tuvo visibilidad real de Sysmon | `BOOT_ARTIFACT`: excluir de cadenas causales |
 
----
+### Nota de ambigüedad en el caso $\lvert\mathcal{G}\rvert = 1$
 
-## Enfoque A: búsqueda restringida a k=1
+La acción `REPLACE_GUID` no puede demostrarse correcta con certeza absoluta desde los
+datos solos. La asignación $g_0 \to e^*$ es una **inferencia de máxima verosimilitud**
+que descansa sobre el siguiente supuesto no verificable:
 
-El primer enfoque de recuperación busca el GUID correcto consultando únicamente
-$\mathcal{G}_1(p, c)$: para cada evento centinela, se busca un EID=1 con el mismo
-`Computer` y `ProcessId` con timestamp anterior o igual al del evento centinela.
+> **Supuesto de observabilidad:** toda instancia de proceso con PID $p$ en Computer $c$
+> deja al menos un evento con GUID real en alguno de los cuatro k-pairs.
 
-**Resultado sobre los 36 eventos centinela de k=1:**
+Si este supuesto no se cumple — porque existió una segunda instancia del proceso cuya
+existencia completa quedó documentada únicamente mediante eventos centinela — entonces
+$\lvert\mathcal{G}\rvert = 1$ y sin embargo $g_0$ no sería el GUID correcto para $e^*$.
 
-| Acción | Eventos | % |
-|--------|---------|---|
-| `REPLACE_GUID` | 2 | 6 % |
-| `BOOT_ARTIFACT` | 34 | 94 % |
+**Verificación temporal como evidencia adicional.** Sea:
 
-Solo el 6 % de los eventos centinela tiene un EID=1 candidato visible desde k=1.
-El 94 % son artefactos de boot donde el proceso nunca emitió un EID=1 con GUID real.
+$$
+t_{\min}(g_0) = \min_{e \,:\, e.\text{ProcessGuid}=g_0} t(e)
+\qquad
+t_{\max}(g_0) = \max_{e \,:\, e.\text{ProcessGuid}=g_0} t(e)
+$$
 
-El producto de este enfoque está en `09_sentinel_k1_enfoque_A.csv`.
+Si el timestamp del evento centinela $t^*$ cumple:
 
----
+$$
+t_{\min}(g_0) \;\leq\; t^* \;\leq\; t_{\max}(g_0)
+$$
 
-## Enfoque B: búsqueda cruzada por todos los k-pairs
+el centinela cae dentro del ciclo de vida conocido de $g_0$, lo que constituye
+evidencia fuerte (aunque no concluyente) de que la asignación es correcta.
 
-El Enfoque B aplica la fórmula completa $\mathcal{G}(p,c)$: para cada evento
-centinela de k=1, computa la unión de GUIDs reales observados en los cuatro k-pairs.
-Esto captura evidencia de GUID que el Enfoque A ignora:
+Si en cambio $t^* > t_{\max}(g_0)$, el evento centinela ocurre **después** del último
+evento conocido de $g_0$, señal de posible reuso de PID aun cuando $\lvert\mathcal{G}\rvert = 1$,
+y la acción recomendada pasa a `REVIEW`.
 
-- Un proceso que nunca emitió un EID=1 propio puede aparecer como **padre** (k=2)
-  en el EID=1 de uno de sus procesos hijos — ese EID=1 del hijo registra el
-  `ParentProcessGuid` del proceso buscado.
-- Un proceso puede aparecer como **origen** (k=3) o **destino** (k=4) de una
-  inyección, donde el GUID sí fue capturado correctamente.
+La regla completa para el caso $\lvert\mathcal{G}\rvert = 1$ queda entonces:
 
-La investigación procede evento por evento: para cada uno de los 36 PIDs centinela,
-se construye $\mathcal{G}(p,c)$ y se evalúa la regla de recuperación.
-
-```{admonition} Caso de estudio: evento 1 de 36
-:class: tip
-
-El primer evento centinela (fila 5976) corresponde a:
-- `Computer`: `endofroad.boombox.local`
-- `ProcessId`: 3364
-- `EventID`: 3 (NetworkConnect → 10.1.0.4:135, protocolo RPC)
-- `Image`: `<unknown process>`
-- `ts`: 2025-03-19 05:01:15 UTC
-
-La investigación busca $\mathcal{G}(3364,\, \texttt{endofroad})$ consultando
-los cuatro k-pairs en el CSV completo.
-```
-
----
-
-## Actividad Práctica
-
-### Ejercicio: Implementación de $\mathcal{G}(p,c)$ y aplicación a los 36 eventos
-
-Trabaja en el notebook `9_violaciones_en_contexto.ipynb` en la sección **Enfoque B**.
-
-**Paso 1 — Construir la tabla de GUIDs reales por k-pair**
-
-Para el caso de estudio (PID 3364 en `endofroad`), extrae manualmente los GUIDs
-observados en cada $\mathcal{G}_k$:
-
-```python
-c, p = 'endofroad.boombox.local', 3364.0
-
-g1 = set(df[~df['EventID'].isin([8,10]) &
-            (df['Computer']==c) & (df['ProcessId']==p)
-           ]['ProcessGuid'].dropna()) - {NULL_GUID}
-
-g2 = set(df[(df['EventID']==1) &
-            (df['Computer']==c) & (df['ParentProcessId']==p)
-           ]['ParentProcessGuid'].dropna()) - {NULL_GUID}
-
-g3 = set(df[df['EventID'].isin([8,10]) &
-            (df['Computer']==c) & (df['SourceProcessId']==p)
-           ]['SourceProcessGUID'].dropna()) - {NULL_GUID}
-
-g4 = set(df[df['EventID'].isin([8,10]) &
-            (df['Computer']==c) & (df['TargetProcessId']==p)
-           ]['TargetProcessGUID'].dropna()) - {NULL_GUID}
-
-G = g1 | g2 | g3 | g4   # unión de los cuatro k-pairs
-print(f'G({p}, {c}) = {G}')
-print(f'|G| = {len(G)}')
-```
-
-**Paso 2 — Generalizar a los 36 eventos centinela**
-
-Implementa la función `compute_G(df, p, c)` que devuelve $\mathcal{G}(p,c)$
-y aplícala a los 36 eventos del catálogo `sentinel_k1`. Genera el archivo
-`09_sentinel_k1_enfoque_B.csv` con el mismo esquema que el Enfoque A.
-
-**Paso 3 — Comparación de enfoques**
-
-Une ambos archivos por `_original_row_index` y responde:
-- ¿Cuántos eventos adicionales recupera el Enfoque B respecto al A?
-- ¿Coinciden los GUIDs candidatos donde ambos enfoques recuperan el mismo evento?
-- ¿Qué k-pair aporta más evidencia en los casos nuevos recuperados por B?
-
-### Entrega
-
-📁 [Carpeta de entregas — Sección 9](https://drive.google.com/drive/folders/1BqPQo_xX1Ud7Vib37roVwyx7JuCk3uhw?usp=sharing)
-
-1. Entra al Drive con tu cuenta institucional.
-2. Crea una carpeta con tu nombre completo (ej. `Juan_Garcia_Lopez`).
-3. Deposita el notebook con el nombre: `apellido_nombre_sesion2_ej4.ipynb`
+$$
+\text{acción}(e^*, g_0) =
+\begin{cases}
+\texttt{REPLACE\_GUID} & \text{si } t_{\min}(g_0) \leq t^* \leq t_{\max}(g_0) \\
+\texttt{REVIEW}        & \text{si } t^* > t_{\max}(g_0)
+\end{cases}
+$$
