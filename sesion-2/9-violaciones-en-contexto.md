@@ -321,3 +321,107 @@ t_{\min}(g_0) - \delta \;\leq\; t^* \quad (\delta = 2\,\text{ms})
 $$
 
 La cota inferior observada hasta ahora es $\delta \geq 2\,\text{ms}$.
+
+---
+
+## Caso de estudio — Grupo eventos 05–23: PID 1972, `diskjockey.boombox.local`
+
+**Datos del grupo:**
+
+| Campo | Valor |
+|-------|-------|
+| Filas CSV | 22960–22993 (19 eventos) |
+| EventID | 7 (ImageLoad) — todos |
+| Image | `C:\Windows\System32\taskhostw.exe` |
+| `ts` ($t^*$) | 2025-03-19 05:04:29.691 UTC — idéntico en los 19 |
+
+Los 19 eventos centinela comparten `(ProcessId=1972, Computer=diskjockey)`.
+Dado que $\mathcal{G}(p,c)$ depende solo de ese par, se calcula una única vez y
+aplica a todos.
+
+**Resultado de $\mathcal{G}(1972,\, \texttt{diskjockey})$:**
+
+$$
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \emptyset, \quad
+\mathcal{G}_3 = \emptyset, \quad \mathcal{G}_4 = \emptyset
+\quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `2d5a9c51-505d-67da-2600-000000009000`.
+
+**Ciclo de vida $\mathcal{L}(g_0)$:**
+
+$$
+\lvert\mathcal{L}(g_0)\rvert = 45 \text{ eventos}
+\quad (k_1 = 37,\; k_2 = 0,\; k_3 = 0,\; k_4 = 8)
+$$
+
+Los 8 eventos k=4 son EID=10 (ProcessAccess): procesos del sistema
+(`svchost.exe`, `csrss.exe`, `lsass.exe`) abrieron handle a `taskhostw.exe`
+inmediatamente después de su creación — comportamiento estándar de Windows
+para auditoría de tokens y escaneo de seguridad.
+
+**Verificación temporal:**
+
+$$
+t_{\min}(g_0) = \texttt{05:04:29.691} \qquad t^* = \texttt{05:04:29.691}
+\qquad t_{\max}(g_0) = \texttt{05:04:34.280}
+$$
+
+$$
+t^* = t_{\min}(g_0) \quad \Rightarrow \quad
+t_{\min}(g_0) - \delta \;\leq\; t^* \;\leq\; t_{\max}(g_0)
+\;\text{ para cualquier } \delta \geq 0
+$$
+
+El gap es **0 ms**: el centinela y los primeros eventos con GUID real caen en
+el mismo milisegundo. La figura siguiente muestra el ciclo de vida completo y
+el zoom sobre la ventana de inicialización:
+
+```{figure} img/ev05_23_timeline.png
+:name: ev05-23-timeline
+:width: 100%
+
+**Grupo 05–23 — inicialización de `taskhostw.exe` (PID 1972).**
+Panel superior: ciclo de vida completo de $g_0$ (45 eventos, span = 4589 ms).
+Puntos azules (k=1): proceso activo. Triángulos naranja (k=4): `taskhostw.exe`
+como objetivo de ProcessAccess (EID=10) por procesos del sistema.
+Línea roja discontinua: los 19 centinelas $t^*$, coincidente con $t_{\min}(g_0)$.
+Línea verde: EID=1 ProcessCreate (+1 ms). Línea rojo oscuro: EID=5 ProcessTerminate.
+Panel inferior (zoom 0–100 ms): ráfaga de inicialización en $t=0$ ms y segunda
+ola de 26 cargas de DLL a $t \approx 32$ ms, una vez asignado $g_0$.
+```
+
+**Interpretación — `PRE_GUID_INIT` con gap = 0 ms:**
+
+`svchost.exe` (PID 992) lanza `taskhostw.exe` con la instrucción
+`taskhostw.exe SYSTEM`. Durante la inicialización, el loader de Windows
+mapea en memoria los módulos estáticos del ejecutable — las 19 DLLs de la
+tabla siguiente — antes de que el driver de Sysmon haya procesado el EID=1
+y asignado $g_0$. A diferencia del evento 04 (gap = 2 ms), aquí el GUID se
+asigna **dentro del mismo milisegundo**: algunos EID=7 de ese batch reciben
+$\emptyset$ y otros ya reciben $g_0$.
+
+| DLL cargada pre-GUID (`ImageLoaded`) |
+|--------------------------------------|
+| `combase.dll`, `imm32.dll`, `sechost.dll`, `clbcatq.dll`, `win32u.dll` |
+| `rpcrt4.dll`, `oleaut32.dll`, `ucrtbase.dll`, `dimsjob.dll`, `pautoenr.dll` |
+| `msvcrt.dll`, `gdi32full.dll`, `bcryptprimitives.dll`, `netprofm.dll` |
+| `KernelBase.dll`, `taskhostw.exe` (auto-carga), `kernel.appcore.dll` |
+| `msvcp_win.dll`, `npmproxy.dll` |
+
+El número elevado de DLLs pre-GUID (19 vs 1 en el evento 04) refleja que
+`taskhostw.exe` es un **host de tareas COM** con muchas dependencias estáticas,
+frente al `conhost.exe` que es un proceso de consola liviano.
+
+**Aplicación de la regla de recuperación:**
+
+$$
+t_{\min}(g_0) - \delta \;\leq\; t^* \quad (\delta = 0\,\text{ms})
+\;\implies\; \texttt{REPLACE\_GUID} \quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+$g_0$ es el GUID correcto para los 19 eventos centinela.
+El caso confirma que $\delta$ puede ser 0 — no se requiere tolerancia
+cuando el centinela y el primer evento con GUID real caen en el mismo
+milisegundo.
