@@ -1151,3 +1151,40 @@ $$
 $$
 
 ---
+
+## Caso de estudio — Evento 27: PID 3104, `theblock.boombox.local`
+
+**Datos de partida:** 1 evento EID=7 con `ProcessGuid = ∅`, `ProcessId = 3104`,
+`Computer = theblock.boombox.local`, `Image = sc.exe`, `ts = 05:07:59.894`.
+`compute_G(3104, theblock)` devuelve $|\mathcal{G}| = 2$ → caso `REVIEW`.
+
+### PRE_GUID_INIT con gap = 0 ms y reuso futuro
+
+| GUID | Proceso | $t_{\min}$ | $\Delta(t^* - t_{\min})$ | Veredicto |
+|------|---------|-----------|--------------------------|-----------|
+| gA | `sc.exe` (EID=1 ✓) | 05:07:59.894 | **0 ms** | **PRE_GUID_INIT** ← correcto |
+| gB | `<sin EID=1>` | 06:06:55 | −3536 s (−59 min) | PID reuse futuro |
+
+El centinela ocurre en el **mismo milisegundo** que $t_{\min}(g_A)$: mismo mecanismo
+de batching ETW que el Evento 34. La diferencia de escala — 0 ms vs 59 minutos —
+hace la selección trivial. La Image de gA está confirmada por EID=1: `sc.exe`.
+
+```{figure} img/ev27_timeline.png
+:name: ev27-timeline
+:width: 100%
+
+**Evento 27 — PRE_GUID_INIT en `sc.exe` (PID 3104, `theblock`) con |G|=2.**
+Panel superior: gA (◆ azul) solapado con el centinela en $t\approx 0$; gB (◆ naranja)
+aparece 59 minutos después — reuso futuro. La escala de minutos separa los dos candidatos.
+Panel inferior: ciclo de vida completo de `sc.exe` (span=148 ms). El centinela y
+$t_{\min}(g_A)$ coinciden en $x=0$; EID=1 (verde) aparece a +5 ms, EID=5 (rojo) al final.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+|\Delta(t^*, g_A)| = 0\,\text{ms} \ll |\Delta(t^*, g_B)| = 3\,536\,000\,\text{ms}
+\;\implies\; \texttt{REPLACE\_GUID} \leftarrow g_A \quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+---
