@@ -1859,3 +1859,46 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\,i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 656, `theblock.boombox.local`
+
+**PID 656 (padre) · `theblock.boombox.local` · 1 hijo**  
+`winlogon.exe` — g0 vía k1+k3+k4; único hijo: `LaunchTM.exe` a +849 s.
+
+PID 656 = `winlogon.exe` en `theblock` — proceso de inicio de sesión, arranca
+antes que el driver de Sysmon (t_min = 05:10:28.676). g0 recuperado vía k1, k3 y k4
+(24 eventos k1: EID=7×11, EID=12×6, EID=13×5, EID=18×2).
+
+$$
+\mathcal{G}_1(656) = \{g_0\},\quad
+\mathcal{G}_3(656) = \{g_0\},\quad
+\mathcal{G}_4(656) = \{g_0\}
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `4a85d404-cf08-67da-0a00-000000005500`.
+
+1 hijo: `LaunchTM.exe` (PID 8932, fila 154364) a $\Delta = +849.0\,\text{s}$ (~14.2 min).
+`LaunchTM.exe` no es un ejecutable estándar de Windows — el análisis de su actividad
+propia (EID=1×1, EID=5×1, EID=7×51, EID=12/13×10) muestra un perfil de aplicación GUI
+de corta vida: arranca, carga DLLs, accede al registry y termina limpiamente.
+
+```{figure} img/ev_k2_tb656_timeline.png
+:name: ev-k2-tb656-timeline
+:width: 100%
+
+**k=2 · Padre PID 656 · `winlogon.exe` · `theblock` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: ciclo de vida de ~54 min (k1+k3+k4). Único centinela `LaunchTM.exe`
+a +849 s. Panel inferior: zoom ±25 s en torno al centinela.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(656,\,\texttt{theblock}) = \{g_0\}\;(\text{vía k1, k3, k4}),\quad
+t_{\min}(g_0) < t^* < t_{\max}(g_0)
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
