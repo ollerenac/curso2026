@@ -1,229 +1,243 @@
-# Violaciones en Contexto: Anatomía y Corrección
+# Violaciones en Contexto: Invariante 1 y Recuperación de GUIDs
 
-**Duración**: 45 minutos
+**Duración**: 60 minutos
 
 ```{admonition} Dataset de trabajo
 :class: note
 
-Descarga el dataset de la sección 8 desde [Google Drive](https://drive.google.com/drive/folders/1bLbcxM_mRAaeHIGTIy3PnAEOz0EcUMhA?usp=sharing).
-Los archivos necesarios ya están generados: `02_sysmon-run-01.csv` y `04_sysmon-run-01-violations.csv`.
+Descarga el dataset desde [Google Drive](https://drive.google.com/drive/folders/1bLbcxM_mRAaeHIGTIy3PnAEOz0EcUMhA?usp=sharing).
+Archivos necesarios: `02_sysmon-run-01.csv`, `04_sysmon-run-01-violations.csv`,
+`04_processguid-pid-violations-run-01.csv`.
+Notebook de trabajo: `9_violaciones_en_contexto.ipynb`.
 ```
 
 ## Contexto
 
-La sección 8 detectó y catalogó las violaciones de las dos invariantes de ProcessGuid. La sección 10 aplicará el pipeline de corrección automatizado. Esta sección cubre el espacio intermedio: **¿qué aspecto tienen esas violaciones en los datos reales?**
+La sección 8 detectó y catalogó las violaciones de las invariantes de ProcessGuid.
+Esta sección se concentra en la **Invariante 1** — la única cuya validez quedó
+empíricamente confirmada por los datos de `run-01-apt-1`:
 
-Antes de corregir automáticamente, el investigador necesita entender:
-- Qué eventos rodean a una violación (contexto temporal)
-- Por qué ocurre la inconsistencia en ese punto del tiempo
-- Qué información está disponible para tomar la decisión de corrección correcta
+> **Invariante 1:** para todo GUID real generado por Sysmon, existe exactamente
+> un `ProcessId` en un `Computer` dado.
 
-Esto es especialmente crítico para las violaciones genuinas — aquellas donde no hay una regla automática obvia y el analista debe decidir manualmente qué valor es el correcto.
+La Invariante 2 (unicidad de `Image` por GUID) **no se tratará aquí** — el análisis
+de la sección 8 reveló violaciones que no son artefactos recuperables, lo que indica
+que la propiedad debe reformularse antes de implementar correcciones. Queda pendiente
+para una sección posterior.
 
-## Invariante 1 en contexto: el GUID centinela
+```{admonition} Resultado clave de la sección 8
+:class: important
 
-El GUID centinela ∅ (`00000000-0000-0000-0000-000000000000`) viola el Invariante 1 en k=1 con **36 eventos y 14 PIDs distintos**. Estos 36 eventos son procesos del sistema que Sysmon no pudo atribuir a ningún GUID real durante el arranque.
-
-¿Qué aspecto tienen en el CSV? El código siguiente carga el archivo de violaciones, localiza el primer evento centinela de k=1 y muestra los 15 eventos anteriores y posteriores en el CSV original:
-
-```python
-import pandas as pd
-from pathlib import Path
-
-NULL_GUID = '00000000-0000-0000-0000-000000000000'
-
-# Cargar el CSV de violaciones (con _original_row_index)
-viol = pd.read_csv('../dataset/run-01-apt-1/04_sysmon-run-01-violations.csv',
-                   low_memory=False)
-
-# Parsear timestamp (unix ms, filtrar sentinelas negativos)
-df['ts'] = pd.to_datetime(df['timestamp'].where(df['timestamp'] > 0), unit='ms')
-viol['ts'] = pd.to_datetime(viol['timestamp'].where(viol['timestamp'] > 0), unit='ms')
-
-# Eventos centinela en k=1 (EID ∉ {8, 10}), ordenados por posición en CSV
-sentinel_k1 = (viol[~viol['EventID'].isin([8, 10]) & (viol['ProcessGuid'] == NULL_GUID)]
-               .sort_values('_original_row_index'))
-
-print(f"Eventos centinela en k=1: {len(sentinel_k1)}")
-print(f"PIDs distintos: {sentinel_k1['ProcessId'].nunique()}")
-print(f"Rango temporal: {sentinel_k1['ts'].min()} → {sentinel_k1['ts'].max()}")
-sentinel_k1[['ts', 'EventID', 'ProcessGuid', 'ProcessId', 'Image', 'Computer']].head(10)
+El único violador de la Invariante 1 es el **GUID centinela**
+`∅ = 00000000-0000-0000-0000-000000000000`.
+Todos los GUIDs reales generados por Sysmon tienen exactamente un PID.
+El centinela acumula **36 eventos en k=1**, **500 en k=2** y **2 en k=4**.
 ```
 
-### Ventana de contexto: primer evento centinela
+---
 
-```python
-# Posición en el CSV original del primer evento centinela
-first = sentinel_k1.iloc[0]
-idx   = int(first['_original_row_index'])
+## Formulación matemática: recuperación de GUID
 
-WINDOW = 15  # eventos antes y después
+### Variables y notación
 
-# Extraer ventana del DataFrame completo (ya ordenado cronológicamente)
-window = df.iloc[max(0, idx - WINDOW) : idx + WINDOW + 1].copy()
-window['▶'] = ''
-window.loc[idx, '▶'] = '◀ violación'
+Sea $\mathcal{E}$ el conjunto completo de eventos del CSV `02_sysmon-run-01.csv`.
+Cada evento $e \in \mathcal{E}$ es una fila con columnas; denotamos
+$e.\text{Col}$ el valor de la columna `Col` en el evento $e$.
 
-cols = ['▶', 'ts', 'EventID', 'ProcessGuid', 'ProcessId', 'Image', 'Computer']
-display(window[cols].reset_index(drop=True))
+Las variables principales son:
+
+| Símbolo | Significado |
+|---------|-------------|
+| $c$ | Identificador de máquina — valor de la columna `Computer` (ej. `endofroad.boombox.local`) |
+| $p$ | Identificador de proceso en ejecución — valor entero de una columna `*ProcessId` |
+| $g$ | Identificador de instancia de proceso — UUID de 36 caracteres de una columna `*ProcessGuid` |
+| $\emptyset$ | GUID centinela: `00000000-0000-0000-0000-000000000000` |
+| $\text{EID}(e)$ | EventID del evento $e$ — entero que identifica el tipo de evento Sysmon |
+
+### Los cuatro dominios de observación (k-pairs)
+
+La sección 8 definió cuatro pares de columnas (GUID, PID) válidos en subconjuntos
+distintos del dataset. Cada k-pair define un **dominio de observación**
+$\mathcal{E}_k \subseteq \mathcal{E}$:
+
+$$
+\mathcal{E}_1 = \{e \in \mathcal{E} : \text{EID}(e) \notin \{8, 10\}\}
+\quad \text{(todos excepto CreateRemoteThread y ProcessAccess)}
+$$
+
+$$
+\mathcal{E}_2 = \{e \in \mathcal{E} : \text{EID}(e) = 1\}
+\quad \text{(ProcessCreate — eventos de creación de proceso)}
+$$
+
+$$
+\mathcal{E}_3 = \mathcal{E}_4 = \{e \in \mathcal{E} : \text{EID}(e) \in \{8, 10\}\}
+\quad \text{(CreateRemoteThread y ProcessAccess)}
+$$
+
+En cada dominio, un proceso $(p, c)$ puede ser observable desde un ángulo distinto:
+como proceso activo (k=1), como proceso padre que lanzó un hijo (k=2),
+como proceso origen de una inyección (k=3), o como proceso objetivo de un acceso (k=4).
+
+### Función de observación por k-pair
+
+Para el proceso identificado por el par $(p, c)$, definimos el conjunto de GUIDs
+que cada k-pair asocia a ese proceso:
+
+$$
+\mathcal{G}_1(p,\, c) = \bigl\{\, e.\text{ProcessGuid}
+    \;:\; e \in \mathcal{E}_1,\; e.\text{Computer} = c,\; e.\text{ProcessId} = p \bigr\}
+$$
+
+$$
+\mathcal{G}_2(p,\, c) = \bigl\{\, e.\text{ParentProcessGuid}
+    \;:\; e \in \mathcal{E}_2,\; e.\text{Computer} = c,\; e.\text{ParentProcessId} = p \bigr\}
+$$
+
+$$
+\mathcal{G}_3(p,\, c) = \bigl\{\, e.\text{SourceProcessGUID}
+    \;:\; e \in \mathcal{E}_3,\; e.\text{Computer} = c,\; e.\text{SourceProcessId} = p \bigr\}
+$$
+
+$$
+\mathcal{G}_4(p,\, c) = \bigl\{\, e.\text{TargetProcessGUID}
+    \;:\; e \in \mathcal{E}_4,\; e.\text{Computer} = c,\; e.\text{TargetProcessId} = p \bigr\}
+$$
+
+Cada $\mathcal{G}_k(p, c)$ es un **conjunto** (sin repeticiones) de GUIDs.
+Puede estar vacío si el proceso $(p, c)$ no tiene ningún evento en el dominio $\mathcal{E}_k$.
+Puede contener $\emptyset$ si Sysmon registró el proceso sin GUID real.
+Puede contener uno o más GUIDs reales.
+
+### Conjunto de GUIDs reales observados
+
+Reunimos todas las observaciones de los cuatro k-pairs y **excluimos el centinela**:
+
+$$
+\mathcal{G}(p,\, c) \;=\; \left(\bigcup_{k=1}^{4} \mathcal{G}_k(p,\, c)\right) \setminus \{\emptyset\}
+$$
+
+El operador $\bigcup$ es la **unión de conjuntos**: $\mathcal{G}(p,c)$ contiene todos
+los GUIDs reales que aparecen en cualquiera de los cuatro k-pairs para ese proceso.
+El operador $\setminus \{\emptyset\}$ es la **diferencia de conjuntos**: elimina el
+centinela del resultado para que no "recuperemos" un evento centinela con otro centinela.
+
+### Regla de recuperación
+
+El cardinal $|\mathcal{G}(p,c)|$ — el número de GUIDs reales distintos observados
+para el proceso $(p,c)$ — determina la acción de corrección:
+
+| $|\mathcal{G}(p,c)|$ | Interpretación | Acción |
+|----------------------|----------------|--------|
+| $= 1$ | $\mathcal{G}(p,c) = \{g_0\}$: un único GUID real observado | `REPLACE_GUID`: asignar $g_0$ al evento centinela |
+| $> 1$ | Múltiples GUIDs reales: probable **reuso de PID** entre instancias distintas del mismo número de proceso | `REVIEW`: ordenar por tiempo y desambiguar manualmente |
+| $= 0$ | Ningún GUID real en ningún k-pair: el proceso nunca tuvo visibilidad real de Sysmon | `BOOT_ARTIFACT`: excluir de cadenas causales |
+
+---
+
+## Enfoque A: búsqueda restringida a k=1
+
+El primer enfoque de recuperación busca el GUID correcto consultando únicamente
+$\mathcal{G}_1(p, c)$: para cada evento centinela, se busca un EID=1 con el mismo
+`Computer` y `ProcessId` con timestamp anterior o igual al del evento centinela.
+
+**Resultado sobre los 36 eventos centinela de k=1:**
+
+| Acción | Eventos | % |
+|--------|---------|---|
+| `REPLACE_GUID` | 2 | 6 % |
+| `BOOT_ARTIFACT` | 34 | 94 % |
+
+Solo el 6 % de los eventos centinela tiene un EID=1 candidato visible desde k=1.
+El 94 % son artefactos de boot donde el proceso nunca emitió un EID=1 con GUID real.
+
+El producto de este enfoque está en `09_sentinel_k1_enfoque_A.csv`.
+
+---
+
+## Enfoque B: búsqueda cruzada por todos los k-pairs
+
+El Enfoque B aplica la fórmula completa $\mathcal{G}(p,c)$: para cada evento
+centinela de k=1, computa la unión de GUIDs reales observados en los cuatro k-pairs.
+Esto captura evidencia de GUID que el Enfoque A ignora:
+
+- Un proceso que nunca emitió un EID=1 propio puede aparecer como **padre** (k=2)
+  en el EID=1 de uno de sus procesos hijos — ese EID=1 del hijo registra el
+  `ParentProcessGuid` del proceso buscado.
+- Un proceso puede aparecer como **origen** (k=3) o **destino** (k=4) de una
+  inyección, donde el GUID sí fue capturado correctamente.
+
+La investigación procede evento por evento: para cada uno de los 36 PIDs centinela,
+se construye $\mathcal{G}(p,c)$ y se evalúa la regla de recuperación.
+
+```{admonition} Caso de estudio: evento 1 de 36
+:class: tip
+
+El primer evento centinela (fila 5976) corresponde a:
+- `Computer`: `endofroad.boombox.local`
+- `ProcessId`: 3364
+- `EventID`: 3 (NetworkConnect → 10.1.0.4:135, protocolo RPC)
+- `Image`: `<unknown process>`
+- `ts`: 2025-03-19 05:01:15 UTC
+
+La investigación busca $\mathcal{G}(3364,\, \texttt{endofroad})$ consultando
+los cuatro k-pairs en el CSV completo.
 ```
 
-**¿Qué observar?**
-- Los eventos inmediatamente anteriores tienen GUIDs reales — el driver ya estaba funcionando.
-- El evento centinela interrumpe la secuencia: Sysmon registra el evento pero no tiene GUID disponible.
-- Los eventos posteriores retoman GUIDs reales: el driver recuperó visibilidad.
-
-Este patrón es consistente con el análisis de 8e: el centinela aparece en ráfagas durante el boot (05:00–05:05 UTC) y en picos de actividad WMI post-boot.
-
-## Invariante 2 en contexto: colisión genuina
-
-La colisión genuina de k=1 identificada en 8f involucra dos GUIDs donde `svchost.exe` y `dxgiadaptercache.exe` comparten ProcessGuid. Con **119 eventos** y **2 GUIDs** afectados, es la violación que más compromete el rastreo causal.
-
-### Ciclo de vida completo del GUID violador
-
-```python
-# GUIDs con colisión genuina (identificados en 8f)
-# Ajusta estos valores con los GUIDs reales encontrados en tu análisis
-genuine_guid_1 = '2d5a9c51-5053-67da-2000-000000009000'
-genuine_guid_2 = '2d5a9c51-505c-67da-2500-000000009000'
-
-# Todos los eventos de ese GUID, ordenados por timestamp
-guid_events = (df[~df['EventID'].isin([8, 10]) & df['ProcessGuid'].isin([genuine_guid_1])]
-               .copy()
-               .sort_values('ts'))
-
-print(f"Total eventos para el GUID: {len(guid_events)}")
-print(f"\nDistribución por Image:")
-print(guid_events['Image'].value_counts())
-print(f"\nDistribución por EventID:")
-print(guid_events['EventID'].value_counts().sort_index())
-
-cols = ['ts', 'EventID', 'ProcessGuid', 'ProcessId', 'Image', 'Computer']
-display(guid_events[cols])
-```
-
-### Ventana alrededor del cambio de Image
-
-El punto crítico es el momento exacto donde la `Image` cambia de `svchost.exe` a `dxgiadaptercache.exe`. Ese es el evento que rompe el Invariante 2:
-
-```python
-# Encontrar el primer evento con Image distinta a la mayoritaria
-dominant_image = guid_events['Image'].mode()[0]
-change_rows = guid_events[guid_events['Image'] != dominant_image]
-
-if len(change_rows) > 0:
-    change_idx = int(change_rows.iloc[0]['_original_row_index'])
-    window = df.iloc[max(0, change_idx - WINDOW) : change_idx + WINDOW + 1].copy()
-    window['▶'] = ''
-    window.loc[change_idx, '▶'] = '◀ Image cambia aquí'
-    display(window[['▶', 'ts', 'EventID', 'ProcessGuid', 'ProcessId', 'Image', 'Computer']]
-            .reset_index(drop=True))
-```
-
-**¿Qué observar?**
-- Los eventos anteriores al cambio registran `svchost.exe`.
-- El evento de cambio registra `dxgiadaptercache.exe` con el mismo GUID.
-- ¿Comparten el mismo `ProcessId`? ¿O el PID también cambia? Si el PID cambia con la Image, sugiere una colisión de GUID entre dos procesos distintos — el caso más difícil de resolver.
-
-## Invariante 2 en contexto: artefacto `<unknown process>`
-
-Los 17 GUIDs con artefacto `<unknown process>` son más fáciles de entender visualmente. El patrón es siempre el mismo: pocos eventos iniciales con `<unknown process>` seguidos de todos los eventos restantes con la Image real.
-
-```python
-# Tomar el primer GUID con artefacto <unknown process> de las violaciones de Image
-img_viol = pd.read_csv('../dataset/run-01-apt-1/'
-                       '04_processguid-image-violations-run-01.csv')
-
-unknown_guids = img_viol[img_viol['Image'] == '<unknown process>']['ProcessGuid'].unique()
-guid_unknown  = unknown_guids[0]
-
-guid_ev = (df[~df['EventID'].isin([8, 10]) & (df['ProcessGuid'] == guid_unknown)]
-           .copy()
-           .sort_values('ts'))
-
-print(f"GUID: {guid_unknown}")
-print(f"Distribución de Image:")
-print(guid_ev['Image'].value_counts())
-print(f"\nCronología (primeros 10 eventos):")
-display(guid_ev[['ts', 'EventID', 'Image', 'ProcessId', 'Computer']].head(10))
-```
-
-Este patrón confirma la regla de corrección automática: para los GUIDs de esta categoría, se reemplaza `<unknown process>` con la Image dominante del mismo GUID.
-
-## ¿Cuándo intervenir manualmente?
-
-La inspección contextual permite clasificar cada violación en una de tres decisiones:
-
-| Categoría | Evidencia visual | Decisión |
-|-----------|-----------------|----------|
-| Artefacto boot (`<unknown process>`) | Pocos eventos iniciales con imagen desconocida, luego imagen real dominante | Reemplazar automáticamente con imagen dominante |
-| Prefijo `\\?\` | Misma ruta con y sin prefijo, mismo PID | Normalizar automáticamente |
-| Elastic Agent (variante de ruta) | Dos rutas distintas pero mismo binario (distinta versión) | Elegir ruta canónica (real sobre symlink) |
-| Colisión genuina | Image cambia a mitad del ciclo de vida, PID posiblemente distinto | Revisión manual: separar en GUIDs distintos |
-
-La sección 10 implementa el pipeline completo que aplica las correcciones automáticas (categorías 1–3) y genera el archivo de violaciones para revisión manual (categoría 4).
+---
 
 ## Actividad Práctica
 
-### Ejercicio: Inspección de violaciones reales
+### Ejercicio: Implementación de $\mathcal{G}(p,c)$ y aplicación a los 36 eventos
 
-Completa las siguientes exploraciones en el notebook `9_violaciones_en_contexto.ipynb`. El notebook ya carga `df` y `viol` con el parseo de timestamps correcto.
+Trabaja en el notebook `9_violaciones_en_contexto.ipynb` en la sección **Enfoque B**.
 
-**Parte A: Centinela en k=2**
+**Paso 1 — Construir la tabla de GUIDs reales por k-pair**
 
-El centinela acumula 500 eventos en k=2 (`ParentProcessGuid`). A diferencia de k=1 (36 eventos dispersos), estos 500 corresponden a procesos lanzados durante el boot. Adapta el código de la ventana de contexto para el primer evento centinela de k=2 y responde:
-
-- ¿Qué EventID tienen estos eventos? (Pista: k=2 es dominio EID=1)
-- ¿Cuántos procesos distintos (por `Image`) tienen al centinela como padre?
-- ¿En qué ventana temporal ocurren la mayoría? ¿Coincide con el pico de 05:00–05:05 descrito en 8e?
-
-**Parte B: Inspección manual de una colisión genuina**
-
-Para los GUIDs con colisión genuina de k=1 (`svchost.exe` / `dxgiadaptercache.exe`):
-
-1. ¿El `ProcessId` es el mismo en todos los eventos del GUID, o cambia cuando cambia la `Image`?
-2. ¿Qué EventIDs están presentes antes del cambio y después?
-3. Basándote en lo observado: ¿se trata de un único proceso que cambió su ejecutable (imposible en Windows), o de dos procesos distintos que colisionaron en el mismo GUID?
-4. ¿Qué columnas adicionales del CSV (`ParentProcessGuid`, `ParentImage`, `CommandLine`) ayudarían a decidir cuál GUID es el correcto para cada proceso?
-
-**Parte C: Regla de corrección para `<unknown process>`**
-
-Implementa la función de corrección automática para la categoría `<unknown process>`:
+Para el caso de estudio (PID 3364 en `endofroad`), extrae manualmente los GUIDs
+observados en cada $\mathcal{G}_k$:
 
 ```python
-def fix_unknown_process(df, guid):
-    """
-    Para el GUID dado, reemplaza '<unknown process>' en la columna Image
-    con la Image dominante del mismo GUID (la que más aparece).
-    Retorna el número de filas corregidas.
-    """
-    mask   = (~df['EventID'].isin([8, 10])) & (df['ProcessGuid'] == guid)
-    events = df[mask]
+c, p = 'endofroad.boombox.local', 3364.0
 
-    real_images  = events[events['Image'] != '<unknown process>']['Image']
-    if real_images.empty:
-        return 0
+g1 = set(df[~df['EventID'].isin([8,10]) &
+            (df['Computer']==c) & (df['ProcessId']==p)
+           ]['ProcessGuid'].dropna()) - {NULL_GUID}
 
-    dominant = real_images.mode()[0]
-    unknown_mask = mask & (df['Image'] == '<unknown process>')
-    df.loc[unknown_mask, 'Image'] = dominant
-    return unknown_mask.sum()
+g2 = set(df[(df['EventID']==1) &
+            (df['Computer']==c) & (df['ParentProcessId']==p)
+           ]['ParentProcessGuid'].dropna()) - {NULL_GUID}
 
-# Prueba con el primer GUID de la categoría unknown_process
-n_fixed = fix_unknown_process(df, guid_unknown)
-print(f"Filas corregidas: {n_fixed}")
-print(df[~df['EventID'].isin([8,10]) & (df['ProcessGuid'] == guid_unknown)]['Image'].value_counts())
+g3 = set(df[df['EventID'].isin([8,10]) &
+            (df['Computer']==c) & (df['SourceProcessId']==p)
+           ]['SourceProcessGUID'].dropna()) - {NULL_GUID}
+
+g4 = set(df[df['EventID'].isin([8,10]) &
+            (df['Computer']==c) & (df['TargetProcessId']==p)
+           ]['TargetProcessGUID'].dropna()) - {NULL_GUID}
+
+G = g1 | g2 | g3 | g4   # unión de los cuatro k-pairs
+print(f'G({p}, {c}) = {G}')
+print(f'|G| = {len(G)}')
 ```
 
-¿La función funciona correctamente? ¿Qué pasaría si un GUID tiene `<unknown process>` en todos sus eventos (no hay imagen dominante)?
+**Paso 2 — Generalizar a los 36 eventos centinela**
+
+Implementa la función `compute_G(df, p, c)` que devuelve $\mathcal{G}(p,c)$
+y aplícala a los 36 eventos del catálogo `sentinel_k1`. Genera el archivo
+`09_sentinel_k1_enfoque_B.csv` con el mismo esquema que el Enfoque A.
+
+**Paso 3 — Comparación de enfoques**
+
+Une ambos archivos por `_original_row_index` y responde:
+- ¿Cuántos eventos adicionales recupera el Enfoque B respecto al A?
+- ¿Coinciden los GUIDs candidatos donde ambos enfoques recuperan el mismo evento?
+- ¿Qué k-pair aporta más evidencia en los casos nuevos recuperados por B?
 
 ### Entrega
 
-Sube tu notebook o scripts completados al siguiente Google Drive:
-
 📁 [Carpeta de entregas — Sección 9](https://drive.google.com/drive/folders/1BqPQo_xX1Ud7Vib37roVwyx7JuCk3uhw?usp=sharing)
 
-Instrucciones:
 1. Entra al Drive con tu cuenta institucional.
-2. Crea una carpeta con tu nombre completo usando guiones bajos como separador (ej. `Juan_Garcia_Lopez`).
-3. Deposita tu notebook con el nombre: `apellido_nombre_sesion2_ej4.ipynb`
+2. Crea una carpeta con tu nombre completo (ej. `Juan_Garcia_Lopez`).
+3. Deposita el notebook con el nombre: `apellido_nombre_sesion2_ej4.ipynb`
