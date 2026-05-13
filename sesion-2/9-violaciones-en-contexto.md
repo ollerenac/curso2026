@@ -2438,3 +2438,52 @@ $$
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 2$ — Padre PID 636, `waterfalls.boombox.local` *(REVIEW)*
+
+**PID 636 (padre) · `waterfalls.boombox.local` · 44 hijos**  
+`services.exe` — PID reuse análogo a PID 712 (`theblock`): dos instancias sucesivas,
+gap ~254 s sin centinelas. Los 44 centinelas pertenecen unívocamente a `cf0d`.
+
+| GUID | $t_{\min}$ | $t_{\max}$ | span | k1/k3/k4 | centinelas |
+|------|-----------|-----------|------|----------|------------|
+| `4f23` | 05:00:36 | 05:00:52 | 16.2 s | 3/0/1 | 0 |
+| `cf0d` | 05:05:06 | 06:06:00 | 3654.4 s | 129/244/76 | 44 |
+| **GAP** | 05:00:52 | 05:05:06 | ~254 s | — | 0 |
+
+**`4f23`** — primera instancia de `services.exe` con PID 636 (span=16.2 s).
+k1=3: EID=7×2 (DLL loads) y EID=17×1 (NamedPipe) — arranque típico de services.exe
+creando su pipe de gestión de servicios antes de que Sysmon estuviera operativo.
+Sin centinelas.
+
+**`cf0d`** — instancia principal, `services.exe` confirmado por SourceImage en k3
+(244 eventos). k1=129 (EID=13×100, EID=12×29 — registry). 44 hijos durante ~61 min:
+`svchost.exe` (×33), `TrustedInstaller.exe` (×3), `sppsvc.exe` (×3),
+`WmiApSrv.exe` (×2), `Microsoft.Exchange.Diagnostics.Service.exe`, `msdtc.exe`,
+`MicrosoftEdgeUpdate.exe`, `msiexec.exe`. El primer centinela coincide con
+$t_{\min}(g_{\texttt{cf0d}})$ — `services.exe` lanza el primer svchost hijo en el
+mismo instante en que Sysmon comienza a registrarlo.
+
+```{figure} img/ev_k2_wf636_timeline.png
+:name: ev-k2-wf636-timeline
+:width: 100%
+
+**k=2 · Padre PID 636 · `services.exe` · `waterfalls` — `PARENT\_PREDATES\_SYSMON` ×2 (PID reuse).**
+Panel superior: barra `4f23` (azul, 16 s) y `cf0d` (naranja, 3654 s) separadas por GAP rojo (~254 s).
+44 centinelas (crimson) todos en `cf0d`.
+Panel inferior: zoom sobre la ráfaga de arranque de `cf0d` — 21 hijos en los primeros 280 s,
+con `Exchange.Diagnostics`, `WmiApSrv`, `msdtc` y `sppsvc` destacados.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\texttt{ParentProcessGuid} \leftarrow
+\begin{cases}
+g_{\texttt{4f23}} & \text{0 filas (sin centinelas)} \\
+g_{\texttt{cf0d}} & \text{44 filas, } t^* \in [05{:}05{:}06,\;06{:}06{:}00]
+\end{cases}
+\quad [\texttt{PARENT\_PREDATES\_SYSMON} \times 2]
+$$
+
+---
