@@ -214,7 +214,7 @@ El análisis caso por caso avanza en el notebook `9_enfoque_B.ipynb`.
 | Campo | Valor |
 |-------|-------|
 | Fila CSV (`_original_row_index`) | 19619 |
-| EventID | 3 (NetworkConnect) — pero EID=3 ∉ {8,10}, válido en $\mathcal{E}_1$ |
+| EventID | 7 (ImageLoad) — EID=7 ∉ {8,10}, válido en $\mathcal{E}_1$ |
 | Image | `C:\Windows\System32\conhost.exe` |
 | `ts` ($t^*$) | 2025-03-19 05:04:05.550 UTC |
 
@@ -255,10 +255,48 @@ Panel inferior: zoom sobre la brecha — $t^*$ ocurre antes incluso de que Sysmo
 registrara la creación del proceso.
 ```
 
-**Interpretación:** Sysmon capturó el evento de red (EID=3) cuando el proceso
-`conhost.exe` aún no tenía su GUID asignado en el driver — de ahí el centinela.
-2 ms después el driver completó la inicialización y todos los eventos subsiguientes
-quedaron registrados con $g_0$. No es reuso de PID; es **latencia de asignación de GUID**.
+**Mecanismo:** el evento centinela es un **ImageLoad (EID=7)** — Sysmon registra
+la carga de la propia imagen ejecutable de `conhost.exe` durante la inicialización
+del proceso. El driver interceptó este evento antes de completar la asignación del
+GUID (que ocurre al procesar el EID=1), de ahí el centinela. 2 ms después el driver
+terminó la inicialización y todos los eventos subsiguientes quedaron registrados con $g_0$.
 
-Este caso es el que motivó la introducción del parámetro $\delta$ en la regla de
-recuperación. La cota inferior observada hasta ahora es $\delta \geq 2\,\text{ms}$.
+### Hipótesis evaluadas
+
+**H1 — auto-carga durante inicialización (confirmada):**
+`dsregcmd.exe` (PID 2668) llama a `CreateProcess()` para lanzar `conhost.exe`
+(PID 2968). Durante la fase de inicialización el kernel mapea la imagen ejecutable
+en el espacio del nuevo proceso, lo que dispara EID=7 inmediatamente. En ese instante
+el driver de Sysmon aún no ha procesado el EID=1 y el GUID no está en su tabla
+interna → centinela $\emptyset$. 2 ms después el driver procesa el EID=1, asigna
+$g_0$, y todos los eventos subsiguientes ya lo llevan.
+
+**H2 — carga por proceso externo (descartada):**
+Otro proceso con GUID centinela propio cargó `conhost.exe` como módulo antes de
+que existiera la instancia PID 2968. Requeriría reuso de PID en $\leq 2\,\text{ms}$;
+no existe evidencia de ningún proceso candidato en el dataset.
+
+**Evidencia que confirma H1:**
+
+| Evidencia | Valor observado | Interpretación |
+|-----------|-----------------|----------------|
+| `Image` | `C:\Windows\System32\conhost.exe` | proceso propietario del evento |
+| `ImageLoaded` | `C:\Windows\System32\conhost.exe` | imagen cargada = propia imagen del proceso → auto-carga |
+| `User` en centinela | `NT AUTHORITY\SYSTEM` | idéntico al `User` del EID=1 de $g_0$ → mismo proceso |
+| Eventos previos con PID 2968 y GUID real | ninguno | no hay instancia previa que compita por ese PID |
+| `ParentProcessId` en EID=1 | 2668 (`dsregcmd.exe`) | proceso creador identificado sin ambigüedad |
+
+**Nombre de código del escenario:** `PRE_GUID_INIT` — evento capturado por Sysmon
+durante la inicialización del proceso, antes de que el driver completara la
+asignación del GUID.
+
+No es reuso de PID; es una **condición de carrera entre EID=7 y la asignación
+interna del GUID en el driver**. La regla de recuperación con tolerancia $\delta$
+absorbe exactamente este tipo de artefacto:
+
+$$
+t_{\min}(g_0) - \delta \;\leq\; t^* \quad (\delta = 2\,\text{ms})
+\;\implies\; \texttt{REPLACE\_GUID} \quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+La cota inferior observada hasta ahora es $\delta \geq 2\,\text{ms}$.
