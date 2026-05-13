@@ -1416,3 +1416,34 @@ t_{\min}(g_0) < t^* < t_{\max}(g_0)
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 552, `diskjockey.boombox.local`
+
+**PID 552 (padre) · `diskjockey.boombox.local` · 3 hijos**  
+Hijos: `fontdrvhost.exe` (fila 23079) · `mpnotify.exe` (fila 357338) · `userinit.exe` (fila 361454)
+
+PID 552 = `winlogon.exe` — proceso de inicio de sesión de Windows, arranca antes
+que el driver de Sysmon. g0 se recupera por k1, k3 y k4 (24 eventos k1,
+Image = `winlogon.exe`). Sin EID=1 ni EID=5.
+
+Los 3 hijos cubren extremos opuestos del ciclo de vida (~67 min):
+
+| Fila | Hijo | $\Delta(t^*, t_{\min})$ | Momento |
+|------|------|--------------------------|---------|
+| 23079 | `fontdrvhost.exe` | +5 ms | Arranque del sistema |
+| 357338 | `mpnotify.exe` | +4044 s (~67 min) | Cierre de sesión |
+| 361454 | `userinit.exe` | +4047 s (~67 min) | Cierre de sesión |
+
+$t_{\min}(g_0) = $ 05:04:31.285 — idéntico al de PID 452 (`wininit.exe`):
+ambos procesos arrancan simultáneamente en el boot.
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(552,\,\texttt{diskjockey}) = \{g_0\},\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\, i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
