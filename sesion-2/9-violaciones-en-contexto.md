@@ -2074,3 +2074,57 @@ t_{\min}(g_0) < t^* < t_{\max}(g_0)
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 640, `waterfalls.boombox.local`
+
+**PID 640 (padre) · `waterfalls.boombox.local` · 12 hijos**  
+`services.exe` — caso extremo: **k1=∅**. Identidad confirmada solo vía k3+k4 (EID=10).
+
+PID 640 = `services.exe` en `waterfalls` — el caso más extremo de `PARENT_PREDATES_SYSMON`
+en todo el análisis. El proceso de control de servicios arranca en el boot, antes de que
+Sysmon inicialice su driver, y no genera **ningún** evento k1 propio durante la captura.
+La identidad del proceso se recupera únicamente a partir de los 16 eventos EID=10
+(ProcessAccess) de los k-pares cruzados:
+
+$$
+\mathcal{G}_1(640_{\texttt{wf}}) = \emptyset,\quad
+\mathcal{G}_2(640_{\texttt{wf}}) = \emptyset,\quad
+\mathcal{G}_3(640_{\texttt{wf}}) = \{g_0\}\;(14\text{ ev.}),\quad
+\mathcal{G}_4(640_{\texttt{wf}}) = \{g_0\}\;(2\text{ ev.})
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `3fc4fefd-de08-67da-0b00-000000004900`.
+
+La prueba de identidad proviene del campo `SourceImage` en los 14 eventos k3 —
+todos registran `C:\Windows\system32\services.exe` — y de `TargetImage` en los 2
+eventos k4. Sin estos campos de imagen, el proceso sería anónimo en el CSV.
+Ciclo observado: solo 3.5 s (06:09:01.536 → 06:09:05.077), el tiempo que tarda
+`services.exe` en lanzar en ráfaga sus 12 hijos al inicio del sistema.
+
+12 hijos en 3.5 s: `svchost.exe` a $\Delta = +4\,\text{ms}$ (el primero), seguido de
+11 servicios de **Microsoft Exchange Server v15** a $\Delta \approx +3.5\,\text{s}$
+(RpcClientAccess, MailboxAssistants, EdgeSyncSvc, Compliance, MitigationService,
+SearchService, Throttling, msexchangerepl, ComplianceAuditService, ServiceHost,
+TransportLogSearch). Esta ráfaga de Exchange confirma que `waterfalls.boombox.local`
+es el **servidor Exchange** del entorno simulado.
+
+```{figure} img/ev_k2_wf640_timeline.png
+:name: ev-k2-wf640-timeline
+:width: 100%
+
+**k=2 · Padre PID 640 · `services.exe` · `waterfalls` — `PARENT\_PREDATES\_SYSMON` (k1=∅).**
+Vista en ms (span=3.5 s). Sin eventos k1; g0 solo vía EID=10 (k3 naranja, k4 verde).
+`svchost.exe` (azul) a +4 ms; 11 servicios Exchange (crimson) a ~+3.5 s.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(640,\,\texttt{waterfalls}) = \{g_0\}\;(\text{vía k3, k4 — k1=∅}),\quad
+t_{\min}(g_0) \leq t^*_i \leq t_{\max}(g_0)\;\forall\,i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
