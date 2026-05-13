@@ -1050,3 +1050,61 @@ dominante de pérdida de GUID en EID=7 (ImageLoad).
 $g_0$ es el GUID correcto para el evento centinela.
 
 ---
+
+## Casos REVIEW — Eventos 0–3: PID 3364, `endofroad.boombox.local`
+
+**Datos de partida:** 4 eventos EID=3 con `ProcessGuid = ∅`, `ProcessId = 3364`,
+`Computer = endofroad.boombox.local`. `compute_G(3364, endofroad)` devuelve
+$|\mathcal{G}| = 2$ → caso `REVIEW`.
+
+### Desambiguación por proximidad temporal
+
+Cuando $|\mathcal{G}| > 1$, la invariante de unicidad falla por **reuso de PID**:
+el sistema operativo reutilizó el mismo número de proceso para un proceso distinto
+después de que el primero terminara. Calculamos el delta temporal entre cada
+centinela $t^*$ y el $t_{\min}$ de cada GUID candidato:
+
+| GUID | Proceso (`Image`) | $t_{\min}$ | $\Delta(t^* - t_{\min})$ | Veredicto |
+|------|-------------------|-----------|--------------------------|-----------|
+| gA | `dsregcmd.exe` | 05:01:15 | **−55 ms** | PRE_GUID_INIT ← correcto |
+| gB | `conhost.exe`  | 05:04:11 | −176 s     | Reuso de PID posterior    |
+
+La escala temporal es el criterio decisivo: **55 ms** (milisegundos, PRE_GUID_INIT)
+frente a **176 segundos** (casi 3 minutos, reuso claro). No hay ambigüedad.
+
+```{figure} img/ev03_timeline.png
+:name: ev03-timeline
+:width: 100%
+
+**Eventos 0–3 — PRE_GUID_INIT en `dsregcmd.exe` (PID 3364, `endofroad`) con resolución por $|\mathcal{G}|=2$.**
+Panel superior: esquema macro (segundos). Los 4 centinelas (líneas discontinuas rojas) se
+agrupan en $t \approx 0$. gA (`dsregcmd.exe`, diamante azul) aparece a +55 ms — escala de
+milisegundos. gB (`conhost.exe`, diamante naranja) aparece a +176 s — escala de minutos.
+La separación visual hace inequívoca la asignación.
+Panel inferior: zoom PRE_GUID_INIT en milisegundos. Los 4 centinelas caen entre
+−55 ms y −43 ms respecto a $t_{\min}(g_A)$, con EID=7 (steelblue) y EID=1 (verde)
+marcando el arranque del proceso.
+```
+
+### Destino de los centinelas
+
+Los 4 EID=3 corresponden a conexiones de `dsregcmd.exe` hacia:
+
+| Destino IP | Puerto | Protocolo |
+|-----------|--------|-----------|
+| 10.1.0.4  | 135    | RPC endpoint mapper |
+| 10.1.0.4  | 49667  | RPC dinámico |
+| 10.1.0.4  | 389    | LDAP (×2) |
+
+Este patrón es el comportamiento **esperado** de `dsregcmd.exe` al registrar
+el equipo en Azure AD / unión al dominio: consulta LDAP y RPC al DC.
+No hay indicador de actividad maliciosa en este proceso.
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\Delta(t^*, g_A) \approx 55\,\text{ms} \ll \Delta(t^*, g_B) \approx 176\,\text{s}
+\;\implies\; \texttt{REPLACE\_GUID} \leftarrow g_A \quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+---
