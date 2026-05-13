@@ -1700,3 +1700,55 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 604, `endofroad.boombox.local`
+
+**PID 604 (padre) · `endofroad.boombox.local` · 37 hijos**  
+`services.exe` — caso especial: **16 de 37 centinelas tienen $t^* < t_{\min}(g_0)$**.
+
+PID 604 = `services.exe` en `endofroad` — proceso que lanza todos los servicios del
+sistema, incluyendo Sysmon. g0 recuperado únicamente vía k1 (k3=∅, k4=∅);
+163 eventos k1 (EID=13×117, EID=12×32, EID=7×12, EID=3×2). La imagen incluye
+`<unknown process>` — Sysmon aún no resuelve nombres de proceso en su fase de arranque.
+
+$$
+\mathcal{G}_1(604_{\texttt{er}}) = \{g_0\},\quad
+\mathcal{G}_3(604_{\texttt{er}}) = \emptyset,\quad
+\mathcal{G}_4(604_{\texttt{er}}) = \emptyset
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `44d66c27-ced0-67da-0b00-000000007100`.
+
+**Variante — centinelas previos a $t_{\min}(g_0)$:**  
+Los primeros 16 servicios (05:04:03.620–05:04:04.895) son creados antes de que Sysmon
+haya registrado el primer evento con g0 (t_min = 05:04:05.349). Esto incluye
+`svchost.exe` (×7), `spoolsv.exe`, `elastic-agent.exe`, `ssh-agent.exe`, `sqlwriter.exe`,
+`sqlbrowser.exe`, `sshd.exe`, `wlms.exe`, `sppsvc.exe` — y el propio `Sysmon.exe`
+($\Delta = -0.7\,\text{s}$). La regla sigue siendo válida: $|\mathcal{G}|=1$ es suficiente.
+
+**Hijo notable — `PSEXESVC.exe` ($\Delta = +2579.7\,\text{s}$, fila 268631):**  
+A las 05:47:05, `services.exe` crea el servicio PsExec (`PSEXESVC.exe`).
+Es la traza directa del movimiento lateral del APT: el atacante ejecutó `psexec`
+remotamente sobre `endofroad`, causando que `services.exe` instale y arranque el agente.
+
+```{figure} img/ev_k2_er604_timeline.png
+:name: ev-k2-er604-timeline
+:width: 100%
+
+**k=2 · Padre PID 604 · `services.exe` · `endofroad` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: zona sombreada (rosa) marca los 16 centinelas con $t^*<t_{\min}(g_0)$.
+`PSEXESVC.exe` (rojo) a +2580 s; `Sysmon.exe` (magenta) a $-0.7$ s.
+Panel inferior: zoom ±20 s en torno a $t_{\min}(g_0)$ — transición boot→Sysmon activo.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(604,\,\texttt{endofroad}) = \{g_0\}\;(\text{vía k1}),\quad
+|\mathcal{G}|=1
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
