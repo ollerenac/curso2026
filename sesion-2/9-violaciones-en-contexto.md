@@ -2288,3 +2288,62 @@ g_{\texttt{cf08}} & \text{37 filas, } t^* \in [05{:}07{:}59,\;06{:}04{:}58]
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 3$ — Padre PID 856, `theblock.boombox.local` *(REVIEW)*
+
+**PID 856 (padre) · `theblock.boombox.local` · 112 hijos**  
+`svchost.exe` — |G|=3 resuelto como triple reutilización de PID. Dos gaps sin centinelas
+(~181 s y ~120 s) hacen la asignación unívoca. REPLACE\_GUID × 3.
+
+PID 856 = `svchost.exe` en `theblock`. El mismo número de proceso fue asignado a tres
+instancias distintas de `svchost.exe` sucesivas, separadas por dos gaps.
+
+**Ciclos de vida observados** (unión de todos los k-pares para PID 856):
+
+| GUID | $t_{\min}$ | $t_{\max}$ | span | k1 / k3 / k4 | centinelas |
+|------|-----------|-----------|------|--------------|------------|
+| `ce4e` | 05:01:52 | 05:04:05 | 132.6 s | 260 / 124 / 6 | 5 |
+| `cf09` | 05:07:06 | 06:04:58 | 3472.0 s | 3803 / 1920 / 123 | 106 |
+| `dd8c` | 06:06:58 | 06:06:58 | 0.5 s | 0 / 3 / 0 | 1 |
+| **GAP 1** | 05:04:05 | 05:07:06 | ~181 s | — | 0 |
+| **GAP 2** | 06:04:58 | 06:06:58 | ~120 s | — | 0 |
+
+$$
+\mathcal{G}(856,\,\texttt{theblock}) = \{g_{\texttt{ce4e}},\; g_{\texttt{cf09}},\; g_{\texttt{dd8c}}\},\quad
+\lvert\mathcal{G}\rvert = 3
+$$
+
+- **`ce4e`** — k1=260 ev. (EID=12×113, EID=13×147); 5 hijos en ráfaga de arranque:
+  `WmiPrvSE`, `ShellExperienceHost`, `RuntimeBroker`, `backgroundTaskHost`, `MoUsoCoreWorker`.
+
+- **`cf09`** — k1=3803 ev. (EID=13×2198, EID=12×1573, EID=9×28 — pipe activity, EID=23×1);
+  el svchost más activo del dataset. 106 hijos en ~58 min, incluyendo apps de usuario
+  (`Solitaire`, `GameBar`, `3DViewer`, `explorer`) — aloja el broker UWP/WinRT.
+
+- **`dd8c`** — k1=∅, span=0.5 s, 1 hijo (`WmiPrvSE.exe`) al final de la captura (06:06:58).
+  Caso extremo análogo a PID 640 `waterfalls`: identidad solo vía k3 (3 ev. EID=10).
+
+```{figure} img/ev_k2_tb856_timeline.png
+:name: ev-k2-tb856-timeline
+:width: 100%
+
+**k=2 · Padre PID 856 · `svchost.exe` · `theblock` — `PARENT\_PREDATES\_SYSMON` ×3 (PID reuse).**
+Panel superior: barras de ciclo de vida `ce4e` (azul), `cf09` (naranja) y `dd8c` (verde),
+con GAP 1 (rojo, ~181 s) y GAP 2 (morado, ~120 s). Centinelas coloreados por GUID asignado.
+Panel inferior izquierdo: zoom `ce4e` — 5 hijos en 132 s.
+Panel inferior derecho: zoom `dd8c` — 1 hijo (`WmiPrvSE`) en escala ms (span 0.5 s).
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\texttt{ParentProcessGuid} \leftarrow
+\begin{cases}
+g_{\texttt{ce4e}} & \text{5 filas, } t^* \in [05{:}01{:}52,\;05{:}04{:}05] \\
+g_{\texttt{cf09}} & \text{106 filas, } t^* \in [05{:}07{:}06,\;06{:}04{:}58] \\
+g_{\texttt{dd8c}} & \text{1 fila, } t^* = 06{:}06{:}58
+\end{cases}
+\quad [\texttt{PARENT\_PREDATES\_SYSMON} \times 3]
+$$
+
+---
