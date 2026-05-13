@@ -317,7 +317,7 @@ absorbe exactamente este tipo de artefacto:
 
 $$
 t_{\min}(g_0) - \delta \;\leq\; t^* \quad (\delta = 2\,\text{ms})
-\;\implies\; \texttt{REPLACE\_GUID} \quad [\texttt{PRE\_GUID\_INIT}]
+\;\implies\; \texttt{REPLACE_GUID} \quad [\texttt{PRE_GUID_INIT}]
 $$
 
 La cota inferior observada hasta ahora es $\delta \geq 2\,\text{ms}$.
