@@ -553,6 +553,82 @@ mismo $g_0$.
 
 ---
 
+## Caso de estudio — Evento 28: PID 8404, `theblock.boombox.local`
+
+**Datos del evento centinela $e^*$:**
+
+| Campo | Valor |
+|-------|-------|
+| Fila CSV | 59263 |
+| EventID | 7 (ImageLoad) |
+| `Image` | `C:\Windows\System32\conhost.exe` |
+| `ImageLoaded` | `C:\Windows\System32\conhost.exe` |
+| `ts` ($t^*$) | 2025-03-19 05:07:59.894 UTC |
+
+Hijo de `sc.exe` (PID 3104, evento 27, caso REVIEW). `CommandLine`:
+`conhost.exe 0xffffffff -ForceV1` — inicialización estándar de consola Windows.
+
+**Resultado de $\mathcal{G}(8404,\, \texttt{theblock})$:**
+
+$$
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \emptyset, \quad
+\mathcal{G}_3 = \{g_0\}, \quad \mathcal{G}_4 = \{g_0\}
+\quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `4a85d404-512f-67da-1501-000000005500`.
+
+**Ciclo de vida $\mathcal{L}(g_0)$:**
+
+$$
+\lvert\mathcal{L}(g_0)\rvert = 37 \text{ eventos}
+\quad (k_1 = 35,\; k_3 = 1,\; k_4 = 1)
+\quad \text{span} = 151\,\text{ms}
+$$
+
+| k-pair | EID | Cantidad | Interpretación |
+|--------|-----|----------|----------------|
+| k1 | 7 | 33 | DLLs cargadas con $g_0$ ya asignado |
+| k1 | 1 | 1 | EID=1 ProcessCreate (+8 ms) |
+| k1 | 5 | 1 | EID=5 ProcessTerminate (+151 ms) |
+| k3 | 10 | 1 | `conhost.exe` abre handle a otro proceso |
+| k4 | 10 | 1 | Proceso del sistema accede a `conhost.exe` |
+
+**Verificación temporal:**
+
+$$
+t_{\min}(g_0) = \texttt{05:07:59.894} \qquad t^* = \texttt{05:07:59.894}
+\qquad t_{\max}(g_0) = \texttt{05:08:00.045}
+$$
+
+Gap = **0 ms**. El EID=1 aparece a +8 ms de $t_{\min}$ — más tardío que en
+casos anteriores (0–3 ms), posiblemente por mayor carga del sistema en `theblock`.
+
+```{figure} img/ev28_timeline.png
+:name: ev28-timeline
+:width: 100%
+
+**Evento 28 — inicialización de `conhost.exe` (PID 8404, `theblock`).**
+Panel superior: ciclo de vida de $g_0$ (37 eventos, span = 151 ms).
+Puntos azules (k1): proceso activo (33 DLLs + EID=1 + EID=5).
+Triángulo morado (k3): `conhost.exe` abre handle a otro proceso.
+Triángulo naranja (k4): proceso del sistema accede a `conhost.exe`.
+Línea roja discontinua: centinela $t^*$ en $t_{\min}(g_0)$.
+Línea verde: EID=1 ProcessCreate (+8 ms). Línea rojo oscuro: EID=5 (+151 ms).
+Panel inferior (zoom 0–15 ms): gap = 0 ms, EID=1 a +8 ms.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+t_{\min}(g_0) - \delta \;\leq\; t^* \quad (\delta = 0\,\text{ms})
+\;\implies\; \texttt{REPLACE_GUID} \quad [\texttt{PRE_GUID_INIT}]
+$$
+
+$g_0$ es el GUID correcto para el evento centinela.
+
+---
+
 ## Caso de estudio — Evento 25: PID 3684, `diskjockey.boombox.local`
 
 **Datos del evento centinela $e^*$:**
