@@ -2183,3 +2183,51 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\,i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 808, `waterfalls.boombox.local`
+
+**PID 808 (padre) · `waterfalls.boombox.local` · 5 hijos**  
+`svchost.exe` — footprint casi nulo: 1 k1 (EID=7), 28 k3, 7 k4. 5 hijos en ráfaga
+de 6 s: `FSCConfigurationServer.exe` (×3), `updateservice.exe`, `dllhost.exe`.
+
+PID 808 = `svchost.exe` en `waterfalls` — svchost de arranque tardío (06:09, cerca
+del final de la captura), con el footprint k1 más reducido posible sin ser k1=∅:
+**un único EID=7** (carga de una DLL). g0 recuperado vía k1 (1 ev.), k3 (28 ev.)
+y k4 (7 ev.). Span observado = 0.0 s (un solo timestamp k1).
+
+$$
+\mathcal{G}_1(808) = \{g_0\}\;(1\text{ ev.}),\quad
+\mathcal{G}_3(808) = \{g_0\}\;(28\text{ ev.}),\quad
+\mathcal{G}_4(808) = \{g_0\}\;(7\text{ ev.})
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `3fc4fefd-de09-67da-0e00-000000004900`.
+
+5 hijos lanzados en ráfaga a Δ = +22.7–28.6 s de t_min:
+`FSCConfigurationServer.exe` (×3) — la misma herramienta del entorno simulado
+observada ya en PID 796; `updateservice.exe` (×1); `dllhost.exe` (×1).
+La co-aparición de `FSCConfigurationServer.exe` en dos svchost distintos (PID 796
+y PID 808) dentro del mismo host sugiere que el entorno ejecuta ciclos de
+configuración y actualización gestionados por esta herramienta.
+
+```{figure} img/ev_k2_wf808_timeline.png
+:name: ev-k2-wf808-timeline
+:width: 100%
+
+**k=2 · Padre PID 808 · `svchost.exe` · `waterfalls` — `PARENT\_PREDATES\_SYSMON`.**
+Vista en segundos. Único k1 EID=7 (azul) en $t=0$; k3 (naranja) y k4 (teal) en
+la franja posterior. 5 centinelas: `FSCConfigurationServer` (×3, naranja),
+`updateservice` (verde) y `dllhost` (gris) a +22–29 s.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(808,\,\texttt{waterfalls}) = \{g_0\}\;(\text{vía k1, k3, k4}),\quad
+t^*_i > t_{\min}(g_0)\;\forall\,i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
