@@ -894,4 +894,86 @@ $$
 
 $g_0$ es el GUID correcto para el evento centinela.
 
+## Casos de estudio — Eventos 32 y 33: PID 15048, `waterfalls.boombox.local`
+
+**Datos de los eventos centinela $e^*$:**
+
+| Campo | Evento 32 | Evento 33 |
+|-------|-----------|-----------|
+| Fila CSV | 290446 | 290447 |
+| EventID | 3 (NetworkConnect) | 3 (NetworkConnect) |
+| `Image` | `<unknown process>` | `<unknown process>` |
+| `SourcePort` | 63514 | 63515 |
+| `DestinationIp` | 10.1.0.4 | 10.1.0.4 |
+| `DestinationPort` | 53 (DNS/UDP) | 53 (DNS/UDP) |
+| `ts` ($t^*$) | 2025-03-19 05:58:23.372 UTC | 2025-03-19 05:58:23.373 UTC |
+
+Ambos centinelas pertenecen al mismo proceso: `nslookup.exe` (PID 15048),
+hijo de `MSExchangeHMWorker.exe`, ejecutando
+`nslookup.exe -type=A WATERFALLS.boombox.local. 10.1.0.4`.
+
+**Resultado de $\mathcal{G}(15048,\, \texttt{waterfalls})$:**
+
+$$
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \emptyset, \quad
+\mathcal{G}_3 = \emptyset, \quad \mathcal{G}_4 = \{g_0\}
+\quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `3fc4fefd-5cff-67da-fa01-000000004800`.
+
+**Ciclo de vida $\mathcal{L}(g_0)$:**
+
+$$
+\lvert\mathcal{L}(g_0)\rvert = 16 \text{ eventos}
+\quad (k_1 = 13,\; k_4 = 3)
+\quad \text{span} = 13\,\text{ms}
+$$
+
+**Verificación temporal:**
+
+$$
+t^*_{[0]} = \texttt{05:58:23.372}, \quad t^*_{[1]} = \texttt{05:58:23.373}
+\qquad t_{\min}(g_0) = \texttt{05:58:23.403}
+$$
+
+$$
+t^* < t_{\min}(g_0) \quad (\delta = -31\,\text{ms})
+$$
+
+Ambas conexiones DNS se abren dentro de una ventana de 1 ms entre sí,
+31 ms antes de que Sysmon asigne el ProcessGuid.
+
+```{figure} img/ev32_timeline.png
+:name: ev32-timeline
+:width: 100%
+
+**Eventos 32/33 — PRE_GUID_INIT en `nslookup.exe` (PID 15048, `waterfalls`).**
+Panel superior: ciclo de vida de $g_0$ (16 eventos, span = 13 ms).
+Dos líneas rojas discontinuas: los dos centinelas a -31 ms y -30 ms.
+Panel inferior (zoom): brecha PRE_GUID_INIT de 31 ms con los dos sockets DNS.
+```
+
+**Contraste con Evento 30** (misma imagen, mismo host):
+
+| | Evento 30 (PID 10964) | Eventos 32/33 (PID 15048) |
+|--|----------------------|---------------------------|
+| EID=3 con $g_0$ | 1 (SourcePort 62780) | 0 |
+| EID=3 centinelas | 1 (SourcePort 62781) | 2 (puertos 63514, 63515) |
+| Mecanismo | POST_GUID_TERMINATE | PRE_GUID_INIT |
+| Posición de $t^*$ | $t_{\max}(g_0)$ | $t_{\min}(g_0) - 31\,\text{ms}$ |
+
+La misma imagen (`nslookup.exe`) en el mismo host puede producir ambos
+mecanismos dependiendo del momento en que el driver de red captura las
+conexiones relativo al ciclo de vida del GUID.
+
+**Aplicación de la regla de recuperación:**
+
+$$
+t^* < t_{\min}(g_0) \quad (\delta = -31\,\text{ms})
+\;\implies\; \texttt{REPLACE\_GUID} \quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+$g_0$ es el GUID correcto para ambos eventos centinela.
+
 ---
