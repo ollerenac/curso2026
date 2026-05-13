@@ -2031,3 +2031,46 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 596, `waterfalls.boombox.local`
+
+**PID 596 (padre) · `waterfalls.boombox.local` · 1 hijo**  
+`winlogon.exe` — footprint mínimo: span = 3.4 s, 1 evento k1, pero 16 accesos entrantes (k4).
+
+PID 596 = `winlogon.exe` en `waterfalls` — segunda instancia de `winlogon.exe`
+en este host, activa cerca del final de la captura (06:09:25). Footprint mínimo
+en k1 (1 evento, EID=7 — una sola DLL), pero con presencia significativa en k4:
+**16 eventos EID=10** (ProcessAccess) donde otros procesos abrieron un handle
+sobre este `winlogon.exe` en los 3.4 s de su ciclo observado.
+
+$$
+\mathcal{G}_1(596_{\texttt{wf}}) = \{g_0\},\quad
+\mathcal{G}_3(596_{\texttt{wf}}) = \{g_0\}\;(1\text{ ev.}),\quad
+\mathcal{G}_4(596_{\texttt{wf}}) = \{g_0\}\;(16\text{ ev.})
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `3fc4fefd-de08-67da-0a00-000000004900`.
+
+1 hijo: `mpnotify.exe` a $\Delta = +223\,\text{ms}$ — notificación de logon,
+lanzado casi simultáneamente con el primer evento registrado del padre.
+
+```{figure} img/ev_k2_wf596_timeline.png
+:name: ev-k2-wf596-timeline
+:width: 100%
+
+**k=2 · Padre PID 596 · `winlogon.exe` · `waterfalls` — `PARENT\_PREDATES\_SYSMON`.**
+Vista en ms (span=3.4 s). EID=7 k1 en $x=0$; k4 (EID=10, naranja) dominan con 16
+accesos entrantes. Centinela `mpnotify.exe` (crimson) a +223 ms.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(596,\,\texttt{waterfalls}) = \{g_0\}\;(\text{vía k1, k3, k4}),\quad
+t_{\min}(g_0) < t^* < t_{\max}(g_0)
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
