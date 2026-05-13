@@ -147,12 +147,33 @@ Si este supuesto no se cumple — porque existió una segunda instancia del proc
 existencia completa quedó documentada únicamente mediante eventos centinela — entonces
 $\lvert\mathcal{G}\rvert = 1$ y sin embargo $g_0$ no sería el GUID correcto para $e^*$.
 
-**Verificación temporal como evidencia adicional.** Sea:
+**Verificación temporal como evidencia adicional.**
+
+Primero definimos el **conjunto de ciclo de vida** de $g_0$: todos los eventos del
+dataset donde $g_0$ aparece en cualquiera de las cuatro columnas GUID:
 
 $$
-t_{\min}(g_0) = \min_{e \,:\, e.\text{ProcessGuid}=g_0} t(e)
+\mathcal{L}(g_0) = \bigl\{\, e \in \mathcal{E} \;:\;
+  g_0 \in \{\,
+    e.\text{ProcessGuid},\;
+    e.\text{ParentProcessGuid},\;
+    e.\text{SourceProcessGUID},\;
+    e.\text{TargetProcessGUID}
+  \,\}
+\bigr\}
+$$
+
+Incluir los cuatro k-pairs es necesario porque $g_0$ puede aparecer no solo como
+proceso activo (k=1) sino también como proceso que lanzó hijos (k=2), como origen
+de una inyección remota (k=3), o como objetivo de un acceso (k=4). Restringir a
+k=1 produciría una ventana temporal más estrecha que la real.
+
+Sea entonces:
+
+$$
+t_{\min}(g_0) = \min_{e \,\in\, \mathcal{L}(g_0)} t(e)
 \qquad
-t_{\max}(g_0) = \max_{e \,:\, e.\text{ProcessGuid}=g_0} t(e)
+t_{\max}(g_0) = \max_{e \,\in\, \mathcal{L}(g_0)} t(e)
 $$
 
 Si el timestamp del evento centinela $t^*$ cumple:
@@ -221,7 +242,7 @@ El análisis caso por caso avanza en el notebook `9_enfoque_B.ipynb`.
 **Resultado de $\mathcal{G}(2968,\, \texttt{endofroad})$:**
 
 $$
-\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \{g_0\}, \quad \mathcal{G}_3 = \emptyset, \quad \mathcal{G}_4 = \emptyset
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \emptyset, \quad \mathcal{G}_3 = \emptyset, \quad \mathcal{G}_4 = \emptyset
 \quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
 $$
 
