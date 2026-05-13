@@ -1458,3 +1458,53 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\, i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 592, `diskjockey.boombox.local`
+
+**PID 592 (padre) · `diskjockey.boombox.local` · 38 hijos**  
+`services.exe` — Service Control Manager; proceso raíz de todos los servicios de Windows.
+
+PID 592 = `services.exe` — arranca antes que el driver de Sysmon (05:04:18.848,
+anterior a `wininit.exe` y `winlogon.exe` en ~12 s). g0 se recupera por k1, k3 y k4:
+138 eventos k1 (EID=7×6, EID=12×28, EID=13×102, EID=17×1, EID=18×1). Sin EID=1 ni EID=5.
+
+$$
+\mathcal{G}_1(592) = \{g_0\},\quad
+\mathcal{G}_3(592) = \{g_0\},\quad
+\mathcal{G}_4(592) = \{g_0\}
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `2d5a9c51-cede-67da-0b00-000000009000`.
+
+**38 hijos — arranque del sistema y servicios:**
+`svchost.exe` (×12), `updater.exe` (×6), `sppsvc.exe` (×4), `MicrosoftEdgeUpdate.exe` (×2)
+y 14 servicios adicionales: `dns.exe`, `elastic-agent.exe`, `ssh-agent.exe`, `sshd.exe`,
+`spoolsv.exe`, `msdtc.exe`, `vds.exe`, `wlms.exe`, entre otros.
+
+**Observación auto-referencial — `Sysmon.exe` como hijo:**  
+`services.exe` lanza `Sysmon.exe` como servicio de Windows a los +12.7 s del boot.
+Dado que `services.exe` predates Sysmon, el propio EID=1 de creación de Sysmon tiene
+`ParentProcessGuid = ∅`. La herramienta no puede registrar el GUID de su propio padre.
+
+```{figure} img/ev_k2_592_timeline.png
+:name: ev-k2-592-timeline
+:width: 100%
+
+**k=2 · Padre PID 592 · `services.exe` · `diskjockey` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: ~280 eventos (k1+k3+k4), span ~67 min. Los 38 centinelas se distribuyen
+a lo largo de todo el ciclo de vida. `Sysmon.exe` (magenta) aparece a +12.7 s.
+Panel inferior: zoom primeros 60 s del boot — servicios del sistema creados en ráfaga
+durante el arranque: `svchost.exe`, `spoolsv.exe`, `dns.exe`, etc.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(592,\,\texttt{diskjockey}) = \{g_0\},\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\, i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
