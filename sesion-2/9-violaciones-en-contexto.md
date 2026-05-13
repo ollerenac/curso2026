@@ -1559,3 +1559,55 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\, i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 992, `diskjockey.boombox.local`
+
+**PID 992 (padre) · `diskjockey.boombox.local` · 23 hijos**  
+`svchost.exe` — la instancia más activa del host: 1886 eventos k1, incluyendo EID=3 (red).
+
+PID 992 = `svchost.exe` — arranca antes que Sysmon (t_min = 05:04:18.848). g0 se
+recupera por k1, k3 y k4. Con 1886 eventos k1, es la instancia de `svchost.exe` más
+activa observada en `diskjockey`: aloja servicios con actividad de red propia (EID=3,
+30 conexiones), accesos a pipes (EID=17/18) y creación/borrado de archivos (EID=11/23).
+
+$$
+\mathcal{G}_1(992) = \{g_0\},\quad
+\mathcal{G}_3(992) = \{g_0\},\quad
+\mathcal{G}_4(992) = \{g_0\}
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `2d5a9c51-cee0-67da-1100-000000009000`.
+
+**23 hijos distribuidos a lo largo de toda la captura:**
+
+| Fase | $\Delta(t^*, t_{\min})$ | Hijos destacados |
+|------|--------------------------|-----------------|
+| Arranque | +0.4–11 s | `taskhostw.exe` (×2), `cmd.exe`, `dxgiadaptercache.exe`, `dsregcmd.exe`, `wermgr.exe` |
+| Mid-capture | +60–4459 s | `cmd.exe`, `WMIADAP.exe`, `sc.exe`, `dsregcmd.exe`, `MicrosoftEdgeUpdate.exe`, `taskhostw.exe`, `updater.exe`, `wsqmcons.exe`, `dsregcmd.exe` |
+| Cierre de sesión | ~+4058 s | `sihost.exe`, `updater.exe`, `taskhostw.exe` (×3), `MicrosoftEdgeUpdate.exe`, `ServerManagerLauncher.exe`, `explorer.exe` |
+
+**Nota:** `dsregcmd.exe` aparece 3 veces (~+1s, ~+4:59, ~+1h:05m) — ejecución periódica del
+cliente de registro Azure AD (Device Registration). `explorer.exe` es lanzado al inicio
+del cierre de sesión interactivo.
+
+```{figure} img/ev_k2_992_timeline.png
+:name: ev-k2-992-timeline
+:width: 100%
+
+**k=2 · Padre PID 992 · `svchost.exe` (red/tareas) · `diskjockey` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: 1886 eventos k1 — EID=12/13 dominan (registry), EID=3 visible (red, navy).
+Los 23 centinelas cubren todo el ciclo de vida.
+Panel inferior: zoom primeros 15 s del arranque — 6 hijos en ráfaga inicial (+0.4–11 s).
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(992,\,\texttt{diskjockey}) = \{g_0\},\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\, i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
