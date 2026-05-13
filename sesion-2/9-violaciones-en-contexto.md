@@ -714,4 +714,91 @@ $$
 
 $g_0$ es el GUID correcto para el evento centinela.
 
+## Caso de estudio — Evento 30: PID 10964, `waterfalls.boombox.local`
+
+**Datos del evento centinela $e^*$:**
+
+| Campo | Valor |
+|-------|-------|
+| Fila CSV | 207839 |
+| EventID | 3 (NetworkConnect) |
+| `Image` | `<unknown process>` |
+| `SourcePort` | 62781 |
+| `DestinationIp` | 10.1.0.4 |
+| `DestinationPort` | 53 (DNS/UDP) |
+| `ts` ($t^*$) | 2025-03-19 07:35:12.340 UTC |
+
+**Resultado de $\mathcal{G}(10964,\, \texttt{waterfalls})$:**
+
+$$
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \emptyset, \quad
+\mathcal{G}_3 = \{g_0\}, \quad \mathcal{G}_4 = \emptyset
+\quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `3fc4fefd-584f-67da-9b01-000000004800` (`nslookup.exe`).
+
+**Ciclo de vida $\mathcal{L}(g_0)$:**
+
+$$
+\lvert\mathcal{L}(g_0)\rvert = 12 \text{ eventos}
+\quad (k_1 = 11,\; k_3 = 1)
+\quad \text{span} = 10\,\text{ms}
+$$
+
+| k-pair | EID | Cantidad | Interpretación |
+|--------|-----|----------|----------------|
+| k1 | 1 | 1 | EID=1 ProcessCreate ($t_{\min}$, +0 ms) |
+| k1 | 7 | 8 | DLLs cargadas con $g_0$ asignado |
+| k1 | 3 | 1 | EID=3 NetworkConnect con $g_0$ (+9 ms) |
+| k1 | 5 | 1 | EID=5 ProcessTerminate (+10 ms) |
+| k3 | 3 | 1 | EID=3 NetworkConnect del mismo PID vía k3 |
+
+El EID=3 con $g_0$ (fila 207838, SourcePort 62780) y el evento centinela
+(fila 207839, SourcePort 62781) representan **dos conexiones UDP separadas**
+al mismo servidor DNS: sockets distintos capturados en milisegundos consecutivos.
+
+**Verificación temporal:**
+
+$$
+t_{\min}(g_0) = \texttt{07:35:12.330} \qquad t^* = \texttt{07:35:12.340}
+\qquad t_{\max}(g_0) = \texttt{07:35:12.340}
+$$
+
+El evento centinela coincide con $t_{\max}(g_0)$ — ocurre simultáneamente con
+EID=5 (ProcessTerminate). Esto contrasta con todos los casos anteriores, donde
+$t^* \approx t_{\min}(g_0)$.
+
+```{figure} img/ev30_timeline.png
+:name: ev30-timeline
+:width: 100%
+
+**Evento 30 — TERM_RACE en `nslookup.exe` (PID 10964, `waterfalls`).**
+Panel superior: ciclo de vida completo de $g_0$ (span = 10 ms).
+Puntos azules (k1): eventos con $g_0$ asignado. Triángulo verde (k3): conexión EID=3 con $g_0$.
+Línea roja discontinua: centinela $t^*$ en $t_{\max}(g_0)$, coincidiendo con EID=5.
+Panel inferior (zoom 6–11 ms): ventana de la carrera; el driver de red captura
+la segunda conexión UDP (SourcePort 62781, $\emptyset$) mientras el proceso se destruye.
+```
+
+**Mecanismo: TERM_RACE**
+
+A diferencia de PRE_GUID_INIT (donde $t^* < t_{\min}(g_0)$), aquí el GUID se
+pierde al *final* del ciclo de vida: el driver de red registra la segunda conexión
+UDP mientras el contexto del proceso está siendo liberado por EID=5.
+
+**Aplicación de la regla de recuperación:**
+
+$$
+t_{\min}(g_0) \;\leq\; t^* \;\leq\; t_{\max}(g_0)
+\;\implies\; \texttt{REPLACE_GUID} \quad [\texttt{TERM\_RACE}]
+$$
+
+| Mecanismo | Posición de $t^*$ | Contexto del driver |
+|-----------|-------------------|---------------------|
+| PRE_GUID_INIT | $t^* \lesssim t_{\min}(g_0)$ | Driver carga imagen antes de asignar GUID |
+| TERM_RACE | $t^* \approx t_{\max}(g_0)$ | Driver de red registra conexión durante limpieza |
+
+La acción de corrección es la misma: $g_0$ es el GUID correcto para el evento centinela.
+
 ---
