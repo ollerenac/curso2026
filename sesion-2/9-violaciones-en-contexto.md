@@ -1807,3 +1807,55 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\,i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 1244, `endofroad.boombox.local`
+
+**PID 1244 (padre) · `endofroad.boombox.local` · 35 hijos**  
+`svchost.exe` — instancia más activa del dataset: 2321 eventos k1. Burst de 11 procesos a +360 s.
+
+PID 1244 = `svchost.exe` en `endofroad` — la instancia con mayor actividad k1 observada
+(2321 eventos: EID=12×1498, EID=13×437, EID=7×288, EID=3×26, EID=9×20, EID=11×36,
+EID=2×2, EID=23×8, EID=17×1, EID=18×5). g0 solo vía k1 (k3=∅, k4=∅).
+t_min = 05:04:03.618 — el más temprano registrado en `endofroad`.
+
+$$
+\mathcal{G}_1(1244_{\texttt{er}}) = \{g_0\},\quad
+\mathcal{G}_3(1244_{\texttt{er}}) = \emptyset,\quad
+\mathcal{G}_4(1244_{\texttt{er}}) = \emptyset
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `44d66c27-ced1-67da-1b00-000000007100`.
+
+**35 hijos en tres fases:**
+
+| Fase | $\Delta$ (s) | Hijos destacados |
+|------|-------------|-----------------|
+| Arranque | +0–11 | `taskhostw.exe`, `cmd.exe`, `dxgiadaptercache.exe`, `dsregcmd.exe`, `wermgr.exe` |
+| Login | +60–73 | `cmd.exe`, `sihost.exe`, `taskhostw.exe` (×3), `ServerManagerLauncher.exe`, `MicrosoftEdgeUpdate.exe`, `wermgr.exe`, `explorer.exe` |
+| Burst tareas | +360–371 | `firefox.exe`, `msfeedssync.exe`, `taskhostw.exe`, `sc.exe`, `MusNotification.exe`, `DeviceCensus.exe`, `wsqmcons.exe`, `CompatTelRunner.exe`, `OfficeC2RClient.exe` (×2), `MusNotifyIcon.exe` |
+
+El burst a +360 s agrupa 11 procesos en ~11 s — firma de una tarea programada
+(Task Scheduler, 6 min tras boot). `dsregcmd.exe` aparece 3 veces
+(+1.5 s, +131.2 s, +301.5 s) — registro periódico Azure AD.
+
+```{figure} img/ev_k2_er1244_timeline.png
+:name: ev-k2-er1244-timeline
+:width: 100%
+
+**k=2 · Padre PID 1244 · `svchost.exe` · `endofroad` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: 2321 eventos k1 (EID=12/13 dominan). Línea naranja en +360 s marca
+el burst de tareas programadas; `firefox.exe` (verde) destaca entre los centinelas.
+Panel inferior: zoom 0–420 s — login del usuario (+70 s) y burst (+360 s) visibles.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(1244,\,\texttt{endofroad}) = \{g_0\}\;(\text{vía k1}),\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\,i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
