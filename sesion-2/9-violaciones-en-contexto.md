@@ -1902,3 +1902,44 @@ t_{\min}(g_0) < t^* < t_{\max}(g_0)
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 1412, `theblock.boombox.local`
+
+**PID 1412 (padre) · `theblock.boombox.local` · 1 hijo**  
+`svchost.exe` — ciclo observado de solo 123 s (05:01:53–05:03:56); g0 vía k1+k3+k4.
+
+PID 1412 = `svchost.exe` en `theblock` — el span más corto entre todas las instancias
+de `svchost.exe` analizadas. g0 recuperado vía k1, k3 y k4 (76 eventos k1:
+EID=13×60, EID=12×15, EID=7×1); actividad dominada por accesos a registry.
+
+$$
+\mathcal{G}_1(1412) = \{g_0\},\quad
+\mathcal{G}_3(1412) = \{g_0\},\quad
+\mathcal{G}_4(1412) = \{g_0\}
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `4a85d404-ce4e-67da-1e00-000000005400`.
+
+1 hijo: `taskhostw.exe` (PID 8176, fila 14759) a $\Delta = +83.2\,\text{s}$,
+dentro del ciclo de vida observado.
+
+```{figure} img/ev_k2_tb1412_timeline.png
+:name: ev-k2-tb1412-timeline
+:width: 100%
+
+**k=2 · Padre PID 1412 · `svchost.exe` · `theblock` — `PARENT\_PREDATES\_SYSMON`.**
+Vista completa en segundos (span=123 s, k1+k3+k4). EID=13 (brown) domina.
+Único centinela `taskhostw.exe` a +83 s.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(1412,\,\texttt{theblock}) = \{g_0\}\;(\text{vía k1, k3, k4}),\quad
+t_{\min}(g_0) < t^* < t_{\max}(g_0)
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
