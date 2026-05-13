@@ -1437,6 +1437,17 @@ Los 3 hijos cubren extremos opuestos del ciclo de vida (~67 min):
 $t_{\min}(g_0) = $ 05:04:31.285 — idéntico al de PID 452 (`wininit.exe`):
 ambos procesos arrancan simultáneamente en el boot.
 
+```{figure} img/ev_k2_552_timeline.png
+:name: ev-k2-552-timeline
+:width: 100%
+
+**k=2 · Padre PID 552 · `winlogon.exe` · `diskjockey` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: 65 eventos, span ~67 min. Los centinelas 2 y 3 (`mpnotify.exe`,
+`userinit.exe`) se superponen en ~4044–4047 s; el centinela 1 (`fontdrvhost.exe`)
+queda en x ≈ 0. Panel inferior: zoom 50 ms — patrón idéntico al PID 452:
+EID=10 k3 en t_min, EID=1 centinela a +5 ms.
+```
+
 **Aplicación de la regla de recuperación:**
 
 $$
