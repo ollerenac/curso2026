@@ -1989,3 +1989,45 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\,i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 592, `waterfalls.boombox.local`
+
+**PID 592 (padre) · `waterfalls.boombox.local` · 2 hijos**  
+`winlogon.exe` — la instancia más silenciosa: solo 8 eventos k1. g0 vía k1+k3+k4.
+
+PID 592 = `winlogon.exe` en `waterfalls` — arranca antes que Sysmon
+(t_min = 05:05:12.475). g0 recuperado vía k1, k3 y k4; con solo 8 eventos k1
+(EID=7×3, EID=13×3, EID=12×1, EID=18×1) es la instancia más silenciosa del análisis.
+
+$$
+\mathcal{G}_1(592_{\texttt{wf}}) = \{g_0\},\quad
+\mathcal{G}_3(592_{\texttt{wf}}) = \{g_0\},\quad
+\mathcal{G}_4(592_{\texttt{wf}}) = \{g_0\}
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `3fc4fefd-cf0d-67da-0a00-000000004800`.
+
+2 hijos a lo largo del ciclo de vida (~58 min):
+- `LaunchTM.exe` ($\Delta = +220.3\,\text{s}$) — mismo proceso no estándar observado en `theblock` PID 656; coincidencia entre hosts sugiere que es software del entorno simulado.
+- `LogonUI.exe` ($\Delta = +1738.7\,\text{s}$, ~29 min) — interfaz de logon de Windows; indica bloqueo/re-autenticación de sesión.
+
+```{figure} img/ev_k2_wf592_timeline.png
+:name: ev-k2-wf592-timeline
+:width: 100%
+
+**k=2 · Padre PID 592 · `winlogon.exe` · `waterfalls` — `PARENT\_PREDATES\_SYSMON`.**
+Vista completa en segundos (span=3518 s, k1+k3+k4). Solo 8 eventos k1.
+`LaunchTM.exe` (crimson) a +220 s; `LogonUI.exe` (navy) a +1739 s.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(592,\,\texttt{waterfalls}) = \{g_0\}\;(\text{vía k1, k3, k4}),\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
