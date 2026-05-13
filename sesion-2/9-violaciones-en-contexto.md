@@ -773,7 +773,7 @@ $t^* \approx t_{\min}(g_0)$.
 :name: ev30-timeline
 :width: 100%
 
-**Evento 30 — TERM_RACE en `nslookup.exe` (PID 10964, `waterfalls`).**
+**Evento 30 — POST_GUID_TERMINATE en `nslookup.exe` (PID 10964, `waterfalls`).**
 Panel superior: ciclo de vida completo de $g_0$ (span = 10 ms).
 Puntos azules (k1): eventos con $g_0$ asignado. Triángulo verde (k3): conexión EID=3 con $g_0$.
 Línea roja discontinua: centinela $t^*$ en $t_{\max}(g_0)$, coincidiendo con EID=5.
@@ -781,7 +781,7 @@ Panel inferior (zoom 6–11 ms): ventana de la carrera; el driver de red captura
 la segunda conexión UDP (SourcePort 62781, $\emptyset$) mientras el proceso se destruye.
 ```
 
-**Mecanismo: TERM_RACE**
+**Mecanismo: POST_GUID_TERMINATE**
 
 A diferencia de PRE_GUID_INIT (donde $t^* \lesssim t_{\min}(g_0)$), aquí el GUID se
 pierde al *final* del ciclo de vida. `nslookup.exe` es el *iniciador* de las
@@ -808,7 +808,7 @@ $$
 | Mecanismo | Posición de $t^*$ | Contexto del driver |
 |-----------|-------------------|---------------------|
 | PRE_GUID_INIT | $t^* \lesssim t_{\min}(g_0)$ | Driver carga imagen antes de asignar GUID |
-| TERM_RACE | $t^* \approx t_{\max}(g_0)$ | Driver de red registra conexión durante limpieza |
+| POST_GUID_TERMINATE | $t^* \approx t_{\max}(g_0)$ | Driver de red registra conexión durante limpieza |
 
 $g_0$ es el GUID correcto para el evento centinela.
 
