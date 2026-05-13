@@ -245,9 +245,14 @@ La figura siguiente muestra esta situación:
 :width: 100%
 
 **Evento 04 — brecha pre-GUID de 2 ms.**
-Panel superior: ciclo de vida completo de $g_0$ (30 eventos, span = 462 ms).
-La línea roja discontinua marca $t^*$; los puntos azules son los eventos con GUID real.
-Panel inferior: zoom sobre la brecha — $t^*$ ocurre 2 ms antes de $t_{\min}(g_0)$.
+Panel superior: ciclo de vida completo de $g_0$ (30 eventos totales, span = 462 ms).
+Por claridad visual solo se aprecian algunos puntos azules — la mayoría de los 30 eventos
+están agrupados en los primeros 170 ms y se solapan en el scatter.
+La línea verde marca el EID=1 (ProcessCreate), que coincide con $t_{\min}(g_0)$;
+la línea naranja marca el EID=5 (ProcessTerminate), que coincide con $t_{\max}(g_0)$.
+La línea roja discontinua es el evento centinela $t^*$, 2 ms antes del ProcessCreate.
+Panel inferior: zoom sobre la brecha — $t^*$ ocurre antes incluso de que Sysmon
+registrara la creación del proceso.
 ```
 
 **Interpretación:** Sysmon capturó el evento de red (EID=3) cuando el proceso
