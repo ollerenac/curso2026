@@ -783,15 +783,26 @@ la segunda conexión UDP (SourcePort 62781, $\emptyset$) mientras el proceso se 
 
 **Mecanismo: TERM_RACE**
 
-A diferencia de PRE_GUID_INIT (donde $t^* < t_{\min}(g_0)$), aquí el GUID se
-pierde al *final* del ciclo de vida: el driver de red registra la segunda conexión
-UDP mientras el contexto del proceso está siendo liberado por EID=5.
+A diferencia de PRE_GUID_INIT (donde $t^* \lesssim t_{\min}(g_0)$), aquí el GUID se
+pierde al *final* del ciclo de vida. `nslookup.exe` es el *iniciador* de las
+conexiones UDP (IP origen 10.1.0.6 = `waterfalls`): los dos EID=3 son
+consecuencia directa del proceso ejecutando sus consultas DNS, no eventos
+capturados por azar. El GUID se pierde en el segundo socket porque el contexto
+del proceso estaba siendo liberado simultáneamente.
+
+**Robustez de la recuperación:**
+
+$g_0 \in \mathcal{G}(p,c)$ proviene principalmente de $k_1$ (EID=1, EID=7, EID=5).
+El primer EID=3 con $g_0$ (fila 207838) es redundante para la recuperación:
+incluso sin él, $|\mathcal{G}| = 1$ y el algoritmo asigna $g_0$ al centinela.
+La condición $|\mathcal{G}| = 1$ garantiza la recuperación independientemente
+de qué k-pairs específicos contribuyen al conjunto.
 
 **Aplicación de la regla de recuperación:**
 
 $$
 t_{\min}(g_0) \;\leq\; t^* \;\leq\; t_{\max}(g_0)
-\;\implies\; \texttt{REPLACE_GUID} \quad [\texttt{TERM\_RACE}]
+\;\implies\; \texttt{REPLACE\_GUID} \quad [\texttt{TERM\_RACE}]
 $$
 
 | Mecanismo | Posición de $t^*$ | Contexto del driver |
@@ -799,6 +810,6 @@ $$
 | PRE_GUID_INIT | $t^* \lesssim t_{\min}(g_0)$ | Driver carga imagen antes de asignar GUID |
 | TERM_RACE | $t^* \approx t_{\max}(g_0)$ | Driver de red registra conexión durante limpieza |
 
-La acción de corrección es la misma: $g_0$ es el GUID correcto para el evento centinela.
+$g_0$ es el GUID correcto para el evento centinela.
 
 ---
