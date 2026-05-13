@@ -127,8 +127,8 @@ centinela del resultado para que no "recuperemos" un evento centinela con otro c
 El cardinal $|\mathcal{G}(p,c)|$ — el número de GUIDs reales distintos observados
 para el proceso $(p,c)$ — determina la acción de corrección:
 
-| $|\mathcal{G}(p,c)|$ | Interpretación | Acción |
-|----------------------|----------------|--------|
+| Cardinalidad $\lvert\mathcal{G}(p,c)\rvert$ | Interpretación | Acción |
+|----------------------------------------------|----------------|--------|
 | $= 1$ | $\mathcal{G}(p,c) = \{g_0\}$: un único GUID real observado | `REPLACE_GUID`: asignar $g_0$ al evento centinela |
 | $> 1$ | Múltiples GUIDs reales: probable **reuso de PID** entre instancias distintas del mismo número de proceso | `REVIEW`: ordenar por tiempo y desambiguar manualmente |
 | $= 0$ | Ningún GUID real en ningún k-pair: el proceso nunca tuvo visibilidad real de Sysmon | `BOOT_ARTIFACT`: excluir de cadenas causales |
