@@ -976,4 +976,77 @@ $$
 
 $g_0$ es el GUID correcto para ambos eventos centinela.
 
+## Caso de estudio — Evento 34: PID 4020, `diskjockey.boombox.local`
+
+**Datos del evento centinela $e^*$:**
+
+| Campo | Valor |
+|-------|-------|
+| Fila CSV | 305809 |
+| EventID | 7 (ImageLoad) |
+| `Image` | `C:\Windows\System32\wsqmcons.exe` |
+| `ImageLoaded` | `C:\Windows\System32\ktmw32.dll` |
+| `ts` ($t^*$) | 2025-03-19 06:00:01.816 UTC |
+
+**Resultado de $\mathcal{G}(4020,\, \texttt{diskjockey})$:**
+
+$$
+\mathcal{G}_1 = \{g_0\}, \quad \mathcal{G}_2 = \emptyset, \quad
+\mathcal{G}_3 = \emptyset, \quad \mathcal{G}_4 = \{g_0\}
+\quad \Rightarrow \quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `2d5a9c51-5d61-67da-7600-000000009000` (`wsqmcons.exe`).
+
+**Ciclo de vida $\mathcal{L}(g_0)$:**
+
+$$
+\lvert\mathcal{L}(g_0)\rvert = 15 \text{ eventos}
+\quad (k_1 = 13,\; k_4 = 2)
+\quad \text{span} = 2\,\text{ms}
+$$
+
+| k-pair | EID | Cantidad | Interpretación |
+|--------|-----|----------|----------------|
+| k1 | 7 | 11 | DLLs cargadas (incluyendo centinela en $t_{\min}$) |
+| k1 | 5 | 1 | EID=5 ProcessTerminate (en $t_{\min}$, artefacto ETW) |
+| k1 | 1 | 1 | EID=1 ProcessCreate (+2 ms, artefacto ETW) |
+| k4 | 10 | 2 | Accesos externos al proceso |
+
+**Verificación temporal:**
+
+$$
+t_{\min}(g_0) = \texttt{06:00:01.816} \qquad t^* = \texttt{06:00:01.816}
+\qquad t_{\max}(g_0) = \texttt{06:00:01.818}
+$$
+
+Gap = **0 ms**. El EID=1 aparece a +2 ms — mismo artefacto ETW que en
+Evento 25 (`sc.exe`): proceso creado y terminado casi instantáneamente,
+con EID=1 y EID=5 bufferizados en orden inverso al real.
+
+```{figure} img/ev34_timeline.png
+:name: ev34-timeline
+:width: 100%
+
+**Evento 34 — PRE_GUID_INIT en `wsqmcons.exe` (PID 4020, `diskjockey`).**
+Panel superior: ciclo de vida de $g_0$ (15 eventos, span = 2 ms).
+Puntos azules (k1): proceso activo. Triángulos naranja (k4): accesos EID=10.
+Línea roja discontinua: centinela $t^*$ en $t_{\min}(g_0)$ (gap = 0 ms).
+Línea verde: EID=1 a +2 ms. Línea rojo oscuro: EID=5 en $t_{\min}$ (artefacto ETW).
+Panel inferior (zoom): brecha gap = 0 ms, EID=1 visible a +2 ms.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+t^* \approx t_{\min}(g_0) \quad (\delta = 0\,\text{ms})
+\;\implies\; \texttt{REPLACE\_GUID} \quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+**Este es el último caso REPLACE_GUID con $|\mathcal{G}|=1$.**
+Todos los casos analizados confirman PRE_GUID_INIT como el mecanismo
+dominante de pérdida de GUID en EID=7 (ImageLoad).
+
+$g_0$ es el GUID correcto para el evento centinela.
+
 ---
