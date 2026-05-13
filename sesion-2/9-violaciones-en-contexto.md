@@ -1611,3 +1611,49 @@ t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\, i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 232, `endofroad.boombox.local`
+
+**PID 232 (padre) · `endofroad.boombox.local` · 1 hijo**  
+`svchost.exe` — g0 recuperado exclusivamente vía k1 (k3=∅, k4=∅).
+
+PID 232 = `svchost.exe` en `endofroad` — arranca antes que el driver de Sysmon
+(t_min = 05:04:03.652). A diferencia de las instancias de `diskjockey`, **g0 se
+recupera únicamente vía k1**: ningún evento EID∈{8,10} referencia este proceso
+como origen o destino.
+
+$$
+\mathcal{G}_1(232) = \{g_0\},\quad
+\mathcal{G}_3(232) = \emptyset,\quad
+\mathcal{G}_4(232) = \emptyset
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `44d66c27-ced1-67da-1400-000000007100`.
+
+128 eventos k1 (EID=7×51, EID=9×26, EID=11×2, EID=12×42, EID=13×4, EID=23×3).
+La presencia de **EID=9** (RawAccessRead, 26 eventos) distingue esta instancia:
+aloja un servicio con acceso directo al dispositivo de almacenamiento.
+
+1 hijo: `ctfmon.exe` (CTF Monitor — framework de texto e entrada) a $\Delta = +71.3\,\text{s}$.
+
+```{figure} img/ev_k2_232_timeline.png
+:name: ev-k2-232-timeline
+:width: 100%
+
+**k=2 · Padre PID 232 · `svchost.exe` · `endofroad` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: 128 eventos k1 (solo k-pair k1; sin k3 ni k4). EID=9 (gold) visible
+a lo largo del ciclo de vida. Panel inferior: zoom primeros 120 s — único centinela
+`ctfmon.exe` a +71.3 s.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(232,\,\texttt{endofroad}) = \{g_0\}\;(\text{vía k1}),\quad
+t_{\min}(g_0) < t^* < t_{\max}(g_0)
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
