@@ -2231,3 +2231,60 @@ t^*_i > t_{\min}(g_0)\;\forall\,i
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 2$ — Padre PID 712, `theblock.boombox.local` *(REVIEW)*
+
+**PID 712 (padre) · `theblock.boombox.local` · 48 hijos**  
+`services.exe` — |G|=2 resuelto como reutilización de PID: dos instancias sucesivas,
+ciclos de vida sin solapamiento, asignación unívoca. REPLACE\_GUID × 2.
+
+PID 712 = `services.exe` en `theblock` — el mismo número de proceso fue asignado a dos
+instancias distintas de `services.exe` que corrieron secuencialmente, separadas por un
+GAP de ~232 s. El mecanismo subyacente en ambas es `PARENT_PREDATES_SYSMON`.
+
+**Ciclos de vida observados** (unión de todos los k-pares para PID 712):
+
+| GUID | $t_{\min}$ | $t_{\max}$ | span | k1 / k3 / k4 |
+|------|-----------|-----------|------|---------------|
+| `ce4d` | 05:01:52 | 05:04:07 | 134.6 s | 0 / 33 / 13 |
+| `cf08` | 05:07:59 | 06:04:58 | 3418.8 s | 83 / 143 / 59 |
+| **GAP** | 05:04:07 | 05:07:59 | ~232 s | — |
+
+$$
+\mathcal{G}(712,\,\texttt{theblock}) = \{g_{\texttt{ce4d}},\; g_{\texttt{cf08}}\},\quad
+\lvert\mathcal{G}\rvert = 2
+$$
+
+- **`ce4d`** — k1=∅; identidad confirmada por `SourceImage=services.exe` en k3.
+  En 43 s lanza 11 hijos (`svchost.exe` ×7, `MicrosoftEdgeUpdate`, `SgrmBroker`,
+  `sppsvc`, `uhssvc`) — ráfaga de arranque del sistema.
+
+- **`cf08`** — k1=83 ev. (EID=12×65, EID=13×18); ciclo de ~57 min.
+  37 hijos a lo largo de la captura: `svchost.exe`, `TrustedInstaller.exe`,
+  `updater.exe`, `sppsvc.exe`, `msiexec.exe`, `SecurityHealthService.exe`, etc.
+
+Como los ciclos de vida no se solapan y ningún centinela cae en el GAP, la
+asignación de cada uno de los 48 centinelas es unívoca:
+
+```{figure} img/ev_k2_tb712_timeline.png
+:name: ev-k2-tb712-timeline
+:width: 100%
+
+**k=2 · Padre PID 712 · `services.exe` · `theblock` — `PARENT\_PREDATES\_SYSMON` ×2 (PID reuse).**
+Panel superior: barras de ciclo de vida `ce4d` (azul, 134.6 s) y `cf08` (naranja, 3418.8 s)
+separadas por un GAP de ~232 s (zona roja). Centinelas coloreados por GUID asignado.
+Panel inferior: zoom sobre `ce4d` — 11 hijos en ráfaga de 43 s al arranque.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\texttt{ParentProcessGuid} \leftarrow
+\begin{cases}
+g_{\texttt{ce4d}} & \text{11 filas, } t^* \in [05{:}01{:}52,\;05{:}04{:}07] \\
+g_{\texttt{cf08}} & \text{37 filas, } t^* \in [05{:}07{:}59,\;06{:}04{:}58]
+\end{cases}
+\quad [\texttt{PARENT\_PREDATES\_SYSMON} \times 2]
+$$
+
+---
