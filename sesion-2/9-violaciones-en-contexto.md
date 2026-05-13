@@ -1752,3 +1752,58 @@ $$
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 724, `endofroad.boombox.local`
+
+**PID 724 (padre) · `endofroad.boombox.local` · 38 hijos**  
+`svchost.exe` (WMI) — 20 instancias de `WmiPrvSE.exe` en patrón periódico cada ~600 s.
+
+PID 724 = `svchost.exe` en `endofroad` — arranca antes que Sysmon (t_min = 05:04:03.731).
+g0 recuperado únicamente vía k1 (k3=∅, k4=∅), 242 eventos k1
+(EID=13×123, EID=12×78, EID=7×41). Todos los 38 centinelas tienen $t^* \geq t_{\min}(g_0)$.
+
+$$
+\mathcal{G}_1(724_{\texttt{er}}) = \{g_0\},\quad
+\mathcal{G}_3(724_{\texttt{er}}) = \emptyset,\quad
+\mathcal{G}_4(724_{\texttt{er}}) = \emptyset
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `44d66c27-ced1-67da-0d00-000000007100`.
+
+**38 hijos — distribución:** `WmiPrvSE.exe` (×20), `dllhost.exe` (×7),
+`RuntimeBroker.exe` (×3), `backgroundTaskHost.exe` (×2) y 6 procesos singulares:
+`unsecapp.exe`, `ShellExperienceHost.exe`, `SearchUI.exe`, `mobsync.exe`,
+`TiWorker.exe` (Windows Update), `SDXHelper.exe` (Office).
+
+**Patrón periódico — `WmiPrvSE.exe` (×20):**  
+20 instancias en grupos de 2–3 lanzadas cada ~600 s:
+
+| Grupo | $\Delta$ (s) | Instancias |
+|-------|-------------|-----------|
+| Boot | +3.6 | 1 |
+| Login | +79–83 | 3 |
+| Periódico | +679, +1279, +1879, +2479, +3079 | 2–3 cada grupo |
+
+Patrón coherente con consultas WMI programadas, probablemente del agente Elastic.
+
+```{figure} img/ev_k2_er724_timeline.png
+:name: ev-k2-er724-timeline
+:width: 100%
+
+**k=2 · Padre PID 724 · `svchost.exe` (WMI) · `endofroad` — `PARENT\_PREDATES\_SYSMON`.**
+Panel superior: los centinelas `WmiPrvSE.exe` (naranja) forman columnas periódicas
+cada ~600 s (líneas plateadas). Panel inferior: zoom primeros 130 s — arranque WMI
+y despliegue de shell de usuario (ShellExperience, SearchUI, RuntimeBroker).
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(724,\,\texttt{endofroad}) = \{g_0\}\;(\text{vía k1}),\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)\;\forall\,i
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
