@@ -164,16 +164,43 @@ $$
 el centinela cae dentro del ciclo de vida conocido de $g_0$, lo que constituye
 evidencia fuerte (aunque no concluyente) de que la asignación es correcta.
 
-Si en cambio $t^* > t_{\max}(g_0)$, el evento centinela ocurre **después** del último
-evento conocido de $g_0$, señal de posible reuso de PID aun cuando $\lvert\mathcal{G}\rvert = 1$,
-y la acción recomendada pasa a `REVIEW`.
+Si $t^* > t_{\max}(g_0)$, el evento centinela ocurre **después** del último evento
+conocido de $g_0$ — señal de posible reuso de PID — y la acción pasa a `REVIEW`.
 
-La regla completa para el caso $\lvert\mathcal{G}\rvert = 1$ queda entonces:
+La investigación empírica sobre `run-01-apt-1` reveló un tercer caso no contemplado
+en la formulación inicial: $t^* < t_{\min}(g_0)$. En el evento 04 (PID 2968,
+`endofroad.boombox.local`), $t^*$ ocurre **2 ms antes** de $t_{\min}(g_0)$.
+Esto no es reuso de PID sino el artefacto opuesto: Sysmon capturó el evento
+antes de tener el GUID del proceso disponible, y 2 ms después comenzó a registrar
+eventos con el GUID real. El centinela es un evento "pre-GUID" del mismo proceso.
+
+Introducimos una tolerancia $\delta > 0$ (a calibrar sobre más ejemplos) para
+absorber este tipo de artefacto. La regla completa para el caso $\lvert\mathcal{G}\rvert = 1$ es:
 
 $$
 \text{acción}(e^*, g_0) =
 \begin{cases}
-\texttt{REPLACE\_GUID} & \text{si } t_{\min}(g_0) \leq t^* \leq t_{\max}(g_0) \\
-\texttt{REVIEW}        & \text{si } t^* > t_{\max}(g_0)
+\texttt{REPLACE\_GUID} & \text{si } t_{\min}(g_0) - \delta \;\leq\; t^* \;\leq\; t_{\max}(g_0) \\
+\texttt{REVIEW}        & \text{si } t^* < t_{\min}(g_0) - \delta \quad \text{(brecha grande: posible proceso anterior)} \\
+\texttt{REVIEW}        & \text{si } t^* > t_{\max}(g_0) \quad \text{(después del ciclo de vida: posible reuso de PID)}
 \end{cases}
 $$
+
+El valor de $\delta$ es un parámetro empírico. El evento 04 sugiere $\delta \geq 2\,\text{ms}$;
+los demás casos del dataset fijarán su cota superior.
+
+---
+
+## Resultados empíricos — `run-01-apt-1`, k=1 (36 eventos)
+
+| $\lvert\mathcal{G}(p,c)\rvert$ | Eventos | Acción preliminar |
+|--------------------------------|---------|-------------------|
+| $= 1$ | 28 | `REPLACE_GUID` (sujeto a verificación temporal) |
+| $> 1$ | 8 | `REVIEW` |
+| $= 0$ | 0 | `BOOT_ARTIFACT` |
+
+El Enfoque B (unión de los cuatro k-pairs) encuentra candidato de GUID para los
+**36 de 36 eventos** centinela k=1. El Enfoque A (solo k=1) encontraba candidato
+para 2 de 36 (6 %). La búsqueda cruzada por k-pairs es esencial.
+
+El análisis caso por caso avanza en el notebook `9_enfoque_B.ipynb`.
