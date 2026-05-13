@@ -1657,3 +1657,46 @@ t_{\min}(g_0) < t^* < t_{\max}(g_0)
 $$
 
 ---
+
+## Caso $\lvert\mathcal{G}\rvert = 1$ — Padre PID 552, `endofroad.boombox.local`
+
+**PID 552 (padre) · `endofroad.boombox.local` · 2 hijos**  
+`winlogon.exe` — ciclo de vida muy corto (34.6 s); g0 solo vía k1 (k3=∅, k4=∅).
+
+PID 552 = `winlogon.exe` en `endofroad` — proceso de inicio de sesión de Windows.
+A diferencia del `winlogon.exe` de `diskjockey` (span ~67 min), este tiene un ciclo
+observado de solo **34.6 s** con 27 eventos k1 (EID=7×3, EID=12×12, EID=13×12):
+actividad de registry pura, sin red ni accesos a dispositivo.
+
+$$
+\mathcal{G}_1(552_{\texttt{er}}) = \{g_0\},\quad
+\mathcal{G}_3(552_{\texttt{er}}) = \emptyset,\quad
+\mathcal{G}_4(552_{\texttt{er}}) = \emptyset
+\quad\Rightarrow\quad \lvert\mathcal{G}\rvert = 1
+$$
+
+donde $g_0 =$ `44d66c27-ced0-67da-0a00-000000007100`.
+
+2 hijos en los primeros 5 s: `mpnotify.exe` (+0.1 s — notificación de logon)
+y `userinit.exe` (+4.6 s — inicialización del entorno de usuario).
+
+```{figure} img/ev_k2_er552_timeline.png
+:name: ev-k2-er552-timeline
+:width: 100%
+
+**k=2 · Padre PID 552 · `winlogon.exe` · `endofroad` — `PARENT\_PREDATES\_SYSMON`.**
+Vista única en ms (span=34.6 s). Solo k1 (k3=∅, k4=∅). EID=12/13 (registry) dominan.
+Los dos centinelas (`mpnotify.exe` a +0.1 s, `userinit.exe` a +4.6 s) aparecen
+al inicio del ciclo observado.
+```
+
+**Aplicación de la regla de recuperación:**
+
+$$
+\mathcal{G}(552,\,\texttt{endofroad}) = \{g_0\}\;(\text{vía k1}),\quad
+t_{\min}(g_0) < t^*_i < t_{\max}(g_0)
+\;\implies\; \texttt{ParentProcessGuid} \leftarrow g_0 \quad
+[\texttt{PARENT\_PREDATES\_SYSMON}]
+$$
+
+---
