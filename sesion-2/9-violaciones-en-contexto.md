@@ -2571,3 +2571,95 @@ $$
 $$
 
 ---
+
+## Resumen — Invariante 1: Violaciones y Correcciones
+
+### Definición de Violación Tipo 1
+
+Una **violación tipo 1** ocurre cuando una columna GUID que debería identificar
+de forma única a un proceso contiene el valor nulo canónico
+$\texttt{NULL\_GUID} = \texttt{00000000-0000-0000-0000-000000000000}$.
+
+La Invariante 1 establece que, para cada *k-pair* $(\text{GUID\_col},\, \text{PID\_col})$,
+el campo GUID debe contener siempre un identificador válido y no nulo.
+Los cuatro k-pairs definidos son:
+
+| $k$ | Columna GUID violada | Columna PID | EIDs donde aplica |
+|-----|----------------------|-------------|-------------------|
+| 1 | `ProcessGuid` | `ProcessId` | ∉ {8, 10} |
+| 2 | `ParentProcessGuid` | `ParentProcessId` | = 1 |
+| 3 | `SourceProcessGUID` | `SourceProcessId` | ∈ {8, 10} |
+| 4 | `TargetProcessGUID` | `TargetProcessId` | ∈ {8, 10} |
+
+### Tabla de resultados por k-pair
+
+| $k$ | Centinelas | PIDs únicos | REPLACE\_GUID | REVIEW |
+|-----|:---:|:---:|:---:|:---:|
+| 1 | 36 | 14 | 9 | 5 |
+| 2 | 500 | 24 | 19 | 5 |
+| 3 | 0 | 0 | — | — |
+| 4 | 4 | 2 | 2 | 0 |
+| **∑** | **540** | **40** | **30** | **10** |
+
+### Metodología: conjunto $\mathcal{G}(p, c)$
+
+Para cada PID violador $p$ en host $c$, se calcula el **conjunto de GUIDs válidos**
+como la unión de todos los GUIDs no nulos que aparecen para ese PID en cualquiera
+de los cuatro k-pairs:
+
+$$
+\mathcal{G}(p, c) =
+G_1 \cup G_2 \cup G_3 \cup G_4
+\quad \setminus \{\texttt{NULL\_GUID}\}
+$$
+
+El tamaño de $\mathcal{G}$ determina la regla de corrección:
+
+$$
+|\mathcal{G}| = 1 \implies \textbf{REPLACE\_GUID}
+\quad (g_0 = \text{list}(\mathcal{G})[0],\text{ asignación determinística})
+$$
+
+$$
+|\mathcal{G}| > 1 \implies \textbf{REVIEW}
+\quad \text{(reutilización de PID: asignación por ventana temporal)}
+$$
+
+En el caso **REVIEW**, cada GUID $g \in \mathcal{G}$ tiene una ventana de actividad
+$[t_{\min}(g),\, t_{\max}(g)]$ calculada sobre todos los k-pairs.
+Cada centinela $t^*$ se asigna al GUID cuya ventana lo contiene:
+
+$$
+\texttt{GUID\_col}(t^*) \leftarrow g
+\quad \text{tal que} \quad
+t_{\min}(g) \leq t^* \leq t_{\max}(g)
+$$
+
+### Mecanismos causales identificados
+
+**`PARENT_PREDATES_SYSMON`** — El proceso (k=1) o su padre (k=2) arrancó antes de que
+el driver de Sysmon estuviera activo. El GUID nunca fue asignado porque el EID=1 de
+creación no fue capturado. Es el mecanismo dominante: presente en todos los casos k=2
+(500 centinelas) y en la mayoría de k=1.
+
+**`PRE_GUID_INIT`** — El evento llega durante la ventana de creación del proceso, antes
+de que Sysmon procese el EID=1 y asigne el GUID. Carrera de condición entre dos
+callbacks del driver:
+
+$$
+\underbrace{\texttt{ObRegisterCallbacks}}_{\text{EID=10/8, GUID aún no existe}}
+\;\xrightarrow{+5\text{–}7\,\text{ms}}\;
+\underbrace{\texttt{PsSetCreateProcessNotifyRoutineEx}}_{\text{EID=1, GUID asignado}}
+$$
+
+Presente en k=4 (4 centinelas) y en algunos k=1 con brecha = 0 ms.
+
+### Casos analizados
+
+| k | Mecanismo | REPLACE\_GUID | REVIEW | PIDs |
+|---|-----------|:---:|:---:|:---:|
+| 1 | `PARENT_PREDATES_SYSMON` / `PRE_GUID_INIT` | 9 | 5 | 14 ✓ |
+| 2 | `PARENT_PREDATES_SYSMON` (± PID reuse) | 19 | 5 | 24 ✓ |
+| 3 | — (0 violaciones) | — | — | 0 ✓ |
+| 4 | `PRE_GUID_INIT` | 2 | 0 | 2 ✓ |
+| **∑** | | **30** | **10** | **40 ✓** |
