@@ -2487,3 +2487,53 @@ g_{\texttt{cf0d}} & \text{44 filas, } t^* \in [05{:}05{:}06,\;06{:}06{:}00]
 $$
 
 ---
+
+## k=4 — Violaciones `TargetProcessGUID` (EID ∈ {8,10})
+
+En las violaciones k=4, la columna afectada es `TargetProcessGUID` —el proceso *receptor*
+de un acceso EID=10 (Process Access) o EID=8 (CreateRemoteThread).
+A diferencia de k=3 (0 violaciones), aquí encontramos **4 filas** concentradas en un único host:
+`diskjockey.boombox.local`.
+
+El mecanismo no es `PARENT_PREDATES_SYSMON` —los procesos destino sí arrancaron con Sysmon
+activo— sino **`PRE_GUID_INIT`**: el evento de acceso se generó durante la ventana de creación
+del proceso, antes de que Sysmon registrase el EID=1 y asignase el GUID.
+
+### `diskjockey` · `taskhostw.exe` (PID 1592) y `wermgr.exe` (PID 2036)
+
+| PID | Imagen | $t^*$ (EID=10 NULL) | $t_{\min}$ EID=1 | Brecha | $\|G\|$ | $g_0$ |
+|-----|--------|---------------------|------------------|--------|---------|-------|
+| 1592 | `taskhostw.exe` | 05:04:19.207 | 05:04:19.212 | **+5 ms** | 1 | `5053` |
+| 2036 | `wermgr.exe` | 05:04:20.644 | 05:04:20.651 | **+7 ms** | 1 | `5054` |
+
+Dos procesos destino distintos, accedidos por los mismos dos procesos fuente
+(`cede` — origen pre-Sysmon, `cee0` — `svchost.exe` PID 992) en instantes consecutivos.
+En ambos casos el EID=10 precede en 5–7 ms al EID=1, evidenciando que el `OpenProcess()`
+del kernel se ejecuta durante los primeros milisegundos de vida del proceso destino,
+antes de que el driver de Sysmon haya completado el registro.
+
+```{figure} img/ev_k4_dj_timeline.png
+:name: ev-k4-dj-timeline
+:width: 100%
+
+**k=4 · `diskjockey` — `PRE_GUID_INIT`.**
+Cada panel muestra un proceso destino cuyo EID=10 centinela (línea roja discontinua)
+precede en 5–7 ms al EID=1 (línea verde punteada).
+Los puntos romos a la derecha del EID=1 son EID=10 con `TargetProcessGUID` ya asignado.
+La brecha anotada es la distancia temporal entre el acceso y la creación registrada.
+```
+
+**Aplicación de la regla de recuperación:**
+
+Dado que $|G|=1$ en ambos casos:
+
+$$
+\texttt{TargetProcessGuid} \leftarrow
+\begin{cases}
+g_{\texttt{5053}} & \text{2 filas, PID 1592 (taskhostw.exe)} \\
+g_{\texttt{5054}} & \text{2 filas, PID 2036 (wermgr.exe)}
+\end{cases}
+\quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+---
