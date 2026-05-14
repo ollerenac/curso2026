@@ -2501,40 +2501,67 @@ del proceso, antes de que Sysmon registrase el EID=1 y asignase el GUID.
 
 ### `diskjockey` · `taskhostw.exe` (PID 1592) y `wermgr.exe` (PID 2036)
 
-#### Verificación cruzada — `TargetImage` como ancla de identidad
+#### Sucesión cronológica completa
 
-La brecha temporal de 5–7 ms es evidencia necesaria pero no suficiente en aislamiento.
-El campo `TargetImage` en los EID=10 centinelas proporciona la verificación independiente:
-el driver captura el nombre del ejecutable del proceso destino en el momento del
-`OpenProcess()`, **antes de que el GUID haya sido asignado**.
+La tabla siguiente muestra **todos** los eventos de PID 1592 (`taskhostw.exe`) en orden
+cronológico, incluyendo los centinelas, el EID=1 y los accesos posteriores ya con GUID asignado:
 
-| PID | `TargetImage` (EID=10 centinela) | `Image` (k1 EID=1) | Coincidencia | $\|G\|$ | $g_0$ |
-|-----|----------------------------------|---------------------|--------------|---------|-------|
-| 1592 | `taskhostw.exe` | `taskhostw.exe` | ✓ | 1 | `5053` |
-| 2036 | `wermgr.exe` | `wermgr.exe` | ✓ | 1 | `5054` |
+| Timestamp | EID | `TargetGUID` / `ProcessGuid` | Rol | Fuente |
+|-----------|-----|-------------------------------|-----|--------|
+| 05:04:19.207 | 10 | `NULL` | k4-SENTINEL | `csrss.exe` |
+| 05:04:19.207 | 10 | `NULL` | k4-SENTINEL | `svchost.exe` |
+| **05:04:19.212** | **1** | **`5053`** | **k1 — GUID asignado** | — |
+| 05:04:19.238–.988 | 7 | `5053` | k1 (image loads) | — |
+| 05:04:19.660 | 10 | `5053` | k4-válido | `svchost.exe` |
+| 05:04:19.988 | 5 | `5053` | k1 — proceso termina | — |
 
-Las tres evidencias juntas establecen la identidad sin ambigüedad:
+La misma estructura aplica a PID 2036: `NULL → NULL → EID=1(5054) → EID=10(5054) → EID=5`.
+
+#### Las cuatro evidencias encadenadas
+
+La brecha de 5–7 ms es una **consecuencia** del mecanismo, no la evidencia principal.
+El argumento de asignación descansa en cuatro pilares independientes:
+
+**1. Mismo PID** — `TargetProcessId=1592` en el sentinel y `ProcessId=1592` en el EID=1.
+Condición necesaria pero no suficiente (el PID podría haber sido reutilizado).
+
+**2. `TargetImage` independiente** — el campo `TargetImage` del EID=10 es capturado por
+el driver directamente de la tabla de procesos del kernel, *antes* de que exista el GUID.
+`TargetImage=taskhostw.exe` en el sentinel = `Image=taskhostw.exe` en el EID=1.
+Son dos rutas de acceso al nombre del proceso completamente independientes.
+
+**3. Continuidad del GUID** — los EID=10 posteriores sobre el mismo PID 1592 ya muestran
+`TargetProcessGUID=5053`. La transición `NULL → 5053` ocurre exactamente en EID=1.
+El sentinel NULL y los accesos `5053` son el mismo proceso, observado antes y después
+del instante en que Sysmon procesó su creación.
+
+**4. $|G|=1$** — solo un GUID fue asignado a PID 1592 en toda la captura.
+Descarta reutilización de PID: no puede haber ambigüedad sobre cuál proceso es el destino.
+
+#### Por qué ocurre la brecha — carrera de condición en el driver
+
+Sysmon registra dos callbacks de kernel para eventos de proceso y acceso:
 
 $$
-\text{PID} = \text{PID} \;\land\; \texttt{TargetImage} = \texttt{Image}_{k1} \;\land\; |G|=1
-\implies \texttt{TargetProcessGuid} \leftarrow g_0
+\underbrace{\texttt{ObRegisterCallbacks}}_{\text{EID=10, GUID no existe aún}}
+\;\xrightarrow{+5\text{–}7\,\text{ms}}\;
+\underbrace{\texttt{PsSetCreateProcessNotifyRoutineEx}}_{\text{EID=1, GUID asignado}}
 $$
+
+`csrss.exe` y `svchost.exe` llaman a `OpenProcess()` sobre el proceso recién creado
+durante su fase de inicialización, disparando `ObRegisterCallbacks` *antes* de que el
+driver haya procesado `PsSetCreateProcessNotifyRoutineEx`. La brecha mide la
+**ventana de la carrera de condición** entre ambos callbacks, no la proximidad entre
+dos procesos distintos.
 
 **Procesos fuente:** `csrss.exe` (PID 376, GUID `cede`) y `svchost.exe` (PID 992, GUID `cee0`).
-`csrss.exe` (Client/Server Runtime Subsystem) gestiona la creación de procesos a nivel de kernel;
-su presencia en EID=10 durante el nacimiento de un proceso es comportamiento normal del sistema.
-El GUID `cede` no aparece en eventos k1 (EID∉{8,10}) porque `csrss.exe` (PID 376) arrancó
-antes de que Sysmon estuviese activo — **`PARENT_PREDATES_SYSMON`** en el proceso fuente.
+El GUID `cede` no aparece en eventos k1 porque `csrss.exe` arrancó antes de Sysmon
+— `PARENT_PREDATES_SYSMON` en el lado fuente.
 
-#### Mecanismo `PRE_GUID_INIT`
-
-| PID | $t^*$ (EID=10) | $t_{\text{EID=1}}$ | Brecha |
-|-----|---------------|---------------------|--------|
-| 1592 | 05:04:19.207 | 05:04:19.212 | **+5 ms** |
-| 2036 | 05:04:20.644 | 05:04:20.651 | **+7 ms** |
-
-El `OpenProcess()` se ejecuta durante los primeros milisegundos de vida del proceso destino,
-antes de que el driver de Sysmon haya escrito el EID=1 y asignado el GUID.
+| PID | `TargetImage` (EID=10) | `Image` (k1 EID=1) | Coinc. | $\|G\|$ | $g_0$ | Brecha |
+|-----|------------------------|---------------------|--------|---------|-------|--------|
+| 1592 | `taskhostw.exe` | `taskhostw.exe` | ✓ | 1 | `5053` | +5 ms |
+| 2036 | `wermgr.exe` | `wermgr.exe` | ✓ | 1 | `5054` | +7 ms |
 
 ```{figure} img/ev_k4_dj_timeline.png
 :name: ev-k4-dj-timeline
