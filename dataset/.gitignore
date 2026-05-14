@@ -2,3 +2,6 @@
 *.jsonl
 *.jsonl.gz
 *.csv
+
+# Derived analysis files small enough for git
+!run-01-apt-1/04_sysmon-run-01-violations.csv
