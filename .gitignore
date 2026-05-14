@@ -33,3 +33,6 @@ Thumbs.db
 CLAUDE.md
 .claude/
 PROMPT.md
+
+# Exploratory notebooks no longer in active development
+sesion-2/deprecated/

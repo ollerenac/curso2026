@@ -21,6 +21,7 @@ parts:
           - file: sesion-2/7-preprocesamiento-sysmon
           - file: sesion-2/8-analisis-calidad-csv
           - file: sesion-2/9-violaciones-en-contexto
+          - file: sesion-2/9b-patrones-correccion
           - file: sesion-2/10-limpieza-sysmon
           - file: sesion-2/11-preprocesamiento-netflow
 

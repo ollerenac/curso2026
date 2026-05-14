@@ -13,7 +13,8 @@
 
 7. [Preprocesamiento Sysmon: De JSONL a CSV](7-preprocesamiento-sysmon.md) (60 min) — Script 2 del pipeline
 8. [Análisis de Calidad del CSV](8-analisis-calidad-csv.md) (60 min) — Notebook 2c
-9. [Violaciones en Contexto: Anatomía y Corrección](9-violaciones-en-contexto.md) (45 min) — Análisis profundo + implementación parcial
+9. [Violaciones en Contexto: Anatomía y Corrección](9-violaciones-en-contexto.md) (45 min) — Análisis caso-por-caso de los 40 PIDs violadores
+9b. [Patrones de Corrección Consolidados](9b-patrones-correccion.md) (30 min) — Síntesis de reglas para `4_sysmon_data_cleaner.py`
 10. [Limpieza de Datos Sysmon](10-limpieza-sysmon.md) (30 min) — Script 10 del pipeline
 11. [Preprocesamiento NetFlow: De JSONL a CSV](11-preprocesamiento-netflow.md) (30 min) — Script 3 del pipeline
 
