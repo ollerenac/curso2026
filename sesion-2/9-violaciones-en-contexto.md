@@ -2572,6 +2572,104 @@ $$
 
 ---
 
+## Análisis consolidado — PRE_GUID_INIT con $|\mathcal{G}|=1$
+
+Hemos identificado **11 casos** en los que el mecanismo causal es `PRE_GUID_INIT`
+y además $|\mathcal{G}|=1$, lo que los convierte en candidatos directos a **REPLACE\_GUID**
+de forma determinística.
+
+Estos casos provienen de dos k-pairs:
+- **k=1** (9 PIDs): el evento centinela es EID=7 (carga de imagen) o EID=3 (conexión de red),
+  que disparan sus callbacks del driver *antes* de que Sysmon procese el EID=1 de creación.
+- **k=4** (2 PIDs): el evento centinela es EID=10 (acceso a proceso),
+  capturado por `ObRegisterCallbacks` *antes* de `PsSetCreateProcessNotifyRoutineEx`.
+
+En todos estos casos, el EID=1 **sí existe** en la captura —
+lo que confirma que el proceso fue creado dentro del período de monitoreo de Sysmon.
+La ausencia de GUID en el centinela es una condición transitoria de la carrera de
+inicialización, no una limitación estructural de la captura.
+
+### Tabla unificada
+
+| k | PID | Host | Image | n\_sent | n<EID1 | EIDs | gap\_min (ms) | gap\_max (ms) |
+|---|-----|------|-------|:-------:|:------:|------|:---:|:---:|
+| 1 | 1972 | diskjockey | taskhostw.exe | 19 | 19 | [7] | −1 | −1 |
+| 1 | 2968 | endofroad | conhost.exe | 1 | 1 | [7] | −2 | −2 |
+| 1 | 3088 | diskjockey | cmd.exe | 1 | 1 | [7] | −3 | −3 |
+| 1 | 3684 | diskjockey | sc.exe | 1 | 1 | [7] | −2 | −2 |
+| 1 | 4020 | diskjockey | wsqmcons.exe | 1 | 1 | [7] | −2 | −2 |
+| 1 | 8404 | theblock | conhost.exe | 1 | 1 | [7] | −8 | −8 |
+| 1 | 10096 | theblock | curl.exe | 1 | 1 | [3] | −85 | −85 |
+| 1 | 10964 | waterfalls | nslookup.exe | 1 | 0 | [3] | +10 | +10 |
+| 1 | 15048 | waterfalls | nslookup.exe | 2 | 2 | [3] | −31 | −30 |
+| 4 | 1592 | diskjockey | taskhostw.exe | 2 | 2 | [10] | −5 | −5 |
+| 4 | 2036 | diskjockey | wermgr.exe | 2 | 2 | [10] | −7 | −7 |
+
+*Convención de signo: gap = t\*(centinela) − t(EID=1).
+Negativo → centinela disparado **antes** de que Sysmon procese EID=1 (carrera clásica).
+Positivo → centinela disparado después de EID=1 (outlier: brecha de estado interno).*
+
+### Observaciones
+
+**1. Brecha temporal acotada.**
+El rango completo de gaps es $[-85, +10]$ ms — la ventana de carrera de
+inicialización de Sysmon es siempre inferior a 100 ms.
+El único caso positivo (PID 10964, EID=3, $+10$ ms) puede deberse a que
+la conexión de red se estableció justo después de la creación del proceso,
+pero antes de que Sysmon propagara el GUID al manejador de red;
+$|\mathcal{G}|=1$ se mantiene en cualquier caso.
+
+**2. EID de centinela por k-pair.**
+
+| k | EID centinela | Callback del driver |
+|---|---------------|---------------------|
+| 1 | EID=7 (image load) | `PsSetLoadImageNotifyRoutine` |
+| 1 | EID=3 (network connection) | `FltRegisterFilter` / WFP callout |
+| 4 | EID=10 (process access) | `ObRegisterCallbacks` |
+
+Todos estos callbacks pueden dispararse antes de que `PsSetCreateProcessNotifyRoutineEx`
+haya procesado el EID=1 y almacenado el GUID en la tabla interna de Sysmon.
+
+**3. EID=1 siempre presente.**
+En los 11 casos, el EID=1 existe en la captura.
+Esto es lo que diferencia `PRE_GUID_INIT` de `PARENT_PREDATES_SYSMON`:
+no se trata de un proceso que arrancase antes de Sysmon,
+sino de un proceso cuya ventana de inicialización fue capturada con GUID nulo
+por culpa de la carrera entre callbacks.
+
+**4. $|\mathcal{G}|=1$ garantizado.**
+En los 11 casos, el conjunto $\mathcal{G}(p,c)$ tiene exactamente un elemento.
+La corrección es por tanto **determinística** sin necesidad de heurística temporal.
+
+### Regla de corrección — `REPLACE_GUID · PRE_GUID_INIT`
+
+Para cualquier centinela $t^*$ con $\texttt{GUID\_col} = \texttt{NULL\_GUID}$
+asociado a $(p, c)$ con $|\mathcal{G}(p,c)| = 1$:
+
+$$
+\texttt{GUID\_col}(t^*) \leftarrow g_0 = \text{list}(\mathcal{G}(p,c))[0]
+$$
+
+La corrección es **idéntica** a la de `PARENT_PREDATES_SYSMON`;
+la distinción entre mecanismos es puramente explicativa y no afecta al algoritmo.
+
+En pseudocódigo:
+
+```python
+# Aplica a k=1 y k=4 cuando |G(p,c)|=1
+if len(G) == 1:
+    g0 = list(G)[0]
+    mask = (df['Computer']==comp) & (df['ProcessId']==pid) & (df[GUID_col]==NULL_GUID)
+    df.loc[mask, GUID_col] = g0
+```
+
+Los 11 casos se traducen en la corrección de **32 centinelas**
+(19 de PID 1972 + 13 distribuidos entre los 10 PIDs restantes)
+con asignación determinística y verificable a través del campo `Image`
+(k=1: `Image` en EID=1; k=4: `TargetImage` en EID=10).
+
+---
+
 ## Resumen — Invariante 1: Violaciones y Correcciones
 
 ### Definición de Violación Tipo 1
@@ -2663,3 +2761,17 @@ Presente en k=4 (4 centinelas) y en algunos k=1 con brecha = 0 ms.
 | 3 | — (0 violaciones) | — | — | 0 ✓ |
 | 4 | `PRE_GUID_INIT` | 2 | 0 | 2 ✓ |
 | **∑** | | **30** | **10** | **40 ✓** |
+
+---
+
+## Actividad práctica
+
+Aplica el mismo análisis sobre `run-02-apt-1`, un dataset de la misma campaña con
+características distintas (nuevas violaciones k=3, un caso `BOOT_ARTIFACT`).
+
+```{admonition} Notebook de actividad
+:class: tip
+Abre [`9_actividad_run02.ipynb`](9_actividad_run02.ipynb) y sigue las instrucciones
+de cada celda. El objetivo es replicar el análisis de esta sección sobre datos nuevos
+y contrastar los patrones observados.
+```
