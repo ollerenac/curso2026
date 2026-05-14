@@ -2499,12 +2499,7 @@ El mecanismo no es `PARENT_PREDATES_SYSMON` —los procesos destino sí arrancar
 activo— sino **`PRE_GUID_INIT`**: el evento de acceso se generó durante la ventana de creación
 del proceso, antes de que Sysmon registrase el EID=1 y asignase el GUID.
 
-### `diskjockey` · `taskhostw.exe` (PID 1592) y `wermgr.exe` (PID 2036)
-
-#### Sucesión cronológica completa
-
-La tabla siguiente muestra **todos** los eventos de PID 1592 (`taskhostw.exe`) en orden
-cronológico, incluyendo los centinelas, el EID=1 y los accesos posteriores ya con GUID asignado:
+### PID 1592 — `taskhostw.exe` · `diskjockey`
 
 | Timestamp | EID | `TargetGUID` / `ProcessGuid` | Rol | Fuente |
 |-----------|-----|-------------------------------|-----|--------|
@@ -2515,74 +2510,64 @@ cronológico, incluyendo los centinelas, el EID=1 y los accesos posteriores ya c
 | 05:04:19.660 | 10 | `5053` | k4-válido | `svchost.exe` |
 | 05:04:19.988 | 5 | `5053` | k1 — proceso termina | — |
 
-La misma estructura aplica a PID 2036: `NULL → NULL → EID=1(5054) → EID=10(5054) → EID=5`.
+`csrss.exe` (PID 376) y `svchost.exe` (PID 992) ejecutan `OpenProcess()` sobre el proceso
+durante su inicialización, disparando el callback `ObRegisterCallbacks` de Sysmon antes de
+que `PsSetCreateProcessNotifyRoutineEx` haya registrado la creación. Resultado: 2 EID=10
+con `TargetProcessGUID=NULL` a pesar de que el proceso sí existe dentro de la captura.
 
-#### Las cuatro evidencias encadenadas
+| Campo | EID=10 sentinel | k1 EID=1 | Coincide |
+|-------|-----------------|----------|---------|
+| ProcessId | 1592 | 1592 | ✓ |
+| Image / TargetImage | `taskhostw.exe` | `taskhostw.exe` | ✓ |
+| ProcessGuid | `NULL` | `5053` | — |
 
-La brecha de 5–7 ms es una **consecuencia** del mecanismo, no la evidencia principal.
-El argumento de asignación descansa en cuatro pilares independientes:
-
-**1. Mismo PID** — `TargetProcessId=1592` en el sentinel y `ProcessId=1592` en el EID=1.
-Condición necesaria pero no suficiente (el PID podría haber sido reutilizado).
-
-**2. `TargetImage` independiente** — el campo `TargetImage` del EID=10 es capturado por
-el driver directamente de la tabla de procesos del kernel, *antes* de que exista el GUID.
-`TargetImage=taskhostw.exe` en el sentinel = `Image=taskhostw.exe` en el EID=1.
-Son dos rutas de acceso al nombre del proceso completamente independientes.
-
-**3. Continuidad del GUID** — los EID=10 posteriores sobre el mismo PID 1592 ya muestran
-`TargetProcessGUID=5053`. La transición `NULL → 5053` ocurre exactamente en EID=1.
-El sentinel NULL y los accesos `5053` son el mismo proceso, observado antes y después
-del instante en que Sysmon procesó su creación.
-
-**4. $|G|=1$** — solo un GUID fue asignado a PID 1592 en toda la captura.
-Descarta reutilización de PID: no puede haber ambigüedad sobre cuál proceso es el destino.
-
-#### Por qué ocurre la brecha — carrera de condición en el driver
-
-Sysmon registra dos callbacks de kernel para eventos de proceso y acceso:
-
-$$
-\underbrace{\texttt{ObRegisterCallbacks}}_{\text{EID=10, GUID no existe aún}}
-\;\xrightarrow{+5\text{–}7\,\text{ms}}\;
-\underbrace{\texttt{PsSetCreateProcessNotifyRoutineEx}}_{\text{EID=1, GUID asignado}}
-$$
-
-`csrss.exe` y `svchost.exe` llaman a `OpenProcess()` sobre el proceso recién creado
-durante su fase de inicialización, disparando `ObRegisterCallbacks` *antes* de que el
-driver haya procesado `PsSetCreateProcessNotifyRoutineEx`. La brecha mide la
-**ventana de la carrera de condición** entre ambos callbacks, no la proximidad entre
-dos procesos distintos.
-
-**Procesos fuente:** `csrss.exe` (PID 376, GUID `cede`) y `svchost.exe` (PID 992, GUID `cee0`).
-El GUID `cede` no aparece en eventos k1 porque `csrss.exe` arrancó antes de Sysmon
-— `PARENT_PREDATES_SYSMON` en el lado fuente.
-
-| PID | `TargetImage` (EID=10) | `Image` (k1 EID=1) | Coinc. | $\|G\|$ | $g_0$ | Brecha |
-|-----|------------------------|---------------------|--------|---------|-------|--------|
-| 1592 | `taskhostw.exe` | `taskhostw.exe` | ✓ | 1 | `5053` | +5 ms |
-| 2036 | `wermgr.exe` | `wermgr.exe` | ✓ | 1 | `5054` | +7 ms |
-
-```{figure} img/ev_k4_dj_timeline.png
-:name: ev-k4-dj-timeline
+```{figure} img/ev_k4_dj1592_timeline.png
+:name: ev-k4-dj1592-timeline
 :width: 100%
 
-**k=4 · `diskjockey` — `PRE_GUID_INIT`.**
-Cada panel muestra un proceso destino cuyo EID=10 centinela (línea roja discontinua)
-precede en 5–7 ms al EID=1 (línea verde punteada); la brecha anotada cuantifica la ventana
-`PRE_GUID_INIT`. Los rombos a la derecha del EID=1 son EID=10 con `TargetProcessGUID` ya asignado.
-El título de cada panel confirma la verificación cruzada por `TargetImage`.
+**k=4 · PID 1592 · `taskhostw.exe` · `diskjockey` — `PRE_GUID_INIT` (+5 ms).**
+Las líneas rojas discontinuas son los 2 centinelas EID=10 (fuentes: `csrss.exe` y `svchost.exe`);
+la línea verde punteada es el EID=1 donde Sysmon asigna `g₀=5053`.
+Los rombos a la derecha son EID=10 posteriores ya con GUID correcto.
 ```
 
-**Aplicación de la regla de recuperación:**
+$$
+\texttt{TargetProcessGuid} \leftarrow g_{\texttt{5053}}
+\quad \text{2 filas} \quad [\texttt{PRE\_GUID\_INIT}]
+$$
+
+---
+
+### PID 2036 — `wermgr.exe` · `diskjockey`
+
+| Timestamp | EID | `TargetGUID` / `ProcessGuid` | Rol | Fuente |
+|-----------|-----|-------------------------------|-----|--------|
+| 05:04:20.644 | 10 | `NULL` | k4-SENTINEL | `svchost.exe` |
+| 05:04:20.644 | 10 | `NULL` | k4-SENTINEL | `csrss.exe` |
+| **05:04:20.651** | **1** | **`5054`** | **k1 — GUID asignado** | — |
+| 05:04:20.661–.675 | 7,11 | `5054` | k1 | — |
+| 05:04:20.675 | 10 | `5054` | k4-válido | `lsass.exe`, `svchost.exe` |
+| 05:04:20.675 | 5 | `5054` | k1 — proceso termina | — |
+
+Mismo mecanismo que PID 1592. La brecha es de +7 ms.
+
+| Campo | EID=10 sentinel | k1 EID=1 | Coincide |
+|-------|-----------------|----------|---------|
+| ProcessId | 2036 | 2036 | ✓ |
+| Image / TargetImage | `wermgr.exe` | `wermgr.exe` | ✓ |
+| ProcessGuid | `NULL` | `5054` | — |
+
+```{figure} img/ev_k4_dj2036_timeline.png
+:name: ev-k4-dj2036-timeline
+:width: 100%
+
+**k=4 · PID 2036 · `wermgr.exe` · `diskjockey` — `PRE_GUID_INIT` (+7 ms).**
+Mismo patrón que PID 1592. Proceso de vida muy corta (~31 ms total desde EID=1 a EID=5).
+```
 
 $$
-\texttt{TargetProcessGuid} \leftarrow
-\begin{cases}
-g_{\texttt{5053}} & \text{2 filas, PID 1592 (taskhostw.exe)} \\
-g_{\texttt{5054}} & \text{2 filas, PID 2036 (wermgr.exe)}
-\end{cases}
-\quad [\texttt{PRE\_GUID\_INIT}]
+\texttt{TargetProcessGuid} \leftarrow g_{\texttt{5054}}
+\quad \text{2 filas} \quad [\texttt{PRE\_GUID\_INIT}]
 $$
 
 ---
